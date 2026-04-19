@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from './supabase';
+
 
 /**
  * Coach-side mockup v4 — Sappir Barak.
@@ -122,19 +124,80 @@ const WORKOUT_LIBRARY = [
 /* ========== MAIN APP ========== */
 
 export default function App() {
-  const [clients, setClients] = useState(INITIAL_CLIENTS);
-  const [tab, setTab] = useState('dashboard'); // dashboard | clients | meals | workouts | settings
-  const [subView, setSubView] = useState(null); // null | clientProfile | macro | macroPicker | message | newClient
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [coachProfile, setCoachProfile] = useState(null);
+  const [tab, setTab] = useState('dashboard');
+  const [subView, setSubView] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [toast, setToast] = useState(null);
+
+  // טען נתונים מ-Supabase
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const loadAll = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // טען פרופיל מאמנת
+    const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
+    if (coaches?.[0]) setCoachProfile(coaches[0]);
+
+    // טען לקוחות
+    const { data: clientsData } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('coach_id', user.id)
+      .order('full_name');
+
+    if (clientsData) {
+      setClients(clientsData.map(c => ({
+        id: c.id, name: c.full_name, email: c.email || '',
+        weight: c.current_weight || c.start_weight || 0,
+        target: c.target_weight || 0, streak: c.streak || 0,
+        startWeight: c.start_weight || 0, height: c.height_cm || 0,
+        age: Math.floor((new Date() - new Date(c.birth_date)) / 31557600000) || 30,
+        sex: c.sex || 'female', activity: c.activity_level || 'moderate',
+        goal: c.goal || 'lose',
+        savedGoals: c.daily_calorie_goal ? {
+          kcal: c.daily_calorie_goal, carbG: c.daily_carb_goal,
+          proteinG: c.daily_protein_goal, fatG: c.daily_fat_goal
+        } : null,
+        plan: 'מודרך', weekLog: Array(7).fill('none'),
+        loggedToday: false, lastLog: 0, status: 'on-track',
+        unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
+      })));
+    }
+    setLoading(false);
+  };
 
   const showToast = (text) => {
     setToast(text);
     setTimeout(() => setToast(null), 2000);
   };
 
-  const updateClient = (id, patch) => {
+  const updateClient = async (id, patch) => {
+    // עדכן ב-Supabase
+    const dbPatch = {};
+    if ('weight' in patch) dbPatch.current_weight = patch.weight;
+    if ('target' in patch) dbPatch.target_weight = patch.target;
+    if ('savedGoals' in patch && patch.savedGoals) {
+      dbPatch.daily_calorie_goal = patch.savedGoals.kcal;
+      dbPatch.daily_carb_goal = patch.savedGoals.carbG;
+      dbPatch.daily_protein_goal = patch.savedGoals.proteinG;
+      dbPatch.daily_fat_goal = patch.savedGoals.fatG;
+    }
+    if ('email' in patch) dbPatch.email = patch.email;
+    if ('name' in patch) dbPatch.full_name = patch.name;
+
+    if (Object.keys(dbPatch).length > 0) {
+      await supabase.from('clients').update(dbPatch).eq('id', id);
+    }
+
+    // עדכן בstate
     setClients((list) => list.map((c) => c.id === id ? { ...c, ...patch } : c));
     if (selectedClient?.id === id) setSelectedClient((s) => ({ ...s, ...patch }));
   };
@@ -148,6 +211,17 @@ export default function App() {
   const loggedToday = clients.filter((c) => c.loggedToday).length;
   const needsAttention = clients.filter((c) => c.status !== 'on-track');
   const activeCount = clients.filter((c) => c.status === 'on-track').length;
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/logo.png" alt="" style={{ width: 120, marginBottom: 16 }} />
+          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוענת לקוחות...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
@@ -171,7 +245,19 @@ export default function App() {
       {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => setSubView('message')} onEditGoals={() => setSubView('macro')} />}
       {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
       {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
-      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => { setMessageText(''); showToast('💚 הודעה נשלחה'); goBack(); }} />}
+      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={async () => { 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && messageText.trim()) {
+          await supabase.from('messages').insert({
+            from_id: user.id,
+            to_id: selectedClient.id,
+            content: messageText.trim(),
+          });
+        }
+        setMessageText(''); 
+        showToast('💚 הודעה נשלחה'); 
+        goBack(); 
+      }} />}
       {subView === 'newClient' && <NewClient onBack={goBack} onInvite={(name) => { showToast(`✉️ הזמנה ל${name}`); goBack(); }} />}
 
       {/* Tab content — only if no subView */}
