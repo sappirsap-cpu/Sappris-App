@@ -20,59 +20,70 @@ const S = {
 
 export default function App() {
   const [session, setSession]   = useState(undefined); // undefined = loading
-  const [userRole, setUserRole] = useState(null); // 'coach' | 'client' | null
+  const [userRole, setUserRole] = useState(undefined); // undefined = checking, null = not found, 'coach'/'client'
   const [screen, setScreen]     = useState('client'); // 'client' | 'coach'
 
   useEffect(() => {
-    // בדוק אם יש משתמש מחובר
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let mounted = true;
+
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
       setSession(session);
-      if (session) await detectRole(session.user.id);
+      if (session) {
+        await detectRole(session.user.id);
+      } else {
+        setUserRole(null);
+      }
+    };
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession);
+      if (newSession) {
+        setUserRole(undefined); // reset to "checking"
+        await detectRole(newSession.user.id);
+      } else {
+        setUserRole(null);
+      }
     });
 
-    // האזן לשינויים בכניסה/יציאה
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) await detectRole(session.user.id);
-      else setUserRole(null);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   const detectRole = async (userId) => {
-    // בדוק אם המשתמש הוא מאמנת
-    const { data: coaches } = await supabase
-      .from('coaches')
-      .select('id')
-      .eq('id', userId)
-      .limit(1);
+    try {
+      const { data: coaches, error: coachErr } = await supabase
+        .from('coaches').select('id').eq('id', userId).limit(1);
+      if (coachErr) console.error('coach check:', coachErr);
+      if (coaches && coaches.length > 0) { setUserRole('coach'); return; }
 
-    if (coaches && coaches.length > 0) { setUserRole('coach'); return; }
+      const { data: clients, error: clientErr } = await supabase
+        .from('clients').select('id').eq('id', userId).limit(1);
+      if (clientErr) console.error('client check:', clientErr);
+      if (clients && clients.length > 0) { setUserRole('client'); return; }
 
-    // בדוק אם המשתמש הוא לקוחה
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('id', userId)
-      .limit(1);
-
-    if (clients && clients.length > 0) { setUserRole('client'); return; }
-
-    setUserRole(null);
+      setUserRole(null);
+    } catch (e) {
+      console.error('detectRole failed:', e);
+      setUserRole(null);
+    }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setSession(null);
     setUserRole(null);
+    setScreen('client');
   };
 
-  // טוען
-  if (session === undefined) {
+  // טוען — גם בדיקת session וגם בדיקת תפקיד
+  if (session === undefined || (session && userRole === undefined)) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
         <div style={{ textAlign: 'center' }}>
-          <img src="/logo.png" alt="Sappir Barak" style={{ width: 100, marginBottom: 16 }} />
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: 180, marginBottom: 20 }} />
           <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוען...</p>
         </div>
       </div>
@@ -85,8 +96,8 @@ export default function App() {
     return <ClientLogin onCoachLogin={() => setScreen('coach')} />;
   }
 
-  // מחובר אבל תפקיד לא ידוע
-  if (!userRole) {
+  // מחובר אבל תפקיד לא ידוע (null = לא נמצא)
+  if (userRole === null) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, direction: 'rtl' }}>
         <div style={{ textAlign: 'center', padding: 20 }}>
