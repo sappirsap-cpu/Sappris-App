@@ -42,30 +42,29 @@ export default function App() {
 
   const detectRole = async (userId) => {
     // בדוק אם המשתמש הוא מאמנת
-    const { data: coach } = await supabase
+    const { data: coaches } = await supabase
       .from('coaches')
       .select('id')
       .eq('id', userId)
-      .single();
+      .limit(1);
 
-    if (coach) { setUserRole('coach'); return; }
+    if (coaches && coaches.length > 0) { setUserRole('coach'); return; }
 
     // בדוק אם המשתמש הוא לקוחה
-    const { data: client } = await supabase
+    const { data: clients } = await supabase
       .from('clients')
       .select('id')
       .eq('id', userId)
-      .single();
+      .limit(1);
 
-    if (client) { setUserRole('client'); return; }
+    if (clients && clients.length > 0) { setUserRole('client'); return; }
 
     setUserRole(null);
   };
 
-const handleLogout = async () => {
+  const handleLogout = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
-    setSession(null);
   };
 
   // טוען
