@@ -109,23 +109,24 @@ export default function App(){
     if (!user) return;
 
     // טען פרופיל לקוחה
-    const { data: clientData } = await supabase
+    const { data: clientsData } = await supabase
       .from('clients')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .limit(1);
+    const clientData = clientsData?.[0];
 
     if (clientData) setProfile(clientData);
 
     // טען תוכנית תזונה פעילה
-    const { data: planData } = await supabase
+    const { data: plansData } = await supabase
       .from('nutrition_plans')
       .select('*')
       .eq('client_id', user.id)
       .eq('active', true)
-      .single();
+      .limit(1);
 
-    if (planData) setPlan(planData);
+    if (plansData && plansData.length > 0) setPlan(plansData[0]);
 
     // טען ארוחות של היום
     const today = new Date().toISOString().slice(0,10);
@@ -181,12 +182,13 @@ export default function App(){
     }
 
     // טען תוכנית אימון פעילה
-    const { data: workoutPlan } = await supabase
+    const { data: workoutPlans } = await supabase
       .from('workout_plans')
       .select('*, workout_exercises(*)')
       .eq('client_id', user.id)
       .eq('active', true)
-      .single();
+      .limit(1);
+    const workoutPlan = workoutPlans?.[0];
 
     if (workoutPlan?.workout_exercises?.length) {
       setExs(workoutPlan.workout_exercises
