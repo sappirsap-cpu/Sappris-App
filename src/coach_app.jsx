@@ -1,0 +1,1031 @@
+import React, { useState, useMemo } from 'react';
+
+/**
+ * Coach-side mockup v4 — Sappir Barak.
+ *
+ * 5 improvements inspired by competitor analysis:
+ *   1. "Logged today" live counter in dashboard stats
+ *   2. Weekly heatmap per client (Sun–Sat colored boxes)
+ *   3. Meal library filtered by meal type (breakfast/lunch/dinner/snack) + AI create button
+ *   4. Workout library with summary cards (exercises count, days/week, total exercises)
+ *   5. Bottom navigation bar (כללי / לקוחות / מנות / אימונים / הגדרות)
+ */
+
+const COLORS = {
+  bg: '#F0F7F2',
+  primary: '#7BB892',
+  primaryDark: '#5A9A70',
+  primarySoft: '#D6EDDE',
+  accent: '#F4C2C2',
+  mint: '#A8D5BA',
+  mintSoft: '#D7EDE0',
+  peach: '#F5D0B5',
+  peachSoft: '#FBE8D7',
+  sky: '#9CC5B5',
+  skySoft: '#D4E8DF',
+  amber: '#E8C96A',
+  amberSoft: '#F5EECD',
+  red: '#E8A5A5',
+  redSoft: '#FADDDD',
+  text: '#2D3E33',
+  textMuted: '#6B8574',
+  border: '#D0E3D6',
+};
+
+const DAYS_HEB = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+
+const INITIAL_CLIENTS = [
+  {
+    id: 1, name: 'לירון כהן', weight: 68, target: 62, streak: 14, lastLog: 0, status: 'on-track', unread: 0, startWeight: 74,
+    height: 165, age: 34, sex: 'female', activity: 'moderate', goal: 'lose',
+    macroSplit: { carb: 50, protein: 25, fat: 25 },
+    savedGoals: { kcal: 1800, carbG: 225, proteinG: 113, fatG: 50 },
+    plan: 'מודרך',
+    weekLog: ['logged', 'logged', 'logged', 'logged', 'logged', 'partial', 'none'],
+    loggedToday: true,
+  },
+  {
+    id: 2, name: 'מיכל לוי', weight: 74, target: 68, streak: 7, lastLog: 1, status: 'on-track', unread: 2, startWeight: 79,
+    height: 170, age: 38, sex: 'female', activity: 'light', goal: 'lose',
+    macroSplit: { carb: 45, protein: 30, fat: 25 },
+    savedGoals: { kcal: 1750, carbG: 197, proteinG: 131, fatG: 49 },
+    plan: 'מודרך',
+    weekLog: ['logged', 'logged', 'missed', 'logged', 'logged', 'logged', 'none'],
+    loggedToday: true,
+  },
+  {
+    id: 3, name: 'יעל אברמוב', weight: 81, target: 72, streak: 0, lastLog: 4, status: 'at-risk', unread: 0, startWeight: 83,
+    height: 168, age: 42, sex: 'female', activity: 'sedentary', goal: 'lose',
+    macroSplit: { carb: 40, protein: 35, fat: 25 },
+    savedGoals: null,
+    plan: 'חופשי',
+    weekLog: ['missed', 'missed', 'missed', 'missed', 'none', 'none', 'none'],
+    loggedToday: false,
+  },
+  {
+    id: 4, name: 'נועה שפירא', weight: 65, target: 63, streak: 28, lastLog: 0, status: 'on-track', unread: 0, startWeight: 71,
+    height: 172, age: 29, sex: 'female', activity: 'very_active', goal: 'maintain',
+    macroSplit: { carb: 50, protein: 25, fat: 25 },
+    savedGoals: { kcal: 2100, carbG: 263, proteinG: 131, fatG: 58 },
+    plan: 'מודרך',
+    weekLog: ['logged', 'logged', 'logged', 'logged', 'logged', 'logged', 'none'],
+    loggedToday: true,
+  },
+  {
+    id: 5, name: 'רוני דהן', weight: 72, target: 65, streak: 0, lastLog: 6, status: 'inactive', unread: 1, startWeight: 75,
+    height: 163, age: 45, sex: 'female', activity: 'light', goal: 'lose',
+    macroSplit: { carb: 45, protein: 30, fat: 25 },
+    savedGoals: null,
+    plan: 'חופשי',
+    weekLog: ['missed', 'none', 'none', 'none', 'none', 'none', 'none'],
+    loggedToday: false,
+  },
+  {
+    id: 6, name: 'שירה בן-דוד', weight: 69, target: 64, streak: 3, lastLog: 0, status: 'on-track', unread: 0, startWeight: 73,
+    height: 167, age: 36, sex: 'female', activity: 'moderate', goal: 'lose',
+    macroSplit: { carb: 50, protein: 25, fat: 25 },
+    savedGoals: { kcal: 1850, carbG: 231, proteinG: 116, fatG: 51 },
+    plan: 'מודרך',
+    weekLog: ['logged', 'logged', 'logged', 'partial', 'none', 'none', 'none'],
+    loggedToday: false,
+  },
+];
+
+const MEAL_LIBRARY = [
+  { id: 'm1', type: 'breakfast', name: 'שיבולת שועל עם בננה ושקדים', desc: 'פחמימות איטיות, מצוין לפני אימון', cal: 320, p: 12, c: 52, f: 8 },
+  { id: 'm2', type: 'breakfast', name: 'יוגורט יווני עם גרנולה', desc: 'חלבון גבוה, קל ומשביע', cal: 280, p: 20, c: 30, f: 6 },
+  { id: 'm3', type: 'breakfast', name: 'טוסט אבוקדו עם 2 ביצים', desc: 'שומנים בריאים + חלבון', cal: 380, p: 18, c: 28, f: 20 },
+  { id: 'm4', type: 'breakfast', name: 'שייק חלבון', desc: 'סקופ אבקה, בננה, חלב שקדים', cal: 290, p: 28, c: 30, f: 5 },
+  { id: 'm5', type: 'breakfast', name: 'קוטג׳ עם ירקות', desc: 'קוטג׳ 5% עם מלפפון ועגבנייה', cal: 180, p: 15, c: 8, f: 7 },
+  { id: 'm6', type: 'lunch', name: 'חזה עוף עם אורז מלא', desc: 'ארוחה קלאסית לבניית שריר', cal: 520, p: 38, c: 55, f: 8 },
+  { id: 'm7', type: 'lunch', name: 'סלט קינואה עם טונה', desc: 'עשיר בחלבון ובסיבים', cal: 450, p: 32, c: 40, f: 12 },
+  { id: 'm8', type: 'lunch', name: 'סלמון עם בטטה', desc: 'אומגה 3 + פחמימות מורכבות', cal: 500, p: 30, c: 42, f: 18 },
+  { id: 'm9', type: 'lunch', name: 'שווארמה הודו בפיתה', desc: 'גבוה בחלבון, משביע', cal: 480, p: 35, c: 45, f: 14 },
+  { id: 'm10', type: 'lunch', name: 'קערת בודהא', desc: 'קינואה, חומוס, ירקות צלויים, טחינה', cal: 520, p: 18, c: 60, f: 20 },
+  { id: 'm11', type: 'dinner', name: 'סלט ירקות עם חזה עוף', desc: 'קל וטעים לארוחת ערב', cal: 350, p: 30, c: 15, f: 18 },
+  { id: 'm12', type: 'dinner', name: 'חביתת ירקות', desc: '3 ביצים עם פלפלים ופטריות', cal: 300, p: 22, c: 8, f: 20 },
+  { id: 'm13', type: 'dinner', name: 'דג מושט עם ירקות', desc: 'קל, מלא חלבון', cal: 280, p: 28, c: 12, f: 10 },
+  { id: 'm14', type: 'dinner', name: 'מרק עדשים', desc: 'חם, משביע, מלא סיבים', cal: 320, p: 18, c: 45, f: 4 },
+  { id: 'm15', type: 'snack', name: 'שקדים (30g)', desc: 'שומנים בריאים, קריספי', cal: 170, p: 6, c: 6, f: 15 },
+  { id: 'm16', type: 'snack', name: 'תפוח + חמאת בוטנים', desc: 'פחמ׳ + שומן — עוצר רעב', cal: 200, p: 5, c: 28, f: 9 },
+  { id: 'm17', type: 'snack', name: 'פרוטאין בר', desc: 'נוח, 20g חלבון', cal: 220, p: 20, c: 25, f: 6 },
+  { id: 'm18', type: 'snack', name: 'גזר + חומוס', desc: 'סיבים + חלבון צמחי', cal: 180, p: 8, c: 22, f: 7 },
+];
+
+const WORKOUT_LIBRARY = [
+  { id: 'w1', name: 'Upper/Lower Split', desc: 'בסיסי ויעיל — 4 ימים בשבוע', days: 4, sessions: 4, exercises: 18 },
+  { id: 'w2', name: 'גוף מלא 3x שבוע', desc: 'אימון גוף מלא לשלוש פעמים', days: 3, sessions: 3, exercises: 13 },
+  { id: 'w3', name: 'פלג גוף עליון', desc: 'התמקדות בחזה, גב וכתפיים', days: 2, sessions: 2, exercises: 10 },
+  { id: 'w4', name: 'רגליים וישבן', desc: 'סקוואט, היפ תראסט, לאנג׳', days: 2, sessions: 2, exercises: 8 },
+];
+
+/* ========== MAIN APP ========== */
+
+export default function App() {
+  const [clients, setClients] = useState(INITIAL_CLIENTS);
+  const [tab, setTab] = useState('dashboard'); // dashboard | clients | meals | workouts | settings
+  const [subView, setSubView] = useState(null); // null | clientProfile | macro | macroPicker | message | newClient
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [messageText, setMessageText] = useState('');
+  const [toast, setToast] = useState(null);
+
+  const showToast = (text) => {
+    setToast(text);
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const updateClient = (id, patch) => {
+    setClients((list) => list.map((c) => c.id === id ? { ...c, ...patch } : c));
+    if (selectedClient?.id === id) setSelectedClient((s) => ({ ...s, ...patch }));
+  };
+
+  const openClient = (c) => { setSelectedClient(c); setSubView('clientProfile'); };
+  const openMessage = (c) => { setSelectedClient(c); setSubView('message'); };
+  const openMacro = (c) => { setSelectedClient(c); setSubView('macro'); };
+  const goBack = () => { setSubView(null); setSelectedClient(null); };
+
+  // Stats
+  const loggedToday = clients.filter((c) => c.loggedToday).length;
+  const needsAttention = clients.filter((c) => c.status !== 'on-track');
+  const activeCount = clients.filter((c) => c.status === 'on-track').length;
+
+  return (
+    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
+
+      {/* Header */}
+      <header style={{ background: 'white', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${COLORS.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: '38px', height: '38px', objectFit: 'contain', borderRadius: '10px' }} />
+          <div>
+            <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: 0 }}>בוקר טוב,</p>
+            <h1 style={{ fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark, margin: 0 }}>ספיר 💚</h1>
+          </div>
+        </div>
+        <button onClick={() => showToast('🔔 3 התראות')} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
+          🔔
+          <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>3</span>
+        </button>
+      </header>
+
+      {/* Sub-views override tabs */}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => setSubView('message')} onEditGoals={() => setSubView('macro')} />}
+      {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
+      {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
+      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => { setMessageText(''); showToast('💚 הודעה נשלחה'); goBack(); }} />}
+      {subView === 'newClient' && <NewClient onBack={goBack} onInvite={(name) => { showToast(`✉️ הזמנה ל${name}`); goBack(); }} />}
+
+      {/* Tab content — only if no subView */}
+      {!subView && tab === 'dashboard' && (
+        <DashboardTab
+          clients={clients}
+          loggedToday={loggedToday}
+          activeCount={activeCount}
+          needsAttention={needsAttention}
+          onOpenClient={openClient}
+          onOpenMessage={openMessage}
+          onOpenMacro={() => setSubView('macroPicker')}
+          onNewClient={() => setSubView('newClient')}
+          showToast={showToast}
+        />
+      )}
+      {!subView && tab === 'clients' && (
+        <ClientsTab clients={clients} onOpenClient={openClient} onOpenMessage={openMessage} onNewClient={() => setSubView('newClient')} />
+      )}
+      {!subView && tab === 'meals' && <MealsTab showToast={showToast} />}
+      {!subView && tab === 'workouts' && <WorkoutsTab showToast={showToast} />}
+      {!subView && tab === 'settings' && <SettingsTab showToast={showToast} />}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: '84px', left: '50%', transform: 'translateX(-50%)', background: COLORS.text, color: 'white', padding: '10px 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, zIndex: 60, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>{toast}</div>
+      )}
+
+      {/* BOTTOM NAV — improvement #5 */}
+      <BottomNav tab={tab} setTab={(t) => { setTab(t); setSubView(null); setSelectedClient(null); }} />
+    </div>
+  );
+}
+
+/* ===================== BOTTOM NAV ===================== */
+function BottomNav({ tab, setTab }) {
+  const tabs = [
+    { id: 'dashboard', label: 'כללי', icon: '📊' },
+    { id: 'clients', label: 'לקוחות', icon: '👥' },
+    { id: 'meals', label: 'מנות', icon: '🍽️' },
+    { id: 'workouts', label: 'אימונים', icon: '💪' },
+    { id: 'settings', label: 'הגדרות', icon: '⚙️' },
+  ];
+  return (
+    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '6px 0 10px 0', zIndex: 25 }}>
+      {tabs.map((t) => (
+        <button key={t.id} onClick={() => setTab(t.id)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '6px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', minWidth: '56px' }}>
+          <span style={{ fontSize: '20px', filter: tab === t.id ? 'none' : 'grayscale(0.3) opacity(0.6)' }}>{t.icon}</span>
+          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : COLORS.textMuted, fontWeight: tab === t.id ? 700 : 500 }}>{t.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/* ===================== DASHBOARD TAB ===================== */
+function DashboardTab({ clients, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
+  const today = new Date();
+  const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <p style={{ fontSize: '13px', color: COLORS.textMuted, margin: 0, textAlign: 'right' }}>{dayStr}</p>
+
+      {/* IMPROVEMENT #1 — "logged today" stat */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        <StatCard value={activeCount} label="פעילים" color={COLORS.primaryDark} />
+        <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
+        <StatCard value={needsAttention.length} label="ממתינים" color={needsAttention.length > 0 ? COLORS.red : COLORS.textMuted} />
+      </div>
+
+      {/* Attention banner */}
+      {needsAttention.length > 0 && (
+        <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8B6914' }}>
+            ⚠️ {needsAttention.length} לקוחות לא רשמו היום
+          </span>
+          <span style={{ fontSize: '18px' }}>←</span>
+        </div>
+      )}
+
+      {/* Search */}
+      <input placeholder="🔍 חיפוש לקוח..." style={inputStyle} />
+
+      {/* Client filter chips */}
+      <ClientFilterChips clients={clients} />
+
+      {/* IMPROVEMENT #2 — Client cards with weekly heatmap */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {clients.map((c) => (
+          <ClientCardWithWeek key={c.id} client={c} onOpen={() => onOpenClient(c)} onMessage={() => onOpenMessage(c)} />
+        ))}
+      </div>
+    </main>
+  );
+}
+
+function ClientFilterChips({ clients }) {
+  const [filter, setFilter] = useState('all');
+  const filters = [
+    { id: 'all', label: `הכל ${clients.length}` },
+    { id: 'active', label: `פעילים ${clients.filter(c => c.status === 'on-track').length}` },
+    { id: 'attention', label: `ממתינים ${clients.filter(c => c.status !== 'on-track').length}` },
+  ];
+  return (
+    <div style={{ display: 'flex', gap: '6px' }}>
+      {filters.map((f) => (
+        <button key={f.id} onClick={() => setFilter(f.id)} style={{
+          background: filter === f.id ? COLORS.primary : 'white',
+          color: filter === f.id ? 'white' : COLORS.text,
+          border: `1px solid ${filter === f.id ? COLORS.primary : COLORS.border}`,
+          borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>{f.label}</button>
+      ))}
+    </div>
+  );
+}
+
+/* IMPROVEMENT #2 — Client card with weekly heatmap */
+function ClientCardWithWeek({ client, onOpen, onMessage }) {
+  const c = client;
+  const weekColors = {
+    logged: COLORS.primary,
+    partial: COLORS.amber,
+    missed: COLORS.red,
+    none: '#E8E8E8',
+  };
+
+  return (
+    <div onClick={onOpen} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+      {/* Top row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+        <div style={avatarStyle}>{c.name.charAt(0)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{c.name}</p>
+            {c.plan && <span style={{ background: COLORS.text, color: 'white', fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '999px' }}>{c.plan}</span>}
+            {c.unread > 0 && <span style={{ background: COLORS.red, color: 'white', fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '999px' }}>{c.unread}</span>}
+          </div>
+          <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+            {c.loggedToday ? '✅ רשמה היום' : `⏳ לפני ${c.lastLog} ימים`}
+            {c.savedGoals ? ` · ${c.savedGoals.kcal} / ` : ''}
+          </p>
+        </div>
+        <button onClick={(e) => { e.stopPropagation(); onMessage(); }} style={{ background: COLORS.primarySoft, border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit' }}>💬</button>
+      </div>
+
+      {/* Weekly heatmap — IMPROVEMENT #2 */}
+      <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
+        {c.weekLog.map((status, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+            <div style={{
+              width: '32px', height: '18px', borderRadius: '4px',
+              background: weekColors[status],
+              opacity: status === 'none' ? 0.4 : 1,
+            }} />
+            <span style={{ fontSize: '9px', color: COLORS.textMuted }}>{DAYS_HEB[i]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ===================== CLIENTS TAB ===================== */
+function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
+  const [search, setSearch] = useState('');
+  const filtered = clients.filter((c) => c.name.includes(search.trim()));
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ניהול לקוחות</h2>
+        <button onClick={onNewClient} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ לקוחה חדשה</button>
+      </div>
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="🔍 חיפוש..." style={inputStyle} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {filtered.map((c) => (
+          <div key={c.id} onClick={() => onOpenClient(c)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ ...avatarStyle, width: '44px', height: '44px', fontSize: '16px' }}>{c.name.charAt(0)}</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{c.name}</p>
+              <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                <StatusBadge status={c.status} /> · {c.savedGoals ? `${c.savedGoals.kcal} קק״ל` : 'ללא יעד'}
+              </p>
+            </div>
+            <span style={{ fontSize: '18px', color: COLORS.textMuted }}>←</span>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* ===================== MEALS TAB — IMPROVEMENT #3 ===================== */
+function MealsTab({ showToast }) {
+  const [mealFilter, setMealFilter] = useState('all');
+  const [customMeals, setCustomMeals] = useState([]);
+  const [showAIModal, setShowAIModal] = useState(false);
+
+  const allMeals = [...MEAL_LIBRARY, ...customMeals];
+  const filters = [
+    { id: 'all', label: `הכל ${allMeals.length}` },
+    { id: 'breakfast', label: `בוקר ${allMeals.filter(m => m.type === 'breakfast').length}` },
+    { id: 'lunch', label: `צהריים ${allMeals.filter(m => m.type === 'lunch').length}` },
+    { id: 'dinner', label: `ערב ${allMeals.filter(m => m.type === 'dinner').length}` },
+    { id: 'snack', label: `נשנוש ${allMeals.filter(m => m.type === 'snack').length}` },
+  ];
+  const filtered = mealFilter === 'all' ? allMeals : allMeals.filter((m) => m.type === mealFilter);
+  const mealTypeLabel = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'נשנוש' };
+
+  return (
+    <>
+      {showAIModal && (
+        <AIMealModal
+          onClose={() => setShowAIModal(false)}
+          onAdd={(meal) => {
+            setCustomMeals(prev => [...prev, { ...meal, id: 'ai-' + Date.now() }]);
+            showToast('✅ מנה נוספה לספרייה!');
+          }}
+        />
+      )}
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית מנות</h2>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={() => setShowAIModal(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              ✨ צור עם AI
+            </button>
+            <button onClick={() => showToast('+ מנה ידנית')} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              + ידני
+            </button>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: 0 }}>{allMeals.length} מנות</p>
+
+      {/* Meal type filter — IMPROVEMENT #3 */}
+      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+        {filters.map((f) => (
+          <button key={f.id} onClick={() => setMealFilter(f.id)} style={{
+            background: mealFilter === f.id ? COLORS.primary : 'white',
+            color: mealFilter === f.id ? 'white' : COLORS.text,
+            border: `1px solid ${mealFilter === f.id ? COLORS.primary : COLORS.border}`,
+            borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* Meal cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {filtered.map((m) => (
+          <div key={m.id} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{m.name}</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{m.desc}</p>
+              </div>
+              <span style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', whiteSpace: 'nowrap', marginRight: '8px' }}>
+                ⚙️ {mealTypeLabel[m.type]}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: COLORS.textMuted }}>
+              <span>kcal <strong style={{ color: COLORS.text }}>{m.cal}</strong></span>
+              <span style={{ color: COLORS.peach }}>F <strong>{m.f}g</strong></span>
+              <span style={{ color: COLORS.primary }}>C <strong>{m.c}g</strong></span>
+              <span style={{ color: COLORS.sky }}>P <strong>{m.p}g</strong></span>
+            </div>
+          </div>
+        ))}
+      </div>
+      </main>
+    </>
+  );
+}
+
+/* ===================== AI MEAL GENERATOR ===================== */
+function AIMealModal({ onClose, onAdd }) {
+  const [prompt, setPrompt] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const generate = async () => {
+    if (!prompt.trim() || loading) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    const systemPrompt = `אתה תזונאית מקצועית. המשתמשת מבקשת ממך ליצור מנת אוכל.
+ענה אך ורק ב-JSON תקני ללא מרכאות backtick ובלי טקסט נוסף, בדיוק בפורמט הבא:
+{"name":"שם המנה","type":"breakfast","desc":"תיאור קצר","cal":320,"p":18,"c":40,"f":8}
+type חייב להיות אחד מ: breakfast, lunch, dinner, snack`;
+
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: `צרי מנה: ${prompt}` }],
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '';
+      const parsed = JSON.parse(text.trim());
+      setResult(parsed);
+    } catch {
+      setError('לא הצלחתי ליצור מנה. נסי שוב עם תיאור אחר.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const typeLabel = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'נשנוש' };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: '20px 20px 0 0', padding: '20px', width: '100%', maxWidth: '440px', direction: 'rtl' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark }}>✨ יצירת מנה עם AI</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+          <input
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && generate()}
+            placeholder="למשל: ארוחת בוקר עשירה בחלבון עם 300 קלוריות"
+            style={inputStyle}
+            disabled={loading}
+          />
+          <button onClick={generate} disabled={!prompt.trim() || loading} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: (!prompt.trim() || loading) ? 'default' : 'pointer', opacity: (!prompt.trim() || loading) ? 0.5 : 1, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            {loading ? '...' : 'צור'}
+          </button>
+        </div>
+
+        {/* Suggestions */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
+          {['ארוחת בוקר 300 קק״ל', 'נשנוש חלבון 150 קק״ל', 'ארוחת צהריים ים תיכונית'].map((s, i) => (
+            <button key={i} onClick={() => setPrompt(s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '999px', padding: '5px 12px', fontSize: '11px', color: COLORS.primaryDark, cursor: 'pointer', fontFamily: 'inherit' }}>{s}</button>
+          ))}
+        </div>
+
+        {error && <p style={{ color: '#E53E3E', fontSize: '13px', margin: '0 0 12px 0' }}>{error}</p>}
+
+        {result && (
+          <div style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}`, borderRadius: '14px', padding: '14px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: COLORS.text }}>{result.name}</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{result.desc}</p>
+              </div>
+              <span style={{ background: COLORS.primary, color: 'white', fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px' }}>{typeLabel[result.type] || result.type}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: COLORS.textMuted }}>
+              <span>kcal <strong style={{ color: COLORS.text }}>{result.cal}</strong></span>
+              <span style={{ color: COLORS.sky }}>P <strong>{result.p}g</strong></span>
+              <span style={{ color: COLORS.primary }}>C <strong>{result.c}g</strong></span>
+              <span style={{ color: COLORS.peach }}>F <strong>{result.f}g</strong></span>
+            </div>
+            <button onClick={() => { onAdd(result); onClose(); }} style={{ ...primaryBtnStyle, marginTop: '10px', fontSize: '13px', padding: '10px' }}>
+              ✅ הוסיפי לספרייה
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ===================== WORKOUTS TAB — IMPROVEMENT #4 ===================== */
+function WorkoutsTab({ showToast }) {
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית אימונים</h2>
+          <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '2px 0 0 0' }}>צרי תוכניות אימון להקצות ללקוחות</p>
+        </div>
+        <button onClick={() => showToast('+ תוכנית חדשה')} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + תוכנית חדשה
+        </button>
+      </div>
+
+      {/* Workout cards — IMPROVEMENT #4 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {WORKOUT_LIBRARY.map((w) => (
+          <div key={w.id} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: COLORS.peachSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
+              💪
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: COLORS.text }}>{w.name}</p>
+              <p style={{ margin: '2px 0 8px 0', fontSize: '11px', color: COLORS.textMuted }}>{w.desc}</p>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '11px' }}>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, color: COLORS.primaryDark }}>{w.days}</p>
+                  <p style={{ margin: 0, color: COLORS.textMuted }}>ימים/שבוע</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, color: COLORS.primaryDark }}>{w.sessions}</p>
+                  <p style={{ margin: 0, color: COLORS.textMuted }}>אימונים</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, color: COLORS.primaryDark }}>{w.exercises}</p>
+                  <p style={{ margin: 0, color: COLORS.textMuted }}>תרגילים</p>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <button onClick={() => {}} style={{ background: COLORS.primarySoft, border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit' }}>✏️</button>
+              <button onClick={() => {}} style={{ background: COLORS.redSoft, border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit' }}>🗑️</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* ===================== SETTINGS TAB ===================== */
+function SettingsTab({ showToast }) {
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
+
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>מיתוג</h3>
+        <Field label="שם האפליקציה">
+          <input defaultValue="Sappir Fit" style={inputStyle} />
+        </Field>
+        <Field label="כתובת URL ללוגו (אופציונלי)">
+          <input defaultValue="https://yoursite.com/logo.png" style={inputStyle} />
+        </Field>
+        <Field label="צבע המותג">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: COLORS.primary, border: `1px solid ${COLORS.border}` }} />
+            <input defaultValue="#7BB892" style={{ ...inputStyle, direction: 'ltr', width: '120px' }} />
+          </div>
+        </Field>
+        <button onClick={() => showToast('💾 הגדרות נשמרו')} style={primaryBtnStyle}>שמרי שינויים</button>
+      </section>
+
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>קודי לקוח</h3>
+        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>3 מתוך 5 בשימוש</p>
+        <div style={{ height: '6px', background: COLORS.primarySoft, borderRadius: '999px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: '60%', background: COLORS.primary }} />
+        </div>
+        <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: '8px 0 0 0' }}>הגעת למגבלת הקודים. צריכים עוד? צרו קשר →</p>
+      </section>
+
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 8px 0', color: COLORS.text }}>כיוון האפליקציה</h3>
+        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>קובע את כיוון האפליקציה (RTL לעברית) ושפת הממשק</p>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>עברית (RTL)</button>
+          <button style={{ flex: 1, background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>English</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+/* ===================== SHARED COMPONENTS ===================== */
+
+const inputStyle = { width: '100%', padding: '10px 12px', border: `1px solid ${COLORS.border}`, borderRadius: '10px', fontSize: '13px', outline: 'none', fontFamily: 'inherit', direction: 'rtl', boxSizing: 'border-box' };
+const avatarStyle = { width: '40px', height: '40px', borderRadius: '50%', background: COLORS.primarySoft, color: COLORS.primaryDark, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 700, flexShrink: 0 };
+const cardStyle = { background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '16px', padding: '16px' };
+const primaryBtnStyle = { width: '100%', background: COLORS.primary, color: 'white', border: 'none', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
+
+function StatCard({ value, label, color }) {
+  return (
+    <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', textAlign: 'center' }}>
+      <p style={{ margin: 0, fontSize: '28px', fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
+      <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{label}</p>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const map = { 'on-track': 'פעיל', 'at-risk': 'ממתין', 'inactive': 'לא פעיל' };
+  const colorMap = { 'on-track': COLORS.primary, 'at-risk': COLORS.amber, 'inactive': COLORS.red };
+  return <span style={{ color: colorMap[status], fontWeight: 600 }}>{map[status]}</span>;
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <label style={{ fontSize: '12px', fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: '6px' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function BackHeader({ onBack, title, subtitle, rightAction }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <button onClick={onBack} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '36px', height: '36px', cursor: 'pointer', fontSize: '16px', fontFamily: 'inherit' }}>←</button>
+        <div>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: COLORS.primaryDark, lineHeight: 1.2 }}>{title}</h2>
+          {subtitle && <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: '2px 0 0 0' }}>{subtitle}</p>}
+        </div>
+      </div>
+      {rightAction}
+    </div>
+  );
+}
+
+function MiniStat({ label, value, color }) {
+  return (
+    <div>
+      <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color, lineHeight: 1.1 }}>{value}</p>
+      <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: COLORS.textMuted }}>{label}</p>
+    </div>
+  );
+}
+
+/* ===================== CLIENT PROFILE ===================== */
+function ClientProfile({ client, onBack, onMessage, onEditGoals }) {
+  const [tab, setTab] = useState('overview');
+  const c = client;
+  const weightSeries = [
+    { date: '1.2', w: c.startWeight },
+    { date: '15.2', w: c.startWeight - 1 },
+    { date: '1.3', w: c.startWeight - 2 },
+    { date: '15.3', w: c.startWeight - 3.5 },
+    { date: '1.4', w: c.startWeight - 5 },
+    { date: '15.4', w: c.weight },
+  ];
+  const minW = Math.min(...weightSeries.map(p => p.w), c.target) - 1;
+  const maxW = Math.max(...weightSeries.map(p => p.w)) + 1;
+  const range = maxW - minW;
+  const chartW = 380, chartH = 140;
+  const pad = { top: 20, right: 12, bottom: 24, left: 32 };
+  const plotW = chartW - pad.left - pad.right, plotH = chartH - pad.top - pad.bottom;
+  const xStep = plotW / (weightSeries.length - 1);
+  const yFor = (w) => pad.top + plotH - ((w - minW) / range) * plotH;
+  const pathD = weightSeries.map((p, i) => `${i === 0 ? 'M' : 'L'} ${pad.left + i * xStep} ${yFor(p.w)}`).join(' ');
+  const targetY = yFor(c.target);
+  const dropped = (c.startWeight - c.weight).toFixed(1);
+  const toGo = (c.weight - c.target).toFixed(1);
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={c.name} rightAction={<button onClick={onMessage} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💬 הודעה</button>} />
+
+      <section style={cardStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ ...avatarStyle, width: '52px', height: '52px', fontSize: '18px' }}>{c.name.charAt(0)}</div>
+          <div>
+            <p style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>{c.name}</p>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+              <StatusBadge status={c.status} />
+              {c.streak > 0 && <span style={{ color: COLORS.peach, fontSize: '12px', fontWeight: 600 }}>🔥 {c.streak} ימים</span>}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+          <MiniStat label="משקל נוכחי" value={`${c.weight} ק״ג`} color={COLORS.primaryDark} />
+          <MiniStat label="ירדה" value={`${dropped}-`} color="#4A7A5E" />
+          <MiniStat label="עד היעד" value={`${toGo} ק״ג`} color="#B88968" />
+        </div>
+      </section>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '10px', padding: '4px' }}>
+        {[{ id: 'overview', label: '📊 סקירה' }, { id: 'logs', label: '📝 יומן' }, { id: 'photos', label: '📸 תמונות' }].map((t) => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1, background: tab === t.id ? COLORS.primary : 'transparent', color: tab === t.id ? 'white' : COLORS.text,
+            border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <>
+          <section style={cardStyle}>
+            <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📉 התקדמות משקל</h4>
+            <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }}>
+              <line x1={pad.left} y1={targetY} x2={chartW - pad.right} y2={targetY} stroke={COLORS.mint} strokeDasharray="4 4" strokeWidth="1.5" />
+              <text x={chartW - pad.right - 2} y={targetY - 4} fontSize="9" fill="#4A7A5E" textAnchor="end">יעד {c.target}</text>
+              <path d={pathD} stroke={COLORS.primary} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              {weightSeries.map((p, i) => (
+                <g key={i}>
+                  <circle cx={pad.left + i * xStep} cy={yFor(p.w)} r="4" fill="white" stroke={COLORS.primary} strokeWidth="2" />
+                  <text x={pad.left + i * xStep} y={yFor(p.w) - 8} fontSize="9" fill={COLORS.text} textAnchor="middle" fontWeight="600">{p.w}</text>
+                  <text x={pad.left + i * xStep} y={chartH - 6} fontSize="9" fill={COLORS.textMuted} textAnchor="middle">{p.date}</text>
+                </g>
+              ))}
+            </svg>
+          </section>
+
+          <section style={cardStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📋 יעדי תזונה</h4>
+              {c.savedGoals && <span style={{ fontSize: '10px', color: COLORS.textMuted }}>מחושב אישית</span>}
+            </div>
+            {c.savedGoals ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <GoalRow label="קלוריות" value={`${c.savedGoals.kcal} קק״ל`} />
+                <GoalRow label="חלבונים" value={`${c.savedGoals.proteinG}g`} />
+                <GoalRow label="פחמימות" value={`${c.savedGoals.carbG}g`} />
+                <GoalRow label="שומנים" value={`${c.savedGoals.fatG}g`} />
+              </div>
+            ) : (
+              <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                <p style={{ fontSize: '12px', color: '#8B6914', margin: 0, fontWeight: 600 }}>⚠️ עדיין לא נקבעו יעדים</p>
+              </div>
+            )}
+            <button onClick={onEditGoals} style={{ ...primaryBtnStyle, marginTop: '10px', padding: '10px', fontSize: '13px' }}>
+              🧮 {c.savedGoals ? 'ערכי יעדים' : 'חשבי יעדים'}
+            </button>
+          </section>
+        </>
+      )}
+
+      {tab === 'logs' && (
+        <section style={cardStyle}>
+          <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📝 רישומים אחרונים</h4>
+          {[
+            { date: 'היום 8:30', type: '🥗', text: 'שייק חלבון — 320 קק״ל' },
+            { date: 'היום 13:00', type: '🥗', text: 'סלט קינואה עם טונה — 450 קק״ל' },
+            { date: 'אתמול 18:00', type: '🏋️', text: 'אימון רגליים · 4/4 תרגילים' },
+            { date: 'אתמול 7:00', type: '⚖️', text: 'משקל: 68.2 ק״ג' },
+            { date: 'לפני יומיים', type: '💧', text: 'שתייה: 2,400 מ״ל' },
+          ].map((l, i) => (
+            <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 0', borderBottom: i < 4 ? `1px solid ${COLORS.border}` : 'none' }}>
+              <span style={{ fontSize: '18px' }}>{l.type}</span>
+              <div>
+                <p style={{ margin: 0, fontSize: '12px', color: COLORS.text }}>{l.text}</p>
+                <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: COLORS.textMuted }}>{l.date}</p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {tab === 'photos' && (
+        <section style={cardStyle}>
+          <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📸 תמונות התקדמות</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {[{ date: '1.2', label: 'לפני' }, { date: '15.4', label: 'אחרי' }, { date: '1.3', label: 'חודש 1' }, { date: '15.3', label: 'חודש 2' }].map((p, i) => (
+              <div key={i} style={{ background: COLORS.primarySoft, aspectRatio: '3/4', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1px solid ${COLORS.border}` }}>
+                <span style={{ fontSize: '32px', opacity: 0.5 }}>👤</span>
+                <span style={{ fontSize: '10px', color: COLORS.textMuted, marginTop: '4px' }}>{p.date}</span>
+                <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'white', fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', color: COLORS.primaryDark }}>{p.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+function GoalRow({ label, value }) {
+  return (
+    <div style={{ background: COLORS.primarySoft, borderRadius: '8px', padding: '8px 10px' }}>
+      <p style={{ margin: 0, fontSize: '10px', color: COLORS.textMuted }}>{label}</p>
+      <p style={{ margin: '2px 0 0 0', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>{value}</p>
+    </div>
+  );
+}
+
+/* ===================== MACRO CALC ===================== */
+const ACTIVITY_MULTIPLIER = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, very_active: 1.9 };
+const GOAL_OFFSET = { lose: -500, maintain: 0, gain: 300 };
+
+function MacroCalc({ client, onBack, onSave }) {
+  const [weight, setWeight] = useState(client.weight);
+  const [height, setHeight] = useState(client.height);
+  const [age, setAge] = useState(client.age);
+  const [activity, setActivity] = useState(client.activity);
+  const [goal, setGoal] = useState(client.goal);
+  const [carbPct, setCarbPct] = useState(client.macroSplit.carb);
+  const [proteinPct, setProteinPct] = useState(client.macroSplit.protein);
+  const [fatPct, setFatPct] = useState(client.macroSplit.fat);
+  const [manualOverride, setManualOverride] = useState(false);
+  const [manualKcal, setManualKcal] = useState(client.savedGoals?.kcal ?? 1800);
+
+  const bmr = Math.round(10 * weight + 6.25 * height - 5 * age - 161);
+  const tdee = Math.round(bmr * ACTIVITY_MULTIPLIER[activity]);
+  const computedKcal = Math.round(tdee + GOAL_OFFSET[goal]);
+  const finalKcal = manualOverride ? manualKcal : computedKcal;
+  const carbG = Math.round((finalKcal * carbPct / 100) / 4);
+  const proteinG = Math.round((finalKcal * proteinPct / 100) / 4);
+  const fatG = Math.round((finalKcal * fatPct / 100) / 9);
+  const totalPct = carbPct + proteinPct + fatPct;
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title="מחשבון מאקרו" subtitle={`עבור ${client.name}`} />
+      <section style={cardStyle}>
+        <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.primaryDark }}>👤 נתונים אישיים</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <Field label="משקל"><input type="number" value={weight} onChange={(e) => setWeight(+e.target.value || 0)} style={{ ...inputStyle, direction: 'ltr', textAlign: 'right', padding: '8px' }} /></Field>
+          <Field label="גובה"><input type="number" value={height} onChange={(e) => setHeight(+e.target.value || 0)} style={{ ...inputStyle, direction: 'ltr', textAlign: 'right', padding: '8px' }} /></Field>
+          <Field label="גיל"><input type="number" value={age} onChange={(e) => setAge(+e.target.value || 0)} style={{ ...inputStyle, direction: 'ltr', textAlign: 'right', padding: '8px' }} /></Field>
+        </div>
+        <Field label="רמת פעילות">
+          <select value={activity} onChange={(e) => setActivity(e.target.value)} style={inputStyle}>
+            <option value="sedentary">🛋️ יושבנית</option>
+            <option value="light">🚶 קלה (1-3/שבוע)</option>
+            <option value="moderate">🏃 בינונית (3-5/שבוע)</option>
+            <option value="active">💪 פעילה (6-7/שבוע)</option>
+            <option value="very_active">🏆 ספורטאית</option>
+          </select>
+        </Field>
+        <Field label="מטרה">
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[{ id: 'lose', label: '📉 ירידה' }, { id: 'maintain', label: '⚖️ שמירה' }, { id: 'gain', label: '📈 עלייה' }].map((g) => (
+              <button key={g.id} onClick={() => setGoal(g.id)} style={{
+                flex: 1, background: goal === g.id ? COLORS.primary : 'white', color: goal === g.id ? 'white' : COLORS.text,
+                border: `1px solid ${goal === g.id ? COLORS.primary : COLORS.border}`, borderRadius: '10px', padding: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+              }}>{g.label}</button>
+            ))}
+          </div>
+        </Field>
+      </section>
+
+      <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center', marginBottom: '10px' }}>
+          <div><p style={{ margin: 0, fontSize: '11px', color: COLORS.textMuted }}>BMR</p><p style={{ margin: '2px 0 0 0', fontSize: '15px', fontWeight: 700, color: COLORS.primaryDark }}>{bmr}</p></div>
+          <div><p style={{ margin: 0, fontSize: '11px', color: COLORS.textMuted }}>TDEE</p><p style={{ margin: '2px 0 0 0', fontSize: '15px', fontWeight: 700, color: COLORS.primaryDark }}>{tdee}</p></div>
+          <div><p style={{ margin: 0, fontSize: '11px', color: COLORS.textMuted }}>מומלץ</p><p style={{ margin: '2px 0 0 0', fontSize: '15px', fontWeight: 700, color: COLORS.primaryDark }}>{computedKcal}</p></div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={manualOverride} onChange={(e) => setManualOverride(e.target.checked)} style={{ accentColor: COLORS.primary }} />
+          כתיבה ידנית
+        </label>
+        {manualOverride && <input type="number" value={manualKcal} onChange={(e) => setManualKcal(+e.target.value || 0)} style={{ ...inputStyle, marginTop: '8px', background: 'white', direction: 'ltr', textAlign: 'right' }} />}
+      </section>
+
+      <section style={cardStyle}>
+        <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.primaryDark }}>🥗 חלוקת מאקרו · {finalKcal} קק״ל</h4>
+        {[{ label: 'פחמימות', pct: carbPct, set: setCarbPct, color: COLORS.primary, g: carbG, k: carbG * 4 },
+          { label: 'חלבונים', pct: proteinPct, set: setProteinPct, color: COLORS.peach, g: proteinG, k: proteinG * 4 },
+          { label: 'שומנים', pct: fatPct, set: setFatPct, color: COLORS.mint, g: fatG, k: fatG * 9 }].map((m) => (
+          <div key={m.label} style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
+              <span style={{ fontWeight: 600 }}>{m.label}</span>
+              <span style={{ color: COLORS.textMuted }}><strong style={{ color: m.color }}>{m.pct}%</strong> · {m.g}g · {m.k} קק״ל</span>
+            </div>
+            <input type="range" min={0} max={100} value={m.pct} onChange={(e) => m.set(+e.target.value)} style={{ width: '100%', accentColor: m.color }} />
+          </div>
+        ))}
+        <div style={{ background: totalPct === 100 ? COLORS.mintSoft : COLORS.amberSoft, color: totalPct === 100 ? '#4A7A5E' : '#8B6914', padding: '10px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, textAlign: 'center' }}>
+          {totalPct === 100 ? '✅ 100%' : `⚠️ ${totalPct}% — יש לאזן ל-100%`}
+        </div>
+      </section>
+
+      <button onClick={() => onSave({ weight, height, age, activity, goal, macroSplit: { carb: carbPct, protein: proteinPct, fat: fatPct }, savedGoals: { kcal: finalKcal, carbG, proteinG, fatG } })} disabled={totalPct !== 100} style={{ ...primaryBtnStyle, opacity: totalPct === 100 ? 1 : 0.4 }}>
+        💾 שמרי יעדים ל{client.name.split(' ')[0]}
+      </button>
+    </main>
+  );
+}
+
+/* ===================== MACRO PICKER ===================== */
+function MacroClientPicker({ clients, onBack, onPick }) {
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title="מחשבון מאקרו" subtitle="בחרי לקוחה" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {clients.map((c) => (
+          <button key={c.id} onClick={() => onPick(c)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '12px', background: 'white', cursor: 'pointer', fontFamily: 'inherit', direction: 'rtl', textAlign: 'right' }}>
+            <div style={avatarStyle}>{c.name.charAt(0)}</div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{c.name}</p>
+              <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{c.savedGoals ? `🎯 ${c.savedGoals.kcal} קק״ל` : '⚠️ ללא יעד'}</p>
+            </div>
+            <span style={{ fontSize: '16px', color: COLORS.textMuted }}>←</span>
+          </button>
+        ))}
+      </div>
+    </main>
+  );
+}
+
+/* ===================== MESSAGE ===================== */
+function MessageCompose({ client, text, setText, onBack, onSend }) {
+  const templates = [
+    'בוקר טוב, זוכרת שיש לך אימון היום 💪',
+    'איך ההרגשה אחרי האימון?',
+    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💚`,
+    'אני פה לכל שאלה',
+  ];
+  return (
+    <main style={{ padding: '14px' }}>
+      <BackHeader onBack={onBack} title={`הודעה ל${client.name}`} />
+      <section style={cardStyle}>
+        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>💡 תבנית מהירה או טקסט חופשי:</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+          {templates.map((t, i) => (
+            <button key={i} onClick={() => setText(t)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '999px', padding: '6px 12px', fontSize: '12px', color: COLORS.primaryDark, cursor: 'pointer', fontFamily: 'inherit' }}>{t}</button>
+          ))}
+        </div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="כתבי הודעה..." rows={4} style={{ ...inputStyle, resize: 'vertical', marginBottom: '12px' }} />
+        <button onClick={onSend} disabled={!text.trim()} style={{ ...primaryBtnStyle, opacity: text.trim() ? 1 : 0.4 }}>שלחי</button>
+      </section>
+    </main>
+  );
+}
+
+/* ===================== NEW CLIENT ===================== */
+function NewClient({ onBack, onInvite }) {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [step, setStep] = useState(1);
+  const code = 'SPR-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+  const canProceed = firstName.trim() && lastName.trim() && phone.trim();
+  const fullName = `${firstName} ${lastName}`.trim();
+  const waLink = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(`היי ${firstName} 💚\nזו ספיר. הורידי את האפליקציה והזיני:\n\n${code}`)}`;
+
+  if (step === 2) {
+    return (
+      <main style={{ padding: '14px' }}>
+        <BackHeader onBack={() => setStep(1)} title="הזמנה חדשה" />
+        <section style={{ ...cardStyle, textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎉</div>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: COLORS.primaryDark }}>{fullName} נוספה!</h3>
+          <div style={{ background: COLORS.primarySoft, border: `2px dashed ${COLORS.primary}`, borderRadius: '12px', padding: '16px', margin: '16px 0' }}>
+            <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: '0 0 4px 0' }}>קוד גישה</p>
+            <p style={{ fontSize: '22px', fontWeight: 700, margin: 0, color: COLORS.primaryDark, letterSpacing: '2px', fontFamily: 'monospace' }}>{code}</p>
+          </div>
+          <a href={waLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', background: '#25D366', color: 'white', padding: '12px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, textDecoration: 'none', marginBottom: '8px' }}>💬 שלחי בוואטסאפ</a>
+          <button onClick={() => { navigator.clipboard?.writeText(code); alert('הועתק!'); }} style={{ ...primaryBtnStyle, background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, marginBottom: '12px' }}>📋 העתיקי</button>
+          <button onClick={() => onInvite(fullName)} style={primaryBtnStyle}>סיימתי</button>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ padding: '14px' }}>
+      <BackHeader onBack={onBack} title="לקוחה חדשה" />
+      <section style={cardStyle}>
+        <Field label="שם פרטי"><input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="מיכל" style={inputStyle} /></Field>
+        <Field label="שם משפחה"><input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="לוי" style={inputStyle} /></Field>
+        <Field label="טלפון (וואטסאפ)"><input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="050-1234567" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} /></Field>
+        <button onClick={() => setStep(2)} disabled={!canProceed} style={{ ...primaryBtnStyle, opacity: canProceed ? 1 : 0.4 }}>המשיכי ←</button>
+      </section>
+    </main>
+  );
+}
