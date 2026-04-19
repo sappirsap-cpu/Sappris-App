@@ -242,7 +242,8 @@ export default function App() {
       </header>
 
       {/* Sub-views override tabs */}
-      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => setSubView('message')} onEditGoals={() => setSubView('macro')} />}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => setSubView('message')} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} />}
+      {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
       {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
       {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
       {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={async () => { 
@@ -787,7 +788,7 @@ function MiniStat({ label, value, color }) {
 }
 
 /* ===================== CLIENT PROFILE ===================== */
-function ClientProfile({ client, onBack, onMessage, onEditGoals }) {
+function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit }) {
   const [tab, setTab] = useState('overview');
   const c = client;
   const weightSeries = [
@@ -813,7 +814,12 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals }) {
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={c.name} rightAction={<button onClick={onMessage} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💬 הודעה</button>} />
+      <BackHeader onBack={onBack} title={c.name} rightAction={
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button onClick={onEdit} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✏️ ערוך</button>
+          <button onClick={onMessage} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💬 הודעה</button>
+        </div>
+      } />
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
@@ -1114,4 +1120,190 @@ function NewClient({ onBack, onInvite }) {
       </section>
     </main>
   );
+
+/* ===================== EDIT CLIENT DETAILS ===================== */
+function EditClientDetails({ client, onBack, onSave }) {
+  const [name, setName] = useState(client.name || '');
+  const [email, setEmail] = useState(client.email || '');
+  const [phone, setPhone] = useState(client.phone || '');
+  const [height, setHeight] = useState(client.height || '');
+  const [age, setAge] = useState(client.age || '');
+  const [target, setTarget] = useState(client.target || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    
+    // עדכן ב-Supabase
+    await supabase.from('clients').update({
+      full_name: name,
+      email: email,
+      phone: phone,
+      height_cm: parseInt(height) || null,
+      age: parseInt(age) || null,
+      target_weight: parseFloat(target) || null,
+    }).eq('id', client.id);
+
+    // עדכן ב-state
+    onSave({
+      name,
+      email,
+      phone,
+      height: parseInt(height) || client.height,
+      age: parseInt(age) || client.age,
+      target: parseFloat(target) || client.target,
+    });
+    
+    setSaving(false);
+  };
+
+  const cardStyle = { 
+    background: 'white', 
+    border: '1px solid #D0E3D6', 
+    borderRadius: '16px', 
+    padding: '16px' 
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #D0E3D6',
+    borderRadius: '10px',
+    fontSize: '14px',
+    outline: 'none',
+    fontFamily: 'inherit',
+    direction: 'rtl',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <main style={{ padding: '14px', direction: 'rtl' }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px', 
+        marginBottom: '16px',
+        background: 'white',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        border: '1px solid #D0E3D6'
+      }}>
+        <button onClick={onBack} style={{ 
+          background: 'transparent', 
+          border: 'none', 
+          fontSize: '20px', 
+          cursor: 'pointer',
+          padding: '4px'
+        }}>←</button>
+        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#5A9A70' }}>
+          עריכת פרטי {client.name.split(' ')[0]}
+        </h2>
+      </div>
+
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 16px', color: '#5A9A70' }}>
+          פרטים אישיים
+        </h3>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+            שם מלא
+          </label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="שם מלא"
+            style={inputStyle}
+          />
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+            אימייל ליצירת קשר
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="example@gmail.com"
+            style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
+          />
+          <p style={{ fontSize: '11px', color: '#6B8574', margin: '4px 0 0' }}>
+            זה לא אותו האימייל של ההתחברות
+          </p>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+            טלפון
+          </label>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="050-1234567"
+            style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
+          />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+              גובה (ס״מ)
+            </label>
+            <input
+              type="number"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              placeholder="165"
+              style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+              גיל
+            </label>
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="30"
+              style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#2D3E33' }}>
+            משקל יעד (ק״ג)
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="65"
+            style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
+          />
+        </div>
+
+        <button onClick={handleSave} disabled={saving || !name.trim()} style={{ 
+          width: '100%', 
+          background: '#7BB892', 
+          color: 'white', 
+          border: 'none', 
+          padding: '14px', 
+          borderRadius: '12px', 
+          fontSize: '14px', 
+          fontWeight: 600, 
+          cursor: (saving || !name.trim()) ? 'default' : 'pointer', 
+          fontFamily: 'inherit',
+          opacity: (saving || !name.trim()) ? 0.5 : 1
+        }}>
+          {saving ? 'שומר...' : '💾 שמור שינויים'}
+        </button>
+      </section>
+    </main>
+  );
+}
+
 }
