@@ -1,361 +1,245 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabase';
 import CoachApp from './coach_app';
 import ClientApp from './client_app';
 
-/**
- * Unified demo app — combines coach and client mockups into a single experience.
- *
- * Intended flow for Sappir's review:
- *   1. She lands on a splash screen with two big buttons: "אני ספיר" or "אני מתאמנת"
- *   2. Picking one opens that side's full experience
- *   3. A small "החלף תצוגה" pill in the corner always visible, so she can flip
- *      between perspectives easily while reviewing
- *
- * This is Netlify-ready: pure React + Vite, no backend calls.
- */
-
 const COLORS = {
-  bg: '#F0F7F2',
-  primary: '#7BB892',
-  primaryDark: '#5A9A70',
-  primarySoft: '#D6EDDE',
-  accent: '#F4C2C2',
-  text: '#2D3E33',
-  textMuted: '#6B8574',
-  border: '#D0E3D6',
+  bg: '#F0F7F2', primary: '#7BB892', primaryDark: '#5A9A70',
+  primarySoft: '#D6EDDE', accent: '#F4C2C2', accentDark: '#C88A8A',
+  text: '#2D3E33', textMuted: '#6B8574', border: '#D0E3D6',
+};
+
+const S = {
+  inp: {
+    width: '100%', padding: '14px 16px', border: `1px solid ${COLORS.border}`,
+    borderRadius: '12px', fontSize: '14px', outline: 'none',
+    fontFamily: 'inherit', direction: 'ltr', textAlign: 'right',
+    boxSizing: 'border-box', background: 'white',
+  },
 };
 
 export default function App() {
-  const [role, setRole] = useState(null); // null | 'coach' | 'client' | 'coachLogin'
+  const [session, setSession]   = useState(undefined); // undefined = loading
+  const [userRole, setUserRole] = useState(null); // 'coach' | 'client' | null
+  const [screen, setScreen]     = useState('client'); // 'client' | 'coach'
 
-  if (role === null) {
-    return <ClientLogin onLogin={() => setRole('client')} onCoachLogin={() => setRole('coachLogin')} />;
+  useEffect(() => {
+    // בדוק אם יש משתמש מחובר
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      if (session) await detectRole(session.user.id);
+    });
+
+    // האזן לשינויים בכניסה/יציאה
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session) await detectRole(session.user.id);
+      else setUserRole(null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const detectRole = async (userId) => {
+    // בדוק אם המשתמש הוא מאמנת
+    const { data: coach } = await supabase
+      .from('coaches')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (coach) { setUserRole('coach'); return; }
+
+    // בדוק אם המשתמש הוא לקוחה
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('id', userId)
+      .single();
+
+    if (client) { setUserRole('client'); return; }
+
+    setUserRole(null);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUserRole(null);
+  };
+
+  // טוען
+  if (session === undefined) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: 100, marginBottom: 16 }} />
+          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוען...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (role === 'coachLogin') {
-    return <CoachLogin onLogin={() => setRole('coach')} onBack={() => setRole(null)} />;
+  // לא מחובר — הצג עמוד כניסה
+  if (!session) {
+    if (screen === 'coach') return <CoachLogin onBack={() => setScreen('client')} />;
+    return <ClientLogin onCoachLogin={() => setScreen('coach')} />;
   }
 
+  // מחובר אבל תפקיד לא ידוע
+  if (!userRole) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, direction: 'rtl' }}>
+        <div style={{ textAlign: 'center', padding: 20 }}>
+          <p style={{ color: COLORS.text, fontSize: 16, marginBottom: 16 }}>המשתמש לא נמצא במערכת.</p>
+          <button onClick={handleLogout} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            חזור לכניסה
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // מחובר — הצג את האפליקציה המתאימה
   return (
     <div style={{ position: 'relative' }}>
-      {role === 'coach' ? <CoachApp /> : <ClientApp />}
-
-      <button onClick={() => setRole(null)} aria-label="התנתק"
-        style={{
-          position: 'fixed',
-          top: '10px',
-          right: '10px',
-          background: COLORS.text,
-          color: 'white',
-          border: 'none',
-          borderRadius: '999px',
-          padding: '6px 12px',
-          fontSize: '11px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          direction: 'rtl',
-          zIndex: 999,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          opacity: 0.85,
-        }}>
-        🚪 התנתק
+      {userRole === 'coach' ? <CoachApp /> : <ClientApp />}
+      <button onClick={handleLogout}
+        style={{ position: 'fixed', top: 10, left: 10, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', padding: '6px 14px', borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', zIndex: 999 }}>
+        התנתק
       </button>
     </div>
   );
 }
 
-/* ================ CLIENT LOGIN — main entry, form immediately visible ================ */
-
-function ClientLogin({ onLogin, onCoachLogin }) {
-  const [email, setEmail] = useState('');
+/* ══════════════════════════════════════
+   עמוד כניסה — לקוחה
+══════════════════════════════════════ */
+function ClientLogin({ onCoachLogin }) {
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
-  const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
-      setError('יש למלא את כל השדות');
-      return;
-    }
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) { setError('יש למלא את כל השדות'); return; }
+    setLoading(true);
     setError('');
-    onLogin();
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '14px 16px',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '12px',
-    fontSize: '14px',
-    outline: 'none',
-    fontFamily: 'inherit',
-    direction: 'rtl',
-    boxSizing: 'border-box',
-    background: 'white',
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) setError('אימייל או סיסמה שגויים');
+    setLoading(false);
   };
 
   return (
-    <div style={{
-      direction: 'rtl',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-      background: `linear-gradient(135deg, ${COLORS.bg} 0%, #DDEEDE 100%)`,
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      color: COLORS.text,
-    }}>
-      {/* Main content — centered */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        {/* Logo + Branding */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img
-            src="/logo.png"
-            alt="Sappir Barak"
-            style={{
-              width: '140px',
-              height: '140px',
-              objectFit: 'contain',
-              margin: '0 auto',
-              display: 'block',
-            }}
-          />
+    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: `linear-gradient(135deg, ${COLORS.bg} 0%, #DDEEDE 100%)`, minHeight: '100vh', display: 'flex', flexDirection: 'column', color: COLORS.text }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: 140, height: 140, objectFit: 'contain', margin: '0 auto', display: 'block' }} />
         </div>
 
-        {/* Login form — immediately visible */}
-        <div style={{
-          width: '100%',
-          maxWidth: '340px',
-          background: 'white',
-          borderRadius: '20px',
-          padding: '28px 24px',
-          border: `1px solid ${COLORS.border}`,
-          boxShadow: '0 4px 16px rgba(183, 148, 212, 0.15)',
-        }}>
-          <p style={{ fontSize: '15px', color: COLORS.textMuted, margin: '0 0 20px 0', textAlign: 'center' }}>
-            הכניסי פרטי התחברות
-          </p>
+        <div style={{ width: '100%', maxWidth: 340, background: 'white', borderRadius: 20, padding: '28px 24px', border: `1px solid ${COLORS.border}`, boxShadow: '0 4px 16px rgba(183,148,212,0.15)' }}>
+          <p style={{ fontSize: 15, color: COLORS.textMuted, margin: '0 0 20px', textAlign: 'center' }}>הכניסי פרטי התחברות</p>
 
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: '6px' }}>
-              אימייל או טלפון
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@email.com"
-              style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            />
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: 6 }}>אימייל</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="example@email.com" style={S.inp}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()} />
           </div>
 
-          <div style={{ marginBottom: '6px' }}>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: '6px' }}>
-              סיסמה
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            />
+          <div style={{ marginBottom: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: 6 }}>סיסמה</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••" style={S.inp}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()} />
           </div>
 
-          <div style={{ textAlign: 'left', marginBottom: '16px' }}>
-            <button style={{ background: 'transparent', border: 'none', color: COLORS.primary, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
-              שכחתי סיסמה
-            </button>
+          <div style={{ textAlign: 'left', marginBottom: 16 }}>
+            <button style={{ background: 'transparent', border: 'none', color: COLORS.primary, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>שכחתי סיסמה</button>
           </div>
 
-          {/* Remember me */}
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', cursor: 'pointer', direction: 'rtl' }}>
-            <div onClick={() => setRememberMe(r => !r)}
-              style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${rememberMe ? COLORS.primary : COLORS.border}`, background: rememberMe ? COLORS.primary : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all 0.15s' }}>
-              {rememberMe && <span style={{ color: 'white', fontSize: '11px', fontWeight: 700, lineHeight: 1 }}>✓</span>}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
+            <div onClick={() => setRemember(r => !r)}
+              style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${remember ? COLORS.primary : COLORS.border}`, background: remember ? COLORS.primary : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all 0.15s' }}>
+              {remember && <span style={{ color: 'white', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
             </div>
-            <span style={{ fontSize: '13px', color: COLORS.textMuted, userSelect: 'none' }}>זכור אותי</span>
+            <span style={{ fontSize: 13, color: COLORS.textMuted, userSelect: 'none' }}>זכור אותי</span>
           </label>
 
-          {error && (
-            <p style={{ fontSize: '12px', color: '#C44', margin: '0 0 12px 0', textAlign: 'center', fontWeight: 600 }}>
-              {error}
-            </p>
-          )}
+          {error && <p style={{ fontSize: 12, color: '#C44', margin: '0 0 12px', textAlign: 'center', fontWeight: 600 }}>{error}</p>}
 
-          <button
-            onClick={handleLogin}
-            style={{
-              width: '100%',
-              background: COLORS.primary,
-              color: 'white',
-              border: 'none',
-              padding: '14px',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              boxShadow: '0 4px 12px rgba(183, 148, 212, 0.35)',
-              transition: 'transform 0.1s',
-            }}
-            onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.98)'}
-            onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-          >
-            כניסה
+          <button onClick={handleLogin} disabled={loading}
+            style={{ width: '100%', background: COLORS.primary, color: 'white', border: 'none', padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 12px rgba(183,148,212,0.35)' }}>
+            {loading ? 'נכנסת...' : 'כניסה'}
           </button>
         </div>
       </main>
 
-      {/* Footer — coach login, small and subtle */}
-      <footer style={{ padding: '20px', textAlign: 'center', borderTop: `1px solid ${COLORS.border}` }}>
-        <button
-          onClick={onCoachLogin}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: COLORS.textMuted,
-            fontSize: '13px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            padding: '8px 16px',
-          }}
-        >
-          כניסת מנהל →
+      <footer style={{ padding: 20, textAlign: 'center', borderTop: `1px solid ${COLORS.border}` }}>
+        <button onClick={onCoachLogin} style={{ background: 'transparent', border: 'none', color: COLORS.textMuted, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: '8px 16px' }}>
+          כניסת מאמנת →
         </button>
       </footer>
     </div>
   );
 }
 
-/* ================ COACH LOGIN — separate screen with its own form ================ */
-
-function CoachLogin({ onLogin, onBack }) {
-  const [email, setEmail] = useState('');
+/* ══════════════════════════════════════
+   עמוד כניסה — מאמנת
+══════════════════════════════════════ */
+function CoachLogin({ onBack }) {
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
-  const handleLogin = () => {
-    if (!email.trim() || !password.trim()) {
-      setError('יש למלא את כל השדות');
-      return;
-    }
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) { setError('יש למלא את כל השדות'); return; }
+    setLoading(true);
     setError('');
-    onLogin();
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '14px 16px',
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: '12px',
-    fontSize: '14px',
-    outline: 'none',
-    fontFamily: 'inherit',
-    direction: 'rtl',
-    boxSizing: 'border-box',
-    background: 'white',
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) setError('אימייל או סיסמה שגויים');
+    setLoading(false);
   };
 
   return (
-    <div style={{
-      direction: 'rtl',
-      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-      background: `linear-gradient(135deg, ${COLORS.bg} 0%, #DDEEDE 100%)`,
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      color: COLORS.text,
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '340px',
-        background: 'white',
-        borderRadius: '20px',
-        padding: '28px 24px',
-        border: `1px solid ${COLORS.border}`,
-        boxShadow: '0 4px 16px rgba(183, 148, 212, 0.15)',
-      }}>
-        <button
-          onClick={onBack}
-          style={{ background: 'transparent', border: 'none', color: COLORS.textMuted, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', padding: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}
-        >
-          ← חזרה
-        </button>
+    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: `linear-gradient(135deg, #2D3E33 0%, #1a2a1f 100%)`, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, color: 'white' }}>
+      <button onClick={onBack} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: 999, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← חזרה</button>
 
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 4px 0', color: COLORS.primaryDark, textAlign: 'center' }}>
-          כניסת מנהל
-        </h2>
-        <p style={{ fontSize: '13px', color: COLORS.textMuted, margin: '0 0 20px 0', textAlign: 'center' }}>
-          ממשק ניהול לקוחות ותוכניות
-        </p>
+      <img src="/logo.png" alt="Sappir Barak" style={{ width: 100, marginBottom: 24, filter: 'brightness(1.2)' }} />
+      <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 24px', color: COLORS.primary }}>כניסת מאמנת</h1>
 
-        <div style={{ marginBottom: '14px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: '6px' }}>
-            אימייל
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+      <div style={{ width: '100%', maxWidth: 340, background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: '28px 24px', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>אימייל</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
             placeholder="sappir@example.com"
-            style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          />
+            style={{ ...S.inp, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
         </div>
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: '6px' }}>
-            סיסמה
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>סיסמה</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
-            style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-          />
+            style={{ ...S.inp, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
         </div>
 
-        {/* Remember me */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', cursor: 'pointer', direction: 'rtl' }}>
-          <div onClick={() => setRememberMe(r => !r)}
-            style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${rememberMe ? COLORS.primaryDark : COLORS.border}`, background: rememberMe ? COLORS.primaryDark : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all 0.15s' }}>
-            {rememberMe && <span style={{ color: 'white', fontSize: '11px', fontWeight: 700, lineHeight: 1 }}>✓</span>}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
+          <div onClick={() => setRemember(r => !r)}
+            style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${remember ? COLORS.primary : 'rgba(255,255,255,0.3)'}`, background: remember ? COLORS.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+            {remember && <span style={{ color: 'white', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
           </div>
-          <span style={{ fontSize: '13px', color: COLORS.textMuted, userSelect: 'none' }}>זכור אותי</span>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', userSelect: 'none' }}>זכור אותי</span>
         </label>
 
-        {error && (
-          <p style={{ fontSize: '12px', color: '#C44', margin: '0 0 12px 0', textAlign: 'center', fontWeight: 600 }}>
-            {error}
-          </p>
-        )}
+        {error && <p style={{ fontSize: 12, color: '#ff8080', margin: '0 0 12px', textAlign: 'center', fontWeight: 600 }}>{error}</p>}
 
-        <button
-          onClick={handleLogin}
-          style={{
-            width: '100%',
-            background: COLORS.primaryDark,
-            color: 'white',
-            border: 'none',
-            padding: '14px',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 4px 12px rgba(155, 122, 184, 0.35)',
-          }}
-        >
-          כניסה לניהול
+        <button onClick={handleLogin} disabled={loading}
+          style={{ width: '100%', background: COLORS.primary, color: 'white', border: 'none', padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1 }}>
+          {loading ? 'נכנסת...' : 'כניסה לניהול'}
         </button>
       </div>
     </div>
