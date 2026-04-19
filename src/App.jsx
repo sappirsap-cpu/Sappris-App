@@ -19,20 +19,38 @@ const S = {
 };
 
 export default function App() {
-  const [session, setSession]   = useState(undefined); // undefined = loading
-  const [userRole, setUserRole] = useState(undefined); // undefined = checking, null = not found, 'coach'/'client'
-  const [screen, setScreen]     = useState('client'); // 'client' | 'coach'
+  const [session, setSession]   = useState(undefined);
+  const [userRole, setUserRole] = useState(undefined);
+  const [screen, setScreen]     = useState('client');
+  const [debugInfo, setDebugInfo] = useState('');
 
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(session);
-      if (session) {
-        await detectRole(session.user.id);
-      } else {
+      try {
+        setDebugInfo('בודק session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          setDebugInfo('שגיאה בטעינת session');
+        }
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        
+        if (session) {
+          setDebugInfo(`נמצא משתמש: ${session.user.email}`);
+          await detectRole(session.user.id);
+        } else {
+          setDebugInfo('אין session');
+          setUserRole(null);
+        }
+      } catch (e) {
+        console.error('Init error:', e);
+        setDebugInfo('שגיאה בטעינה: ' + e.message);
         setUserRole(null);
       }
     };
@@ -42,7 +60,7 @@ export default function App() {
       if (!mounted) return;
       setSession(newSession);
       if (newSession) {
-        setUserRole(undefined); // reset to "checking"
+        setUserRole(undefined);
         await detectRole(newSession.user.id);
       } else {
         setUserRole(null);
@@ -54,19 +72,54 @@ export default function App() {
 
   const detectRole = async (userId) => {
     try {
+      setDebugInfo('בודק תפקיד...');
+      
+      // בדוק מאמנת
       const { data: coaches, error: coachErr } = await supabase
-        .from('coaches').select('id').eq('id', userId).limit(1);
-      if (coachErr) console.error('coach check:', coachErr);
-      if (coaches && coaches.length > 0) { setUserRole('coach'); return; }
+        .from('coaches')
+        .select('id')
+        .eq('id', userId)
+        .limit(1);
+      
+      if (coachErr) {
+        console.error('Coach check error:', coachErr);
+        setDebugInfo('שגיאה בבדיקת מאמנת: ' + coachErr.message);
+      } else {
+        console.log('Coaches result:', coaches);
+      }
+      
+      if (coaches && coaches.length > 0) {
+        setDebugInfo('נמצאה מאמנת ✓');
+        setUserRole('coach');
+        return;
+      }
 
+      // בדוק לקוחה
       const { data: clients, error: clientErr } = await supabase
-        .from('clients').select('id').eq('id', userId).limit(1);
-      if (clientErr) console.error('client check:', clientErr);
-      if (clients && clients.length > 0) { setUserRole('client'); return; }
+        .from('clients')
+        .select('id')
+        .eq('id', userId)
+        .limit(1);
+      
+      if (clientErr) {
+        console.error('Client check error:', clientErr);
+        setDebugInfo('שגיאה בבדיקת לקוחה: ' + clientErr.message);
+      } else {
+        console.log('Clients result:', clients);
+      }
+      
+      if (clients && clients.length > 0) {
+        setDebugInfo('נמצאה לקוחה ✓');
+        setUserRole('client');
+        return;
+      }
 
+      console.warn('User not found in coaches or clients:', userId);
+      setDebugInfo('משתמש לא נמצא בטבלאות');
       setUserRole(null);
     } catch (e) {
       console.error('detectRole failed:', e);
+      setDebugInfo('שגיאה קריטית: ' + e.message);
       setUserRole(null);
     }
   };
@@ -76,16 +129,113 @@ export default function App() {
     setSession(null);
     setUserRole(null);
     setScreen('client');
+    setDebugInfo('');
   };
 
-  // טוען — גם בדיקת session וגם בדיקת תפקיד
+  // מסך טעינה משופר
   if (session === undefined || (session && userRole === undefined)) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
-        <div style={{ textAlign: 'center' }}>
-          <img src="/logo.png" alt="Sappir Barak" style={{ width: 180, marginBottom: 20 }} />
-          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוען...</p>
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: `linear-gradient(135deg, ${COLORS.bg} 0%, ${COLORS.primarySoft} 100%)`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background decoration */}
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          right: '-20%',
+          width: '100%',
+          height: '100%',
+          background: COLORS.primary,
+          opacity: 0.03,
+          borderRadius: '50%',
+        }} />
+        
+        <div style={{ 
+          textAlign: 'center', 
+          position: 'relative',
+          animation: 'fadeInUp 0.6s ease-out'
+        }}>
+          <div style={{
+            width: 140,
+            height: 140,
+            margin: '0 auto 24px',
+            background: 'white',
+            borderRadius: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 32px rgba(123, 184, 146, 0.15)',
+            animation: 'pulse 2s ease-in-out infinite'
+          }}>
+            <img src="/logo.png" alt="Sappir Barak" style={{ 
+              width: 100, 
+              height: 100,
+              objectFit: 'contain'
+            }} />
+          </div>
+          
+          <div style={{
+            display: 'inline-flex',
+            gap: 6,
+            marginTop: 8
+          }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: COLORS.primary,
+                animation: `bounce 1.4s ease-in-out ${i * 0.2}s infinite`
+              }} />
+            ))}
+          </div>
+          
+          {debugInfo && (
+            <p style={{ 
+              color: COLORS.textMuted, 
+              fontSize: 12, 
+              marginTop: 16,
+              opacity: 0.7
+            }}>{debugInfo}</p>
+          )}
         </div>
+
+        <style>{`
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          @keyframes pulse {
+            0%, 100% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(1.05);
+            }
+          }
+          
+          @keyframes bounce {
+            0%, 60%, 100% {
+              transform: translateY(0);
+            }
+            30% {
+              transform: translateY(-10px);
+            }
+          }
+        `}</style>
       </div>
     );
   }
@@ -96,13 +246,30 @@ export default function App() {
     return <ClientLogin onCoachLogin={() => setScreen('coach')} />;
   }
 
-  // מחובר אבל תפקיד לא ידוע (null = לא נמצא)
+  // מחובר אבל תפקיד לא ידוע
   if (userRole === null) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg, direction: 'rtl' }}>
-        <div style={{ textAlign: 'center', padding: 20 }}>
-          <p style={{ color: COLORS.text, fontSize: 16, marginBottom: 16 }}>המשתמש לא נמצא במערכת.</p>
-          <button onClick={handleLogout} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        <div style={{ textAlign: 'center', padding: 20, maxWidth: 320 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <p style={{ color: COLORS.text, fontSize: 16, marginBottom: 8, fontWeight: 600 }}>המשתמש לא נמצא במערכת</p>
+          {debugInfo && (
+            <p style={{ color: COLORS.textMuted, fontSize: 12, marginBottom: 16, background: COLORS.primarySoft, padding: 12, borderRadius: 8 }}>
+              {debugInfo}
+            </p>
+          )}
+          <button onClick={handleLogout} style={{ 
+            background: COLORS.primary, 
+            color: 'white', 
+            border: 'none', 
+            padding: '12px 24px', 
+            borderRadius: 12, 
+            fontSize: 14, 
+            fontWeight: 600, 
+            cursor: 'pointer', 
+            fontFamily: 'inherit',
+            width: '100%'
+          }}>
             חזור לכניסה
           </button>
         </div>
@@ -122,136 +289,181 @@ export default function App() {
   );
 }
 
-/* ══════════════════════════════════════
-   עמוד כניסה — לקוחה
-══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   CLIENT LOGIN
+═══════════════════════════════════════════════════════════ */
 function ClientLogin({ onCoachLogin }) {
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) { setError('יש למלא את כל השדות'); return; }
-    setLoading(true);
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError('');
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError('אימייל או סיסמה שגויים');
-    setLoading(false);
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: `linear-gradient(135deg, ${COLORS.bg} 0%, #DDEEDE 100%)`, minHeight: '100vh', display: 'flex', flexDirection: 'column', color: COLORS.text }}>
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/logo.png" alt="Sappir Barak" style={{ width: 140, height: 140, objectFit: 'contain', margin: '0 auto', display: 'block' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${COLORS.bg} 0%, white 100%)`, padding: '20px', direction: 'rtl' }}>
+      <div style={{ maxWidth: '380px', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: '100px', marginBottom: '16px' }} />
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 8px 0' }}>כניסת מתאמנת</h1>
+          <p style={{ fontSize: '14px', color: COLORS.textMuted, margin: 0 }}>היי! מוכנה להמשיך במסע? 💚</p>
         </div>
 
-        <div style={{ width: '100%', maxWidth: 340, background: 'white', borderRadius: 20, padding: '28px 24px', border: `1px solid ${COLORS.border}`, boxShadow: '0 4px 16px rgba(183,148,212,0.15)' }}>
-          <p style={{ fontSize: 15, color: COLORS.textMuted, margin: '0 0 20px', textAlign: 'center' }}>הכניסי פרטי התחברות</p>
-
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: 6 }}>אימייל</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="example@email.com" style={S.inp}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: COLORS.text }}>אימייל</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="wonder@sappir.app"
+              style={S.inp}
+              disabled={loading}
+            />
           </div>
 
-          <div style={{ marginBottom: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: COLORS.text, display: 'block', marginBottom: 6 }}>סיסמה</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" style={S.inp}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: COLORS.text }}>סיסמה</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={S.inp}
+              disabled={loading}
+            />
           </div>
 
-          <div style={{ textAlign: 'left', marginBottom: 16 }}>
-            <button style={{ background: 'transparent', border: 'none', color: COLORS.primary, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>שכחתי סיסמה</button>
-          </div>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
-            <div onClick={() => setRemember(r => !r)}
-              style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${remember ? COLORS.primary : COLORS.border}`, background: remember ? COLORS.primary : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', transition: 'all 0.15s' }}>
-              {remember && <span style={{ color: 'white', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+          {error && (
+            <div style={{ background: '#FADDDD', border: '1px solid #E8A5A5', borderRadius: '10px', padding: '12px', fontSize: '13px', color: '#C88A8A' }}>
+              {error}
             </div>
-            <span style={{ fontSize: 13, color: COLORS.textMuted, userSelect: 'none' }}>זכור אותי</span>
-          </label>
+          )}
 
-          {error && <p style={{ fontSize: 12, color: '#C44', margin: '0 0 12px', textAlign: 'center', fontWeight: 600 }}>{error}</p>}
+          <button type="submit" disabled={loading} style={{ 
+            width: '100%', 
+            background: COLORS.primary, 
+            color: 'white', 
+            border: 'none', 
+            padding: '14px', 
+            borderRadius: '12px', 
+            fontSize: '15px', 
+            fontWeight: 600, 
+            cursor: loading ? 'default' : 'pointer', 
+            fontFamily: 'inherit',
+            opacity: loading ? 0.6 : 1
+          }}>
+            {loading ? 'מתחברת...' : 'כניסה'}
+          </button>
+        </form>
 
-          <button onClick={handleLogin} disabled={loading}
-            style={{ width: '100%', background: COLORS.primary, color: 'white', border: 'none', padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1, boxShadow: '0 4px 12px rgba(183,148,212,0.35)' }}>
-            {loading ? 'נכנסת...' : 'כניסה'}
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <button onClick={onCoachLogin} style={{ background: 'transparent', border: 'none', color: COLORS.primary, fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+            כניסת מאמנת ←
           </button>
         </div>
-      </main>
-
-      <footer style={{ padding: 20, textAlign: 'center', borderTop: `1px solid ${COLORS.border}` }}>
-        <button onClick={onCoachLogin} style={{ background: 'transparent', border: 'none', color: COLORS.textMuted, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', padding: '8px 16px' }}>
-          כניסת מאמנת →
-        </button>
-      </footer>
+      </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════════
-   עמוד כניסה — מאמנת
-══════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   COACH LOGIN
+═══════════════════════════════════════════════════════════ */
 function CoachLogin({ onBack }) {
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(false);
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) { setError('יש למלא את כל השדות'); return; }
-    setLoading(true);
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError('');
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError('אימייל או סיסמה שגויים');
-    setLoading(false);
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: `linear-gradient(135deg, #2D3E33 0%, #1a2a1f 100%)`, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20, color: 'white' }}>
-      <button onClick={onBack} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '8px 16px', borderRadius: 999, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← חזרה</button>
-
-      <img src="/logo.png" alt="Sappir Barak" style={{ width: 100, marginBottom: 24, filter: 'brightness(1.2)' }} />
-      <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 24px', color: COLORS.primary }}>כניסת מאמנת</h1>
-
-      <div style={{ width: '100%', maxWidth: 340, background: 'rgba(255,255,255,0.05)', borderRadius: 20, padding: '28px 24px', border: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>אימייל</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="sappir@example.com"
-            style={{ ...S.inp, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', display: 'block', marginBottom: 6 }}>סיסמה</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            style={{ ...S.inp, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'white' }}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-        </div>
-
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, cursor: 'pointer' }}>
-          <div onClick={() => setRemember(r => !r)}
-            style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${remember ? COLORS.primary : 'rgba(255,255,255,0.3)'}`, background: remember ? COLORS.primary : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
-            {remember && <span style={{ color: 'white', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 100%)`, padding: '20px', direction: 'rtl' }}>
+      <div style={{ maxWidth: '380px', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ width: '80px', height: '80px', margin: '0 auto 16px', background: 'white', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: '60px' }} />
           </div>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', userSelect: 'none' }}>זכור אותי</span>
-        </label>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>כניסת מאמנת</h1>
+          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', margin: 0 }}>ברוכה הבאה ספיר 💚</p>
+        </div>
 
-        {error && <p style={{ fontSize: 12, color: '#ff8080', margin: '0 0 12px', textAlign: 'center', fontWeight: 600 }}>{error}</p>}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'white' }}>אימייל</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="sappirsap@gmail.com"
+              style={S.inp}
+              disabled={loading}
+            />
+          </div>
 
-        <button onClick={handleLogin} disabled={loading}
-          style={{ width: '100%', background: COLORS.primary, color: 'white', border: 'none', padding: 14, borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1 }}>
-          {loading ? 'נכנסת...' : 'כניסה לניהול'}
-        </button>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'white' }}>סיסמה</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              style={S.inp}
+              disabled={loading}
+            />
+          </div>
+
+          {error && (
+            <div style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '10px', padding: '12px', fontSize: '13px', color: 'white' }}>
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} style={{ 
+            width: '100%', 
+            background: 'white', 
+            color: COLORS.primaryDark, 
+            border: 'none', 
+            padding: '14px', 
+            borderRadius: '12px', 
+            fontSize: '15px', 
+            fontWeight: 600, 
+            cursor: loading ? 'default' : 'pointer', 
+            fontFamily: 'inherit',
+            opacity: loading ? 0.7 : 1
+          }}>
+            {loading ? 'מתחברת...' : 'כניסה'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '24px', textAlign: 'center' }}>
+          <button onClick={onBack} style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', opacity: 0.9 }}>
+            ← חזרה לכניסת מתאמנת
+          </button>
+        </div>
       </div>
     </div>
   );
