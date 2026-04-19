@@ -62,9 +62,10 @@ export default function App() {
     setUserRole(null);
   };
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
+    setSession(null);
   };
 
   // טוען
