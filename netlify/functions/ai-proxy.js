@@ -16,7 +16,7 @@ export default async (req, context) => {
   }
 
   // בדוק שיש מפתח סודי מוגדר בסביבת ניטפליי
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'מפתח API לא מוגדר בשרת' }), {
       status: 500,
