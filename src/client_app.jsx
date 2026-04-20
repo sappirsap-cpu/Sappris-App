@@ -139,6 +139,9 @@ const AI_SYS=`את תמר, עוזרת AI של המאמנת ספיר ברק. ענ
 ✓ שינה ומנוחה - בהקשר של אימונים ותזונה
 ✓ הידרציה ושתייה
 
+כשאני מספקת לך מידע תזונתי מ"Open Food Facts" — השתמשי בו בתשובה שלך כדי לתת תשובות מדויקות.
+הציגי את המספרים בצורה ברורה (X קק״ל ל-100 גרם, חלבון Xg וכו׳).
+
 מה את לא עונה עליו:
 ✗ כל שאלה שלא קשורה לתזונה או כושר (מזג אוויר, פוליטיקה, חדשות, טכנולוגיה, מתמטיקה, תרגום, הכל!)
 ✗ שאלות רפואיות - הפני לרופא
@@ -617,23 +620,34 @@ export default function App({onLogout}){
 
       {!chat&&tab==='home'&&(
         <>
-          <div style={{position:'fixed',bottom:148,left:16,background:'white',padding:'6px 12px',borderRadius:12,fontSize:11,fontWeight:600,color:COLORS.primaryDark,boxShadow:'0 2px 8px rgba(0,0,0,0.1)',border:`1px solid ${COLORS.border}`,zIndex:29,animation:'fadeInOut 3s ease-in-out infinite'}}>
-            לחצי עליי 👇
+          <div style={{position:'fixed',bottom:148,left:16,background:'white',padding:'8px 14px',borderRadius:14,fontSize:12,fontWeight:600,color:COLORS.primaryDark,boxShadow:'0 4px 12px rgba(155,127,191,0.25)',border:`1px solid ${COLORS.primary}`,zIndex:29,animation:'tooltipPulse 12s ease-in-out 2s infinite',opacity:0}}>
+            💜 שאלי אותי
+            <div style={{position:'absolute',bottom:-6,right:20,width:12,height:12,background:'white',transform:'rotate(45deg)',borderBottom:`1px solid ${COLORS.primary}`,borderRight:`1px solid ${COLORS.primary}`}}/>
           </div>
-          <button onClick={()=>setChat(true)} style={{position:'fixed',bottom:84,left:16,width:56,height:56,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:24,cursor:'pointer',boxShadow:'0 4px 14px rgba(177,156,217,0.5)',zIndex:30,fontFamily:'inherit',animation:'shake 12s ease-in-out 2s infinite'}}>🤖</button>
+          <button onClick={()=>setChat(true)} style={{position:'fixed',bottom:84,left:16,width:60,height:60,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:26,cursor:'pointer',boxShadow:'0 4px 14px rgba(155,127,191,0.5)',zIndex:30,fontFamily:'inherit',animation:'botShake 12s ease-in-out 2s infinite',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <span style={{display:'inline-block',animation:'emojiWobble 12s ease-in-out 2s infinite'}}>💜</span>
+          </button>
           <style>{`
-            @keyframes shake {
-              0%, 85%, 100% { transform: translateX(0) rotate(0deg); }
-              87% { transform: translateX(-4px) rotate(-8deg); }
-              89% { transform: translateX(4px) rotate(8deg); }
-              91% { transform: translateX(-4px) rotate(-6deg); }
-              93% { transform: translateX(3px) rotate(5deg); }
-              95% { transform: translateX(-2px) rotate(-3deg); }
-              97% { transform: translateX(1px) rotate(2deg); }
+            @keyframes botShake {
+              0%, 85%, 100% { transform: translateX(0) rotate(0deg) scale(1); }
+              86% { transform: translateX(0) rotate(0deg) scale(1.1); }
+              88% { transform: translateX(-3px) rotate(-12deg) scale(1.1); }
+              90% { transform: translateX(4px) rotate(12deg) scale(1.1); }
+              92% { transform: translateX(-3px) rotate(-10deg) scale(1.1); }
+              94% { transform: translateX(3px) rotate(8deg) scale(1.1); }
+              96% { transform: translateX(-2px) rotate(-5deg) scale(1.05); }
+              98% { transform: translateX(1px) rotate(2deg) scale(1); }
             }
-            @keyframes fadeInOut {
-              0%, 85%, 100% { opacity: 0; transform: translateY(5px); }
-              87%, 95% { opacity: 1; transform: translateY(0); }
+            @keyframes emojiWobble {
+              0%, 85%, 100% { transform: rotate(0deg); }
+              88% { transform: rotate(-15deg); }
+              91% { transform: rotate(15deg); }
+              94% { transform: rotate(-10deg); }
+              97% { transform: rotate(5deg); }
+            }
+            @keyframes tooltipPulse {
+              0%, 83%, 100% { opacity: 0; transform: translateY(8px) scale(0.95); }
+              87%, 96% { opacity: 1; transform: translateY(0) scale(1); }
             }
           `}</style>
         </>
@@ -1098,22 +1112,89 @@ function AIChat({profile,onClose}){
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollTo(0,ref.current.scrollHeight);},[msgs,loading]);
   const SUGG=['כמה חלבון לאחר אימון?','מה לאכול לפני אימון?','מזונות עשירים באומגה 3'];
-  const send=async text=>{
-    const t=(text||input).trim();
-    if(!t||loading)return;
+  // חיפוש אוטומטי של מזון אם השאלה מזכירה מאכל
+  const detectFoodInQuery = async (query) => {
+    const foodKeywords = ['קלוריות', 'חלבון', 'פחמימה', 'שומן', 'ערכים תזונתיים', 'כמה יש', 'מה יש ב', 'מכיל', 'של'];
+    const hasKeyword = foodKeywords.some(kw => query.includes(kw));
+    if (!hasKeyword) return null;
+    
+    // חפש את שם המאכל - נסה להוציא את המילה או הביטוי המהותי
+    // מחק מילות שאלה נפוצות
+    const cleaned = query
+      .replace(/כמה|קלוריות|יש|ב|של|חלבון|פחמימות|שומן|מה|ה|?|\?|,|\./g, ' ')
+      .trim();
+    
+    if (cleaned.length < 2) return null;
+    
+    try {
+      const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(cleaned)}&search_simple=1&action=process&json=1&page_size=3&fields=product_name,product_name_he,brands,nutriments`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const products = (data.products || []).filter(p => {
+        const n = p.nutriments || {};
+        return (p.product_name_he || p.product_name) && (n['energy-kcal_100g'] || n.energy_100g);
+      }).slice(0, 3);
+      
+      if (products.length === 0) return null;
+      
+      const info = products.map(p => {
+        const n = p.nutriments || {};
+        const cal = Math.round(n['energy-kcal_100g'] || (n.energy_100g ? n.energy_100g / 4.184 : 0));
+        const prot = Math.round((n.proteins_100g || 0) * 10) / 10;
+        const carbs = Math.round((n.carbohydrates_100g || 0) * 10) / 10;
+        const fat = Math.round((n.fat_100g || 0) * 10) / 10;
+        const brand = p.brands ? ` (${p.brands.split(',')[0]})` : '';
+        return `${p.product_name_he || p.product_name}${brand}: ${cal} קק״ל, חלבון ${prot}g, פחמימות ${carbs}g, שומן ${fat}g (ל-100g)`;
+      }).join('\n');
+      
+      return info;
+    } catch(e) {
+      console.error('Food lookup error:', e);
+      return null;
+    }
+  };
+
+  const send = async text => {
+    const t = (text || input).trim();
+    if (!t || loading) return;
     setInput('');
-    const next=[...msgs,{role:'user',text:t}];
+    const next = [...msgs, { role: 'user', text: t }];
     setMsgs(next);
     setLoading(true);
-    try{
-      const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:AI_SYS,
-          messages:next.filter(m=>m.role!=='error').map(m=>({role:m.role==='user'?'user':'assistant',content:m.text}))})});
-      if(!res.ok)throw new Error();
-      const data=await res.json();
-      setMsgs([...next,{role:'bot',text:data.content?.[0]?.text||'מצטערת, שגיאה.'}]);
-    }catch{setMsgs([...next,{role:'error',text:'⚠️ שגיאה. נסי שוב.'}]);}
-    finally{setLoading(false);}
+    
+    try {
+      // נסה לזהות שאלה על מזון ולחפש ב-Open Food Facts
+      const foodInfo = await detectFoodInQuery(t);
+      
+      // הכן את ההודעה - אם מצאנו מידע על מזון, הוסף אותו כ-context
+      let systemMsg = AI_SYS;
+      if (foodInfo) {
+        systemMsg += `\n\nמידע ממאגר Open Food Facts (השתמשי בזה אם רלוונטי):\n${foodInfo}`;
+      }
+      
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemMsg,
+          messages: next.filter(m => m.role !== 'error').map(m => ({
+            role: m.role === 'user' ? 'user' : 'assistant',
+            content: m.text
+          }))
+        })
+      });
+      
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setMsgs([...next, { role: 'bot', text: data.content?.[0]?.text || 'מצטערת, שגיאה.' }]);
+    } catch {
+      setMsgs([...next, { role: 'error', text: '⚠️ שגיאה. נסי שוב.' }]);
+    } finally {
+      setLoading(false);
+    }
   };
   return(
     <div style={{position:'fixed',bottom:84,left:16,right:16,maxWidth:380,margin:'0 auto',height:460,background:'white',borderRadius:18,display:'flex',flexDirection:'column',zIndex:50,boxShadow:'0 10px 30px rgba(0,0,0,0.2)',border:`1px solid ${COLORS.border}`,direction:'rtl'}}>
