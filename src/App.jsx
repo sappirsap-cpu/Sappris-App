@@ -26,18 +26,31 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    let initialized = false;
+    let timeoutId;
 
     const init = async () => {
       try {
         setDebugInfo('בודק session...');
+        
+        // Timeout safety — אם לא מסיים תוך 8 שניות, תציג כניסה
+        timeoutId = setTimeout(() => {
+          if (!mounted || initialized) return;
+          console.warn('Init timeout - forcing login screen');
+          setSession(null);
+          setUserRole(null);
+        }, 8000);
+        
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Session error:', error);
-          setDebugInfo('שגיאה בטעינת session');
         }
         
         if (!mounted) return;
+        
+        initialized = true;
+        clearTimeout(timeoutId);
         
         setSession(session);
         
@@ -50,14 +63,20 @@ export default function App() {
         }
       } catch (e) {
         console.error('Init error:', e);
-        setDebugInfo('שגיאה בטעינה: ' + e.message);
-        setUserRole(null);
+        if (mounted) {
+          setSession(null);
+          setUserRole(null);
+        }
       }
     };
+    
     init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       if (!mounted) return;
+      // רק אחרי ש-init סיים, נעדכן
+      if (!initialized) return;
+      
       setSession(newSession);
       if (newSession) {
         setUserRole(undefined);
@@ -67,48 +86,41 @@ export default function App() {
       }
     });
 
-    return () => { mounted = false; subscription.unsubscribe(); };
+    return () => { 
+      mounted = false; 
+      if (timeoutId) clearTimeout(timeoutId);
+      subscription.unsubscribe(); 
+    };
   }, []);
 
   const detectRole = async (userId) => {
     try {
       setDebugInfo('בודק תפקיד...');
       
-      // בדוק מאמנת
-      const { data: coaches, error: coachErr } = await supabase
-        .from('coaches')
-        .select('id')
-        .eq('id', userId)
-        .limit(1);
+      // Timeout safety — אם לא מסיים תוך 5 שניות, מחשיב כלא נמצא
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 5000)
+      );
       
-      if (coachErr) {
-        console.error('Coach check error:', coachErr);
-        setDebugInfo('שגיאה בבדיקת מאמנת: ' + coachErr.message);
-      } else {
-        console.log('Coaches result:', coaches);
-      }
+      // בדוק את שניהם במקביל
+      const [coachRes, clientRes] = await Promise.race([
+        Promise.all([
+          supabase.from('coaches').select('id').eq('id', userId).limit(1),
+          supabase.from('clients').select('id').eq('id', userId).limit(1),
+        ]),
+        timeoutPromise
+      ]);
       
-      if (coaches && coaches.length > 0) {
+      const coaches = coachRes?.data || [];
+      const clients = clientRes?.data || [];
+      
+      if (coaches.length > 0) {
         setDebugInfo('נמצאה מאמנת ✓');
         setUserRole('coach');
         return;
       }
-
-      // בדוק לקוחה
-      const { data: clients, error: clientErr } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('id', userId)
-        .limit(1);
       
-      if (clientErr) {
-        console.error('Client check error:', clientErr);
-        setDebugInfo('שגיאה בבדיקת לקוחה: ' + clientErr.message);
-      } else {
-        console.log('Clients result:', clients);
-      }
-      
-      if (clients && clients.length > 0) {
+      if (clients.length > 0) {
         setDebugInfo('נמצאה לקוחה ✓');
         setUserRole('client');
         return;
@@ -119,7 +131,7 @@ export default function App() {
       setUserRole(null);
     } catch (e) {
       console.error('detectRole failed:', e);
-      setDebugInfo('שגיאה קריטית: ' + e.message);
+      setDebugInfo('שגיאה: ' + e.message);
       setUserRole(null);
     }
   };
@@ -299,11 +311,26 @@ function ClientLogin({ onCoachLogin }) {
     setError('');
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
       setLoading(false);
+      return;
+    }
+
+    // בדוק אם המשתמש הוא באמת לקוחה ולא מאמנת
+    if (data?.user) {
+      const { data: coaches } = await supabase
+        .from('coaches').select('id').eq('id', data.user.id).limit(1);
+      
+      if (coaches && coaches.length > 0) {
+        // זה מאמנת שמנסה להתחבר במסך לקוחה - נתק
+        await supabase.auth.signOut();
+        setError('משתמש זה הוא מאמנת. אנא השתמשי במסך כניסת מאמנת.');
+        setLoading(false);
+        return;
+      }
     }
   };
 
@@ -311,7 +338,7 @@ function ClientLogin({ onCoachLogin }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${COLORS.bg} 0%, white 100%)`, padding: '20px', direction: 'rtl' }}>
       <div style={{ maxWidth: '380px', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <img src="/logo.png" alt="Sappir Barak" style={{ width: '100px', marginBottom: '16px' }} />
+          <img src="/logo.png" alt="Sappir Barak" style={{ width: '200px', marginBottom: '16px' }} />
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 8px 0' }}>כניסת מתאמנת</h1>
           <p style={{ fontSize: '14px', color: COLORS.textMuted, margin: 0 }}>היי! מוכנה להמשיך במסע? 💚</p>
         </div>
@@ -388,11 +415,26 @@ function CoachLogin({ onBack }) {
     setError('');
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
       setLoading(false);
+      return;
+    }
+
+    // בדוק אם המשתמש הוא באמת מאמנת ולא לקוחה
+    if (data?.user) {
+      const { data: coaches } = await supabase
+        .from('coaches').select('id').eq('id', data.user.id).limit(1);
+      
+      if (!coaches || coaches.length === 0) {
+        // זה לא מאמנת - נתק
+        await supabase.auth.signOut();
+        setError('אין לך הרשאת מאמנת. אנא השתמשי במסך כניסת מתאמנת.');
+        setLoading(false);
+        return;
+      }
     }
   };
 
@@ -400,8 +442,8 @@ function CoachLogin({ onBack }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 100%)`, padding: '20px', direction: 'rtl' }}>
       <div style={{ maxWidth: '380px', width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: '80px', height: '80px', margin: '0 auto 16px', background: 'white', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/logo.png" alt="Sappir Barak" style={{ width: '60px' }} />
+          <div style={{ width: '140px', height: '140px', margin: '0 auto 16px', background: 'white', borderRadius: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: '110px' }} />
           </div>
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'white', margin: '0 0 8px 0' }}>כניסת מאמנת</h1>
           <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', margin: 0 }}>ברוכה הבאה ספיר 💚</p>
