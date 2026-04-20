@@ -339,19 +339,7 @@ export default function App({ onLogout }) {
       {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
       {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
       {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
-      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={async () => { 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && messageText.trim()) {
-          await supabase.from('messages').insert({
-            from_id: user.id,
-            to_id: selectedClient.id,
-            content: messageText.trim(),
-          });
-        }
-        setMessageText(''); 
-        showToast('💚 הודעה נשלחה'); 
-        goBack(); 
-      }} />}
+      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} />}
       {subView === 'newClient' && <NewClient onBack={goBack} onInvite={(name) => { showToast(`✉️ הזמנה ל${name}`); goBack(); }} />}
       {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} />}
 
@@ -1179,25 +1167,156 @@ function MacroClientPicker({ clients, onBack, onPick }) {
 
 /* ===================== MESSAGE ===================== */
 function MessageCompose({ client, text, setText, onBack, onSend }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const scrollRef = React.useRef(null);
+
   const templates = [
     'בוקר טוב, זוכרת שיש לך אימון היום 💪',
     'איך ההרגשה אחרי האימון?',
-    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💚`,
+    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
     'אני פה לכל שאלה',
   ];
+
+  // טען הודעות היסטוריות עם הלקוחה
+  useEffect(() => {
+    loadMessages();
+  }, [client.id]);
+
+  // גלול לתחתית כשמתווספות הודעות
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo(0, scrollRef.current.scrollHeight);
+    }
+  }, [messages]);
+
+  const loadMessages = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // טען את כל ההודעות בין ספיר ללקוחה
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .or(`and(from_id.eq.${user.id},to_id.eq.${client.id}),and(from_id.eq.${client.id},to_id.eq.${user.id})`)
+      .order('sent_at', { ascending: true });
+
+    if (data) {
+      setMessages(data.map(m => ({
+        id: m.id,
+        from: m.from_id === user.id ? 'coach' : 'client',
+        text: m.content,
+        time: new Date(m.sent_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        date: new Date(m.sent_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+      })));
+    }
+
+    // סמן את הודעות הלקוחה כנקראות
+    await supabase
+      .from('messages')
+      .update({ read: true })
+      .eq('to_id', user.id)
+      .eq('from_id', client.id);
+
+    setLoading(false);
+  };
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase.from('messages').insert({
+      from_id: user.id,
+      to_id: client.id,
+      content: text.trim(),
+    }).select();
+
+    if (data && data[0]) {
+      setMessages(prev => [...prev, {
+        id: data[0].id,
+        from: 'coach',
+        text: data[0].content,
+        time: new Date(data[0].sent_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+        date: new Date(data[0].sent_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+      }]);
+      setText('');
+      onSend && onSend();
+    }
+  };
+
   return (
-    <main style={{ padding: '14px' }}>
-      <BackHeader onBack={onBack} title={`הודעה ל${client.name}`} />
-      <section style={cardStyle}>
-        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>💡 תבנית מהירה או טקסט חופשי:</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)', gap: '10px' }}>
+      <BackHeader onBack={onBack} title={`שיחה עם ${client.name}`} />
+      
+      {/* תיבת הודעות */}
+      <section ref={scrollRef} style={{ ...cardStyle, flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '200px' }}>
+        {loading && <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px' }}>טוענת...</p>}
+        {!loading && messages.length === 0 && (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px', margin: 'auto 0' }}>
+            עדיין אין הודעות.<br/>שלחי הודעה ראשונה 💜
+          </p>
+        )}
+        {messages.map(m => (
+          <div key={m.id} style={{
+            maxWidth: '82%',
+            padding: '9px 12px',
+            borderRadius: '14px',
+            fontSize: '13px',
+            lineHeight: 1.5,
+            alignSelf: m.from === 'coach' ? 'flex-end' : 'flex-start',
+            background: m.from === 'coach' ? COLORS.primary : COLORS.primarySoft,
+            color: m.from === 'coach' ? 'white' : COLORS.text,
+          }}>
+            <p style={{ margin: 0 }}>{m.text}</p>
+            <p style={{ margin: '3px 0 0', fontSize: '10px', opacity: 0.7 }}>{m.time}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* תבניות מהירות */}
+      <section style={{ ...cardStyle, padding: '8px 10px' }}>
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
           {templates.map((t, i) => (
-            <button key={i} onClick={() => setText(t)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '999px', padding: '6px 12px', fontSize: '12px', color: COLORS.primaryDark, cursor: 'pointer', fontFamily: 'inherit' }}>{t}</button>
+            <button key={i} onClick={() => setText(t)} style={{ 
+              background: COLORS.primarySoft, 
+              border: `1px solid ${COLORS.border}`, 
+              borderRadius: '999px', 
+              padding: '6px 12px', 
+              fontSize: '11px', 
+              color: COLORS.primaryDark, 
+              cursor: 'pointer', 
+              fontFamily: 'inherit',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}>{t}</button>
           ))}
         </div>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="כתבי הודעה..." rows={4} style={{ ...inputStyle, resize: 'vertical', marginBottom: '12px' }} />
-        <button onClick={onSend} disabled={!text.trim()} style={{ ...primaryBtnStyle, opacity: text.trim() ? 1 : 0.4 }}>שלחי</button>
       </section>
+
+      {/* תיבת כתיבה */}
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <input 
+          value={text} 
+          onChange={(e) => setText(e.target.value)} 
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="כתבי הודעה..." 
+          style={{ ...inputStyle, direction: 'rtl' }} 
+        />
+        <button onClick={handleSend} disabled={!text.trim()} style={{ 
+          background: COLORS.primary, 
+          color: 'white', 
+          border: 'none', 
+          padding: '10px 18px', 
+          borderRadius: '10px', 
+          fontSize: '13px', 
+          fontWeight: 600, 
+          cursor: text.trim() ? 'pointer' : 'default', 
+          opacity: text.trim() ? 1 : 0.4, 
+          fontFamily: 'inherit',
+          whiteSpace: 'nowrap'
+        }}>שלחי</button>
+      </div>
     </main>
   );
 }
@@ -1282,7 +1401,7 @@ function EditClientDetails({ client, onBack, onSave }) {
 
   const cardStyle = { 
     background: 'white', 
-    border: '1px solid #D0E3D6', 
+    border: '1px solid #DDD0EB', 
     borderRadius: '16px', 
     padding: '16px' 
   };
@@ -1290,7 +1409,7 @@ function EditClientDetails({ client, onBack, onSave }) {
   const inputStyle = {
     width: '100%',
     padding: '12px',
-    border: '1px solid #D0E3D6',
+    border: '1px solid #DDD0EB',
     borderRadius: '10px',
     fontSize: '14px',
     outline: 'none',
@@ -1309,7 +1428,7 @@ function EditClientDetails({ client, onBack, onSave }) {
         background: 'white',
         padding: '12px 16px',
         borderRadius: '12px',
-        border: '1px solid #D0E3D6'
+        border: '1px solid #DDD0EB'
       }}>
         <button onClick={onBack} style={{ 
           background: 'transparent', 
