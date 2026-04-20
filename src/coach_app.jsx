@@ -143,15 +143,8 @@ export default function App({ onLogout }) {
     const interval = setInterval(() => loadMessages(), 10000);
     
     // מאזינים לפתיחת מסכי תבניות
-    const handleOpenMealTemplates = () => setSubView('mealTemplates');
-    const handleOpenWorkoutTemplates = () => setSubView('workoutTemplates');
-    window.addEventListener('openMealTemplates', handleOpenMealTemplates);
-    window.addEventListener('openWorkoutTemplates', handleOpenWorkoutTemplates);
-    
     return () => {
       clearInterval(interval);
-      window.removeEventListener('openMealTemplates', handleOpenMealTemplates);
-      window.removeEventListener('openWorkoutTemplates', handleOpenWorkoutTemplates);
     };
   }, []);
 
@@ -348,8 +341,7 @@ export default function App({ onLogout }) {
       {/* Sub-views override tabs */}
       {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onProgress={() => setSubView('progress')} />}
       {subView === 'schedule' && selectedClient && <WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
-      {subView === 'mealTemplates' && <MealTemplatesManager onBack={goBack} showToast={showToast} />}
-      {subView === 'workoutTemplates' && <WorkoutTemplatesManager onBack={goBack} showToast={showToast} />}
+
       {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
       {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
       {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
@@ -420,8 +412,8 @@ function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
     { id: 'clients', label: 'לקוחות', icon: 'clients' },
-    { id: 'meals', label: 'מאכלים', icon: 'food' },
-    { id: 'workouts', label: 'תרגילים', icon: 'workout' },
+    { id: 'meals', label: 'תזונה', icon: 'food' },
+    { id: 'workouts', label: 'אימונים', icon: 'workout' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   return (
@@ -614,205 +606,125 @@ function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
   );
 }
 
-/* ===================== MEALS TAB (מחובר ל-DB) ===================== */
+
+/* ═══════════════════════════════════════════════════════════
+   NUTRITION TAB — ספיר יוצרת ארוחות
+═══════════════════════════════════════════════════════════ */
 function MealsTab({ showToast }) {
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [favorites, setFavorites] = useState([]);
-  const [showCreator, setShowCreator] = useState(false);
   const [editingMeal, setEditingMeal] = useState(null);
 
-  useEffect(() => {
-    loadMeals();
-    try {
-      const saved = localStorage.getItem('sappir_coach_meal_favs');
-      if (saved) setFavorites(JSON.parse(saved));
-    } catch(e) {}
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const loadMeals = async () => {
+  const load = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('coach_meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    const { data } = await supabase.from('meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
     if (data) setMeals(data);
     setLoading(false);
   };
 
-  const toggleFav = (id, e) => {
-    e?.stopPropagation();
-    const isFav = favorites.includes(id);
-    const newFavs = isFav ? favorites.filter(f => f !== id) : [...favorites, id];
-    setFavorites(newFavs);
-    try { localStorage.setItem('sappir_coach_meal_favs', JSON.stringify(newFavs)); } catch(e) {}
-  };
-
   const deleteMeal = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('למחוק את המאכל?')) return;
-    await supabase.from('coach_meals').delete().eq('id', id);
+    if (!confirm('למחוק את הארוחה?')) return;
+    await supabase.from('meals').delete().eq('id', id);
     setMeals(prev => prev.filter(m => m.id !== id));
-    showToast('🗑️ המאכל נמחק');
+    showToast('🗑️ נמחקה');
   };
 
-  const filters = [
-    { id: 'all', label: `הכל ${meals.length}` },
-    { id: 'favorites', label: `⭐ מועדפים ${favorites.length}` },
-    { id: 'breakfast', label: `בוקר ${meals.filter(m => m.meal_type === 'breakfast').length}` },
-    { id: 'lunch', label: `צהריים ${meals.filter(m => m.meal_type === 'lunch').length}` },
-    { id: 'dinner', label: `ערב ${meals.filter(m => m.meal_type === 'dinner').length}` },
-    { id: 'snack', label: `נשנוש ${meals.filter(m => m.meal_type === 'snack').length}` },
-  ];
+  const duplicateMeal = async (meal, e) => {
+    e?.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('meals').insert({
+      coach_id: user.id,
+      name: meal.name + ' (עותק)',
+      items: meal.items,
+      total_calories: meal.total_calories,
+      total_protein_g: meal.total_protein_g,
+      total_carbs_g: meal.total_carbs_g,
+      total_fat_g: meal.total_fat_g,
+    }).select();
+    if (data?.[0]) {
+      setMeals(prev => [data[0], ...prev]);
+      showToast('📋 שוכפלה');
+    }
+  };
 
-  const filtered = filter === 'all' ? meals
-    : filter === 'favorites' ? meals.filter(m => favorites.includes(m.id))
-    : meals.filter(m => m.meal_type === filter);
-
-  const typeLabel = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'נשנוש' };
-  const typeIcon = { breakfast: '☀️', lunch: '🌞', dinner: '🌙', snack: '🍎' };
-
-  if (showCreator || editingMeal) {
-    return <MealCreator meal={editingMeal} onBack={() => { setShowCreator(false); setEditingMeal(null); }} onSaved={() => { loadMeals(); setShowCreator(false); setEditingMeal(null); showToast('💾 נשמרה'); }} />;
+  if (editingMeal !== null) {
+    return <MealEditor meal={editingMeal} onBack={() => { setEditingMeal(null); load(); }} showToast={showToast} />;
   }
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית מאכלים</h2>
-        <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + מאכל חדש
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ארוחות</h2>
+        <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + ארוחה חדשה
         </button>
       </div>
-      
-      <button onClick={() => window.dispatchEvent(new CustomEvent('openMealTemplates'))} style={{ width: '100%', background: COLORS.primarySoft, color: COLORS.primaryDark, border: `1px solid ${COLORS.primary}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-        📋 תבניות תפריט →
-      </button>
 
-      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
-        {filters.map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)} style={{
-            background: filter === f.id ? COLORS.primary : 'white',
-            color: filter === f.id ? 'white' : COLORS.text,
-            border: `1px solid ${filter === f.id ? COLORS.primary : COLORS.border}`,
-            borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
-          }}>{f.label}</button>
-        ))}
-      </div>
-
-      {loading ? (
-        <p style={{ textAlign: 'center', color: COLORS.textMuted, padding: '20px' }}>טוענת...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 8px' }}>
-            {filter === 'favorites' ? '⭐ עדיין אין מאכלים במועדפים' : 'עדיין לא יצרת מאכלים'}
-          </p>
-          {filter !== 'favorites' && (
-            <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}>
-              + צרי מאכל ראשון
-            </button>
-          )}
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : meals.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין ארוחות</p>
+          <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + צרי ארוחה ראשונה
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {filtered.map(m => {
-            const isFav = favorites.includes(m.id);
-            return (
-              <div key={m.id} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }} onClick={() => setEditingMeal(m)}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
-                  <button onClick={(e) => toggleFav(m.id, e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '2px 4px', color: isFav ? '#F5D76E' : '#D0D0D0', lineHeight: 1, flexShrink: 0 }}>
-                    {isFav ? '★' : '☆'}
-                  </button>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{m.name}</p>
-                    {m.description && <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>{m.description}</p>}
-                  </div>
-                  <span style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '999px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    {typeIcon[m.meal_type]} {typeLabel[m.meal_type]}
-                  </span>
+          {meals.map(m => (
+            <div key={m.id} onClick={() => setEditingMeal(m)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>🍽️ {m.name}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                    {(m.items?.length || 0)} מאכלים · {Math.round(m.total_calories || 0)} קק״ל
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: COLORS.textMuted, flexWrap: 'wrap' }}>
-                  <span>🔥 <strong style={{ color: COLORS.text }}>{Math.round(m.total_calories)}</strong> קק״ל</span>
-                  <span style={{ color: COLORS.sky }}>חלבון <strong>{Math.round(m.total_protein_g)}g</strong></span>
-                  <span style={{ color: COLORS.primary }}>פחמ׳ <strong>{Math.round(m.total_carbs_g)}g</strong></span>
-                  <span style={{ color: '#C88968' }}>שומן <strong>{Math.round(m.total_fat_g)}g</strong></span>
-                  <button onClick={(e) => deleteMeal(m.id, e)} style={{ marginRight: 'auto', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#C88A8A', padding: 0 }}>🗑️</button>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={(e) => duplicateMeal(m, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
+                  <button onClick={(e) => deleteMeal(m.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
                 </div>
               </div>
-            );
-          })}
+              <div style={{ display: 'flex', gap: 10, fontSize: 11, color: COLORS.textMuted }}>
+                <span style={{ color: COLORS.sky }}>חלבון <strong>{Math.round(m.total_protein_g || 0)}g</strong></span>
+                <span style={{ color: COLORS.primary }}>פחמ׳ <strong>{Math.round(m.total_carbs_g || 0)}g</strong></span>
+                <span style={{ color: '#C88968' }}>שומן <strong>{Math.round(m.total_fat_g || 0)}g</strong></span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </main>
   );
 }
 
-/* ===================== MEAL CREATOR ===================== */
-function MealCreator({ meal, onBack, onSaved }) {
+/* ═══════════════════════════════════════════════════════════
+   MEAL EDITOR — יצירת/עריכת ארוחה
+═══════════════════════════════════════════════════════════ */
+function MealEditor({ meal, onBack, showToast }) {
   const [name, setName] = useState(meal?.name || '');
-  const [mealType, setMealType] = useState(meal?.meal_type || 'lunch');
-  const [description, setDescription] = useState(meal?.description || '');
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState(meal?.items || []);
+  const [savedFoods, setSavedFoods] = useState([]);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const searchTimer = useRef(null);
 
-  // Local food library (50 items)
-  const LOCAL_FOODS = [
-    {name:'חזה עוף 100g',cal:165,p:31,c:0,f:3,icon:'🍗'},
-    {name:'חזה הודו 100g',cal:135,p:30,c:0,f:1,icon:'🦃'},
-    {name:'סלמון 120g',cal:250,p:25,c:0,f:16,icon:'🐟'},
-    {name:'ביצה',cal:72,p:6,c:0,f:5,icon:'🥚'},
-    {name:'יוגורט יווני 150g',cal:130,p:17,c:7,f:4,icon:'🥛'},
-    {name:'קוטג׳ 200g',cal:142,p:16,c:6,f:6,icon:'🧀'},
-    {name:'אורז מלא 100g',cal:216,p:5,c:45,f:2,icon:'🍚'},
-    {name:'קינואה 100g',cal:120,p:4,c:21,f:2,icon:'🌾'},
-    {name:'בטטה 150g',cal:129,p:3,c:30,f:0,icon:'🍠'},
-    {name:'לחם מלא פרוסה',cal:80,p:4,c:15,f:1,icon:'🍞'},
-    {name:'שיבולת שועל 50g',cal:190,p:7,c:33,f:3,icon:'🥣'},
-    {name:'בננה',cal:89,p:1,c:23,f:0,icon:'🍌'},
-    {name:'תפוח',cal:95,p:0,c:25,f:0,icon:'🍎'},
-    {name:'אבוקדו חצי',cal:120,p:1,c:6,f:11,icon:'🥑'},
-    {name:'שקדים 30g',cal:173,p:6,c:6,f:15,icon:'🌰'},
-    {name:'חמאת בוטנים כף',cal:90,p:4,c:3,f:8,icon:'🥜'},
-    {name:'טחינה כף',cal:89,p:3,c:3,f:8,icon:'🥜'},
-    {name:'עגבנייה',cal:22,p:1,c:5,f:0,icon:'🍅'},
-    {name:'מלפפון',cal:16,p:1,c:4,f:0,icon:'🥒'},
-    {name:'ברוקולי 100g',cal:34,p:3,c:7,f:0,icon:'🥦'},
-    {name:'גבינה לבנה 5% 100g',cal:100,p:11,c:3,f:5,icon:'🧀'},
-    {name:'חלב 2% כוס',cal:122,p:8,c:12,f:5,icon:'🥛'},
-    {name:'עדשים מבושלות 100g',cal:116,p:9,c:20,f:0,icon:'🫘'},
-    {name:'חומוס מבושל 100g',cal:164,p:9,c:27,f:3,icon:'🫘'},
-  ];
+  useEffect(() => { loadSavedFoods(); }, []);
 
-  // Load existing meal items if editing
-  useEffect(() => {
-    if (meal?.id) loadMealItems();
-  }, [meal?.id]);
-
-  const loadMealItems = async () => {
-    const { data } = await supabase.from('coach_meal_items').select('*').eq('meal_id', meal.id).order('order_index');
-    if (data) {
-      setItems(data.map(i => ({
-        id: i.id,
-        name: i.food_name,
-        quantity: i.quantity_g,
-        cal: i.calories,
-        p: i.protein_g,
-        c: i.carbs_g,
-        f: i.fat_g,
-        icon: i.icon,
-      })));
-    }
+  const loadSavedFoods = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('coach_foods').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setSavedFoods(data);
   };
 
-  // Local filter + OFF search
-  const localMatches = search.trim() 
-    ? LOCAL_FOODS.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-    : [];
-
+  // חיפוש ב-Open Food Facts
   useEffect(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (search.trim().length < 3) {
@@ -822,7 +734,7 @@ function MealCreator({ meal, onBack, onSaved }) {
     searchTimer.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(search)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,product_name_he,brands,nutriments,code`;
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(search)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,product_name_he,brands,nutriments`;
         const res = await fetch(url);
         const data = await res.json();
         const results = (data.products || [])
@@ -834,125 +746,128 @@ function MealCreator({ meal, onBack, onSaved }) {
             c: Math.round((p.nutriments.carbohydrates_100g || 0) * 10) / 10,
             f: Math.round((p.nutriments.fat_100g || 0) * 10) / 10,
             icon: '🛒',
+            source: 'off',
           }));
         setSearchResults(results);
-      } catch(e) {
-        console.error('search error:', e);
-      }
+      } catch(e) { console.error(e); }
       setSearching(false);
     }, 600);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
   }, [search]);
 
-  const addItem = (food) => {
-    setItems(prev => [...prev, { ...food, id: Date.now() + Math.random(), quantity: 100 }]);
+  // חיפוש במאגר השמור
+  const savedMatches = search.trim()
+    ? savedFoods.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+    : savedFoods;
+
+  // הוספת פריט לארוחה + שמירה למאגר אם לא קיים
+  const addItemToMeal = async (food, quantity = 100) => {
+    const qty = parseFloat(quantity) || 100;
+    const r = qty / 100;
+    
+    const newItem = {
+      name: food.name,
+      quantity_g: qty,
+      cal: food.cal * r,
+      p: food.p * r,
+      c: food.c * r,
+      f: food.f * r,
+      icon: food.icon || '🍽️',
+    };
+    
+    setItems(prev => [...prev, newItem]);
+    
+    // שמור למאגר אם לא קיים (כדי שיופיע בחיפוש בפעם הבאה)
+    if (food.source === 'off' || food.source === 'manual') {
+      const { data: { user } } = await supabase.auth.getUser();
+      const exists = savedFoods.find(sf => sf.name === food.name);
+      if (!exists) {
+        const { data } = await supabase.from('coach_foods').insert({
+          coach_id: user.id,
+          name: food.name,
+          quantity_g: 100,
+          calories: food.cal,
+          protein_g: food.p,
+          carbs_g: food.c,
+          fat_g: food.f,
+          icon: food.icon || '🍽️',
+          source: food.source || 'manual',
+        }).select();
+        if (data?.[0]) setSavedFoods(prev => [data[0], ...prev]);
+      }
+    }
+    
     setSearch('');
     setSearchResults([]);
+    showToast(`✅ ${food.name} נוסף`);
   };
 
-  const updateQuantity = (id, qty) => {
-    const newQty = parseFloat(qty) || 0;
-    setItems(prev => prev.map(i => {
-      if (i.id !== id) return i;
-      const ratio = newQty / 100;
+  const updateItemQuantity = (index, newQty) => {
+    const qty = parseFloat(newQty) || 0;
+    setItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      const origQty = item.quantity_g || 100;
+      const r = qty / origQty;
       return {
-        ...i,
-        quantity: newQty,
-        // we stored cal/p/c/f per 100g originally
+        ...item,
+        quantity_g: qty,
+        cal: item.cal * r,
+        p: item.p * r,
+        c: item.c * r,
+        f: item.f * r,
       };
     }));
   };
 
-  const removeItem = (id) => setItems(prev => prev.filter(i => i.id !== id));
+  const removeItem = (index) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
 
-  // Calculate totals based on quantity (all values stored per 100g)
-  const totals = items.reduce((t, i) => {
-    const r = (i.quantity || 100) / 100;
-    return {
-      cal: t.cal + (i.cal * r),
-      p: t.p + (i.p * r),
-      c: t.c + (i.c * r),
-      f: t.f + (i.f * r),
-    };
-  }, { cal: 0, p: 0, c: 0, f: 0 });
+  const totals = items.reduce((t, i) => ({
+    cal: t.cal + (i.cal || 0),
+    p: t.p + (i.p || 0),
+    c: t.c + (i.c || 0),
+    f: t.f + (i.f || 0),
+  }), { cal: 0, p: 0, c: 0, f: 0 });
 
   const handleSave = async () => {
     if (!name.trim() || items.length === 0) return;
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
+    
     const mealData = {
       coach_id: user.id,
       name: name.trim(),
-      meal_type: mealType,
-      description: description.trim() || null,
+      items,
       total_calories: totals.cal,
       total_protein_g: totals.p,
       total_carbs_g: totals.c,
       total_fat_g: totals.f,
     };
-
-    let mealId;
+    
     if (meal?.id) {
-      await supabase.from('coach_meals').update(mealData).eq('id', meal.id);
-      mealId = meal.id;
-      // Delete old items
-      await supabase.from('coach_meal_items').delete().eq('meal_id', mealId);
+      await supabase.from('meals').update(mealData).eq('id', meal.id);
     } else {
-      const { data } = await supabase.from('coach_meals').insert(mealData).select();
-      mealId = data?.[0]?.id;
+      await supabase.from('meals').insert(mealData);
     }
-
-    if (mealId) {
-      const itemRows = items.map((i, idx) => {
-        const r = (i.quantity || 100) / 100;
-        return {
-          meal_id: mealId,
-          food_name: i.name,
-          quantity_g: i.quantity,
-          calories: i.cal * r,
-          protein_g: i.p * r,
-          carbs_g: i.c * r,
-          fat_g: i.f * r,
-          icon: i.icon,
-          order_index: idx,
-        };
-      });
-      await supabase.from('coach_meal_items').insert(itemRows);
-    }
-
+    
     setSaving(false);
-    onSaved();
+    onBack();
   };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={meal ? 'עריכת מאכל' : 'מאכל חדש'} />
+      <BackHeader onBack={onBack} title={meal?.id ? 'עריכת ארוחה' : 'ארוחה חדשה'} />
 
       <section style={cardStyle}>
-        <Field label="שם המאכל">
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: סלט חזה עוף" style={inputStyle} />
-        </Field>
-        <Field label="סוג ארוחה">
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[['breakfast','☀️ בוקר'],['lunch','🌞 צהריים'],['dinner','🌙 ערב'],['snack','🍎 נשנוש']].map(([id, lbl]) => (
-              <button key={id} onClick={() => setMealType(id)} style={{
-                flex: 1, background: mealType === id ? COLORS.primary : COLORS.primarySoft,
-                color: mealType === id ? 'white' : COLORS.text, border: 'none', borderRadius: 8,
-                padding: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              }}>{lbl}</button>
-            ))}
-          </div>
-        </Field>
-        <Field label="תיאור (אופציונלי)">
-          <input value={description} onChange={e => setDescription(e.target.value)} placeholder="הערות קצרות" style={inputStyle} />
+        <Field label="שם הארוחה">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: ארוחת בוקר פרוטאין" style={inputStyle} autoFocus={!meal?.id} />
         </Field>
       </section>
 
-      {/* סיכום מאקרו */}
+      {/* סיכום */}
       <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
-        <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>📊 סה״כ במאכל</p>
+        <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>📊 סה״כ</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
           <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.text }}>{Math.round(totals.cal)}</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>קק״ל</p></div>
           <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.sky }}>{Math.round(totals.p)}g</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>חלבון</p></div>
@@ -961,44 +876,63 @@ function MealCreator({ meal, onBack, onSaved }) {
         </div>
       </section>
 
-      {/* רשימת פריטים */}
+      {/* פריטים שנוספו */}
       {items.length > 0 && (
         <section style={cardStyle}>
-          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>🍽️ מרכיבים ({items.length})</p>
-          {items.map(i => {
-            const r = (i.quantity || 100) / 100;
-            return (
-              <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px', background: COLORS.bg, borderRadius: 10, marginBottom: 6 }}>
-                <span style={{ fontSize: 20 }}>{i.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{i.name}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
-                    {Math.round(i.cal * r)} קק״ל · חלבון {Math.round(i.p * r)}g · פחמ׳ {Math.round(i.c * r)}g · שומן {Math.round(i.f * r)}g
-                  </p>
-                </div>
-                <input type="number" value={i.quantity} onChange={e => updateQuantity(i.id, e.target.value)} style={{ width: 55, padding: '4px', border: `1px solid ${COLORS.border}`, borderRadius: 6, fontSize: 11, textAlign: 'center', fontFamily: 'inherit' }} />
-                <span style={{ fontSize: 10, color: COLORS.textMuted }}>g</span>
-                <button onClick={() => removeItem(i.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: '#C88A8A' }}>🗑️</button>
+          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>🍴 מאכלים בארוחה</p>
+          {items.map((item, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
+                  {Math.round(item.cal)} קק״ל · חלבון {Math.round(item.p)}g
+                </p>
               </div>
-            );
-          })}
+              <input type="number" value={item.quantity_g} onChange={e => updateItemQuantity(idx, e.target.value)} style={{ width: 55, padding: 4, border: `1px solid ${COLORS.border}`, borderRadius: 6, fontSize: 11, textAlign: 'center', fontFamily: 'inherit' }} />
+              <span style={{ fontSize: 10, color: COLORS.textMuted }}>g</span>
+              <button onClick={() => removeItem(idx)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+            </div>
+          ))}
         </section>
       )}
 
-      {/* הוספת פריט */}
+      {/* הוסיפי מאכל */}
       <section style={cardStyle}>
-        <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>➕ הוסיפי פריט</p>
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפשי מזון (שופרסל, יוגורט, עוף...)" style={{ ...inputStyle, marginBottom: 10 }} />
+        <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>➕ הוסיפי מאכל</p>
         
-        {localMatches.length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>מהספריה המקומית:</p>
-            {localMatches.slice(0, 6).map((f, i) => (
-              <div key={i} onClick={() => addItem(f)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
-                <span style={{ fontSize: 18 }}>{f.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{f.name}</p>
-                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{f.cal} קק״ל / 100g</p>
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="חפשי מזון או בחרי מהמאגר..." 
+          style={{ ...inputStyle, marginBottom: 10 }} 
+        />
+
+        <button onClick={() => setShowManual(!showManual)} style={{ 
+          width: '100%', background: showManual ? COLORS.primarySoft : 'white', 
+          color: COLORS.text, border: `1px solid ${COLORS.border}`, 
+          padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600, 
+          cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 
+        }}>
+          {showManual ? '✕ סגרי' : '✏️ הוספה ידנית'}
+        </button>
+
+        {showManual && (
+          <ManualFoodInput onAdd={(f) => { addItemToMeal({...f, source: 'manual'}); setShowManual(false); }} />
+        )}
+
+        {/* מאגר שמור */}
+        {savedMatches.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>📚 מהמאגר שלך:</p>
+            {savedMatches.slice(0, 8).map(f => (
+              <div key={f.id} onClick={() => addItemToMeal({
+                name: f.name, cal: f.calories, p: f.protein_g, c: f.carbs_g, f: f.fat_g, icon: f.icon
+              })} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{f.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{Math.round(f.calories)} קק״ל / 100g</p>
                 </div>
                 <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
               </div>
@@ -1006,15 +940,16 @@ function MealCreator({ meal, onBack, onSaved }) {
           </div>
         )}
 
+        {/* תוצאות Open Food Facts */}
         {search.trim().length >= 3 && (
-          <div>
-            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '6px 0' }}>🛒 Open Food Facts:</p>
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>🛒 מ-Open Food Facts:</p>
             {searching && <p style={{ fontSize: 11, color: COLORS.textMuted, textAlign: 'center' }}>מחפשת...</p>}
             {searchResults.map((f, i) => (
-              <div key={i} onClick={() => addItem(f)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
-                <span style={{ fontSize: 18 }}>{f.icon}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{f.name}</p>
+              <div key={i} onClick={() => addItemToMeal(f)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{f.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
                   <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{f.cal} קק״ל / 100g</p>
                 </div>
                 <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
@@ -1030,330 +965,569 @@ function MealCreator({ meal, onBack, onSaved }) {
         cursor: (name.trim() && items.length > 0 && !saving) ? 'pointer' : 'default',
         opacity: (name.trim() && items.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
-        {saving ? 'שומרת...' : '💾 שמרי מאכל'}
+        {saving ? 'שומרת...' : '💾 שמרי ארוחה'}
       </button>
     </main>
   );
 }
 
-/* ===================== AI MEAL GENERATOR ===================== */
-function AIMealModal({ onClose, onAdd }) {
-  const [prompt, setPrompt] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+/* ═══════════════════════════════════════════════════════════
+   MANUAL FOOD INPUT
+═══════════════════════════════════════════════════════════ */
+function ManualFoodInput({ onAdd }) {
+  const [name, setName] = useState('');
+  const [cal, setCal] = useState('');
+  const [p, setP] = useState('');
+  const [c, setC] = useState('');
+  const [f, setF] = useState('');
+  const [icon, setIcon] = useState('🍽️');
 
-  const generate = async () => {
-    if (!prompt.trim() || loading) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  const ICONS = ['🍽️', '🥗', '🍗', '🍎', '🥑', '🥛', '🥚', '🍞', '🥜', '🫐', '🍌', '🥕'];
 
-    const systemPrompt = `אתה תזונאית מקצועית. המשתמשת מבקשת ממך ליצור מנת אוכל.
-ענה אך ורק ב-JSON תקני ללא מרכאות backtick ובלי טקסט נוסף, בדיוק בפורמט הבא:
-{"name":"שם המאכל","type":"breakfast","desc":"תיאור קצר","cal":320,"p":18,"c":40,"f":8}
-type חייב להיות אחד מ: breakfast, lunch, dinner, snack`;
-
-    try {
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: `צרי מנה: ${prompt}` }],
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const text = data.content?.[0]?.text || '';
-      const parsed = JSON.parse(text.trim());
-      setResult(parsed);
-    } catch {
-      setError('לא הצלחתי ליצור מנה. נסי שוב עם תיאור אחר.');
-    } finally {
-      setLoading(false);
-    }
+  const submit = () => {
+    if (!name.trim() || !cal) return;
+    onAdd({
+      name: name.trim(),
+      cal: parseFloat(cal) || 0,
+      p: parseFloat(p) || 0,
+      c: parseFloat(c) || 0,
+      f: parseFloat(f) || 0,
+      icon,
+    });
+    setName(''); setCal(''); setP(''); setC(''); setF('');
   };
 
-  const typeLabel = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'נשנוש' };
-
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: '20px 20px 0 0', padding: '20px', width: '100%', maxWidth: '440px', direction: 'rtl' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark }}>✨ יצירת מנה עם AI</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <input
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && generate()}
-            placeholder="למשל: ארוחת בוקר עשירה בחלבון עם 300 קלוריות"
-            style={inputStyle}
-            disabled={loading}
-          />
-          <button onClick={generate} disabled={!prompt.trim() || loading} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: (!prompt.trim() || loading) ? 'default' : 'pointer', opacity: (!prompt.trim() || loading) ? 0.5 : 1, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-            {loading ? '...' : 'צור'}
-          </button>
-        </div>
-
-        {/* Suggestions */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px' }}>
-          {['ארוחת בוקר 300 קק״ל', 'נשנוש חלבון 150 קק״ל', 'ארוחת צהריים ים תיכונית'].map((s, i) => (
-            <button key={i} onClick={() => setPrompt(s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '999px', padding: '5px 12px', fontSize: '11px', color: COLORS.primaryDark, cursor: 'pointer', fontFamily: 'inherit' }}>{s}</button>
-          ))}
-        </div>
-
-        {error && <p style={{ color: '#E53E3E', fontSize: '13px', margin: '0 0 12px 0' }}>{error}</p>}
-
-        {result && (
-          <div style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}`, borderRadius: '14px', padding: '14px', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: COLORS.text }}>{result.name}</p>
-                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{result.desc}</p>
-              </div>
-              <span style={{ background: COLORS.primary, color: 'white', fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px' }}>{typeLabel[result.type] || result.type}</span>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: COLORS.textMuted }}>
-              <span>kcal <strong style={{ color: COLORS.text }}>{result.cal}</strong></span>
-              <span style={{ color: COLORS.sky }}>P <strong>{result.p}g</strong></span>
-              <span style={{ color: COLORS.primary }}>C <strong>{result.c}g</strong></span>
-              <span style={{ color: COLORS.peach }}>F <strong>{result.f}g</strong></span>
-            </div>
-            <button onClick={() => { onAdd(result); onClose(); }} style={{ ...primaryBtnStyle, marginTop: '10px', fontSize: '13px', padding: '10px' }}>
-              ✅ הוסיפי לספרייה
-            </button>
-          </div>
-        )}
+    <div style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 10, marginBottom: 10 }}>
+      <p style={{ margin: '0 0 8px', fontSize: 11, color: COLORS.textMuted }}>הזיני את הערכים ל-100g:</p>
+      
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, overflowX: 'auto' }}>
+        {ICONS.map(ic => (
+          <button key={ic} onClick={() => setIcon(ic)} style={{
+            width: 34, height: 34, borderRadius: 8,
+            border: `2px solid ${icon === ic ? COLORS.primary : COLORS.border}`,
+            background: icon === ic ? 'white' : COLORS.bg,
+            cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', flexShrink: 0,
+          }}>{ic}</button>
+        ))}
       </div>
+
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="שם המאכל" style={{ ...inputStyle, marginBottom: 6 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+        <input type="number" value={cal} onChange={e => setCal(e.target.value)} placeholder="קק״ל" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={p} onChange={e => setP(e.target.value)} placeholder="חלבון" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={c} onChange={e => setC(e.target.value)} placeholder="פחמ׳" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={f} onChange={e => setF(e.target.value)} placeholder="שומן" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+      </div>
+      <button onClick={submit} disabled={!name.trim() || !cal} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600,
+        cursor: (name.trim() && cal) ? 'pointer' : 'default',
+        opacity: (name.trim() && cal) ? 1 : 0.5, fontFamily: 'inherit',
+      }}>
+        + הוסיפי
+      </button>
     </div>
   );
 }
 
-/* ===================== EXERCISES TAB (ספריית תרגילים מ-DB) ===================== */
+/* ═══════════════════════════════════════════════════════════
+   WORKOUTS TAB — ספיר יוצרת אימונים
+═══════════════════════════════════════════════════════════ */
 function WorkoutsTab({ showToast }) {
-  const [exercises, setExercises] = useState([]);
+  const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreator, setShowCreator] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [search, setSearch] = useState('');
-  const [favorites, setFavorites] = useState([]);
-  const [showFavsOnly, setShowFavsOnly] = useState(false);
 
-  useEffect(() => {
-    load();
-    try {
-      const saved = localStorage.getItem('sappir_coach_ex_favs');
-      if (saved) setFavorites(JSON.parse(saved));
-    } catch(e) {}
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-    if (data) setExercises(data);
+    const { data } = await supabase.from('workouts').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setWorkouts(data);
     setLoading(false);
   };
 
-  const toggleFav = (id, e) => {
+  const deleteWorkout = async (id, e) => {
     e?.stopPropagation();
-    const isFav = favorites.includes(id);
-    const newFavs = isFav ? favorites.filter(f => f !== id) : [...favorites, id];
-    setFavorites(newFavs);
-    try { localStorage.setItem('sappir_coach_ex_favs', JSON.stringify(newFavs)); } catch(e) {}
+    if (!confirm('למחוק את האימון?')) return;
+    await supabase.from('workouts').delete().eq('id', id);
+    setWorkouts(prev => prev.filter(w => w.id !== id));
+    showToast('🗑️ נמחק');
   };
 
-  const deleteEx = async (id, e) => {
+  const duplicateWorkout = async (w, e) => {
     e?.stopPropagation();
-    if (!confirm('למחוק את התרגיל?')) return;
-    await supabase.from('coach_exercises').delete().eq('id', id);
-    setExercises(prev => prev.filter(ex => ex.id !== id));
-    showToast('🗑️ התרגיל נמחק');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('workouts').insert({
+      coach_id: user.id,
+      name: w.name + ' (עותק)',
+      exercises: w.exercises,
+    }).select();
+    if (data?.[0]) {
+      setWorkouts(prev => [data[0], ...prev]);
+      showToast('📋 שוכפל');
+    }
   };
 
-  let filtered = exercises;
-  if (showFavsOnly) filtered = filtered.filter(ex => favorites.includes(ex.id));
-  if (search.trim()) filtered = filtered.filter(ex => ex.name.includes(search.trim()));
-
-  if (showCreator || editing) {
-    return <ExerciseEditor exercise={editing} onBack={() => { setShowCreator(false); setEditing(null); }} onSaved={() => { load(); setShowCreator(false); setEditing(null); showToast('💾 נשמר'); }} />;
+  if (editing !== null) {
+    return <WorkoutEditor workout={editing} onBack={() => { setEditing(null); load(); }} showToast={showToast} />;
   }
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית תרגילים</h2>
-        <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + תרגיל חדש
-        </button>
-      </div>
-      
-      <button onClick={() => window.dispatchEvent(new CustomEvent('openWorkoutTemplates'))} style={{ width: '100%', background: COLORS.primarySoft, color: COLORS.primaryDark, border: `1px solid ${COLORS.primary}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-        📋 תבניות אימון →
-      </button>
-
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 חיפוש תרגיל..." style={inputStyle} />
-
-      <div style={{ display: 'flex', gap: '6px' }}>
-        <button onClick={() => setShowFavsOnly(false)} style={{ background: !showFavsOnly ? COLORS.primary : 'white', color: !showFavsOnly ? 'white' : COLORS.text, border: `1px solid ${!showFavsOnly ? COLORS.primary : COLORS.border}`, borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          כל התרגילים ({exercises.length})
-        </button>
-        <button onClick={() => setShowFavsOnly(true)} style={{ background: showFavsOnly ? '#F5D76E' : 'white', color: COLORS.text, border: `1px solid ${showFavsOnly ? '#F5D76E' : COLORS.border}`, borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          ⭐ מועדפים ({favorites.length})
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>אימונים</h2>
+        <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + אימון חדש
         </button>
       </div>
 
-      {loading ? (
-        <p style={{ textAlign: 'center', color: COLORS.textMuted, padding: '20px' }}>טוענת...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 8px' }}>
-            {search.trim() ? 'לא נמצאו תרגילים' : showFavsOnly ? '⭐ עדיין אין תרגילים במועדפים' : 'עדיין לא יצרת תרגילים'}
-          </p>
-          {!search.trim() && !showFavsOnly && (
-            <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}>
-              + צרי תרגיל ראשון
-            </button>
-          )}
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : workouts.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין אימונים</p>
+          <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + צרי אימון ראשון
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {filtered.map(ex => {
-            const isFav = favorites.includes(ex.id);
-            return (
-              <div key={ex.id} onClick={() => setEditing(ex)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button onClick={(e) => toggleFav(ex.id, e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '2px 4px', color: isFav ? '#F5D76E' : '#D0D0D0', lineHeight: 1, flexShrink: 0 }}>
-                  {isFav ? '★' : '☆'}
-                </button>
-                <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: COLORS.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-                  {ex.icon || '💪'}
-                </div>
+          {workouts.map(w => (
+            <div key={w.id} onClick={() => setEditing(w)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{ex.name}</p>
-                  <p style={{ margin: '3px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                    {ex.sets} סטים · {ex.reps} חזרות
-                    {ex.weight_kg ? ` · ${ex.weight_kg} ק״ג` : ''}
-                    {' · מנוחה '}{ex.rest_seconds}{' שנ׳'}
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>💪 {w.name}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                    {(w.exercises?.length || 0)} תרגילים
                   </p>
                 </div>
-                <button onClick={(e) => deleteEx(ex.id, e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '14px', color: '#C88A8A' }}>🗑️</button>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={(e) => duplicateWorkout(w, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
+                  <button onClick={(e) => deleteWorkout(w.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
+                </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
     </main>
   );
 }
 
-/* ===================== EXERCISE EDITOR ===================== */
-function ExerciseEditor({ exercise, onBack, onSaved }) {
-  const [name, setName] = useState(exercise?.name || '');
-  const [sets, setSets] = useState(exercise?.sets || 3);
-  const [reps, setReps] = useState(exercise?.reps || '10');
-  const [weight, setWeight] = useState(exercise?.weight_kg || '');
-  const [rest, setRest] = useState(exercise?.rest_seconds || 60);
-  const [icon, setIcon] = useState(exercise?.icon || '💪');
-  const [notes, setNotes] = useState(exercise?.notes || '');
-  const [videoUrl, setVideoUrl] = useState(exercise?.video_url || '');
+/* ═══════════════════════════════════════════════════════════
+   WORKOUT EDITOR
+═══════════════════════════════════════════════════════════ */
+function WorkoutEditor({ workout, onBack, showToast }) {
+  const [name, setName] = useState(workout?.name || '');
+  const [exercises, setExercises] = useState(workout?.exercises || []);
+  const [savedExercises, setSavedExercises] = useState([]);
+  const [search, setSearch] = useState('');
+  const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const ICONS = ['💪', '🏋️‍♀️', '🏋️', '🦵', '🍑', '🚶‍♀️', '🧘‍♀️', '🤸‍♀️', '🚣', '📦', '🔥', '⚡'];
+  useEffect(() => { loadSaved(); }, []);
 
-  const handleSave = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
+  const loadSaved = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setSavedExercises(data);
+  };
 
+  const savedMatches = search.trim()
+    ? savedExercises.filter(e => e.name.toLowerCase().includes(search.toLowerCase()))
+    : savedExercises;
+
+  const addExerciseToWorkout = async (ex) => {
+    const newEx = {
+      name: ex.name,
+      sets: ex.sets || 3,
+      reps: ex.reps || '10',
+      weight: ex.weight_kg || ex.weight || null,
+      rest: ex.rest_seconds || ex.rest || 60,
+      icon: ex.icon || '💪',
+      video_url: ex.video_url || null,
+      notes: ex.notes || null,
+    };
+    setExercises(prev => [...prev, newEx]);
+    
+    // שמור למאגר אם חדש
+    const { data: { user } } = await supabase.auth.getUser();
+    const exists = savedExercises.find(se => se.name === ex.name);
+    if (!exists && ex.name) {
+      const { data } = await supabase.from('coach_exercises').insert({
+        coach_id: user.id,
+        name: ex.name,
+        sets: newEx.sets,
+        reps: newEx.reps,
+        weight_kg: newEx.weight,
+        rest_seconds: newEx.rest,
+        icon: newEx.icon,
+        video_url: newEx.video_url,
+        notes: newEx.notes,
+      }).select();
+      if (data?.[0]) setSavedExercises(prev => [data[0], ...prev]);
+    }
+    
+    setSearch('');
+    showToast(`✅ ${ex.name} נוסף`);
+  };
+
+  const removeExercise = (idx) => {
+    setExercises(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || exercises.length === 0) return;
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
     const data = {
       coach_id: user.id,
       name: name.trim(),
-      sets: parseInt(sets) || 3,
-      reps: reps.trim() || '10',
-      weight_kg: weight ? parseFloat(weight) : null,
-      rest_seconds: parseInt(rest) || 60,
-      icon,
-      notes: notes.trim() || null,
-      video_url: videoUrl.trim() || null,
+      exercises,
     };
-
-    if (exercise?.id) {
-      await supabase.from('coach_exercises').update(data).eq('id', exercise.id);
+    if (workout?.id) {
+      await supabase.from('workouts').update(data).eq('id', workout.id);
     } else {
-      await supabase.from('coach_exercises').insert(data);
+      await supabase.from('workouts').insert(data);
     }
-
     setSaving(false);
-    onSaved();
+    onBack();
   };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={exercise ? 'עריכת תרגיל' : 'תרגיל חדש'} />
+      <BackHeader onBack={onBack} title={workout?.id ? 'עריכת אימון' : 'אימון חדש'} />
 
       <section style={cardStyle}>
-        <Field label="שם התרגיל">
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: סקוואט עם מוט" style={inputStyle} />
-        </Field>
-
-        <Field label="אייקון">
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {ICONS.map(ic => (
-              <button key={ic} onClick={() => setIcon(ic)} style={{
-                width: 44, height: 44, borderRadius: 10,
-                border: `2px solid ${icon === ic ? COLORS.primary : COLORS.border}`,
-                background: icon === ic ? COLORS.primarySoft : 'white',
-                cursor: 'pointer', fontSize: 22, fontFamily: 'inherit',
-              }}>{ic}</button>
-            ))}
-          </div>
-        </Field>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Field label="סטים">
-            <input type="number" value={sets} onChange={e => setSets(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
-          </Field>
-          <Field label="חזרות">
-            <input value={reps} onChange={e => setReps(e.target.value)} placeholder="10" style={{ ...inputStyle, textAlign: 'center' }} />
-          </Field>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <Field label="משקל (ק״ג, אופציונלי)">
-            <input type="number" step="0.5" value={weight} onChange={e => setWeight(e.target.value)} placeholder="20" style={{ ...inputStyle, textAlign: 'center' }} />
-          </Field>
-          <Field label="מנוחה (שניות)">
-            <input type="number" value={rest} onChange={e => setRest(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
-          </Field>
-        </div>
-
-        <Field label="קישור לסרטון הדגמה (YouTube/Instagram)">
-          <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtube.com/..." style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
-        </Field>
-
-        <Field label="הערות (אופציונלי)">
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="טכניקה, נקודות חשובות..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+        <Field label="שם האימון">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: אימון רגליים" style={inputStyle} autoFocus={!workout?.id} />
         </Field>
       </section>
 
-      <button onClick={handleSave} disabled={!name.trim() || saving} style={{
+      {/* תרגילים שנוספו */}
+      {exercises.length > 0 && (
+        <section style={cardStyle}>
+          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>💪 תרגילים ({exercises.length})</p>
+          {exercises.map((ex, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.bg, borderRadius: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 18 }}>{idx + 1}.</span>
+              <span style={{ fontSize: 20 }}>{ex.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ex.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
+                  {ex.sets}×{ex.reps}
+                  {ex.weight ? ` · ${ex.weight}ק״ג` : ''}
+                  {ex.video_url ? ' · 📺' : ''}
+                </p>
+              </div>
+              <button onClick={() => removeExercise(idx)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* הוסיפי תרגיל */}
+      <section style={cardStyle}>
+        <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>➕ הוסיפי תרגיל</p>
+        
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="חפשי במאגר או הוסיפי חדש..." style={{ ...inputStyle, marginBottom: 10 }} />
+
+        <button onClick={() => setShowManual(!showManual)} style={{
+          width: '100%', background: showManual ? COLORS.primarySoft : 'white',
+          color: COLORS.text, border: `1px solid ${COLORS.border}`,
+          padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10,
+        }}>
+          {showManual ? '✕ סגרי' : '➕ תרגיל חדש'}
+        </button>
+
+        {showManual && (
+          <ManualExerciseInput onAdd={(ex) => { addExerciseToWorkout(ex); setShowManual(false); }} />
+        )}
+
+        {/* מאגר שמור */}
+        {savedMatches.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>📚 מהמאגר שלך:</p>
+            {savedMatches.slice(0, 10).map(ex => (
+              <div key={ex.id} onClick={() => addExerciseToWorkout(ex)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
+                <span style={{ fontSize: 18 }}>{ex.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                    {ex.sets}×{ex.reps}{ex.weight_kg ? ` · ${ex.weight_kg}ק״ג` : ''}{ex.video_url ? ' · 📺' : ''}
+                  </p>
+                </div>
+                <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <button onClick={handleSave} disabled={!name.trim() || exercises.length === 0 || saving} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600,
-        cursor: (name.trim() && !saving) ? 'pointer' : 'default',
-        opacity: (name.trim() && !saving) ? 1 : 0.5, fontFamily: 'inherit',
+        cursor: (name.trim() && exercises.length > 0 && !saving) ? 'pointer' : 'default',
+        opacity: (name.trim() && exercises.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
-        {saving ? 'שומרת...' : '💾 שמרי תרגיל'}
+        {saving ? 'שומרת...' : '💾 שמרי אימון'}
       </button>
     </main>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════
+   MANUAL EXERCISE INPUT
+═══════════════════════════════════════════════════════════ */
+function ManualExerciseInput({ onAdd }) {
+  const [name, setName] = useState('');
+  const [sets, setSets] = useState(3);
+  const [reps, setReps] = useState('10');
+  const [weight, setWeight] = useState('');
+  const [rest, setRest] = useState(60);
+  const [icon, setIcon] = useState('💪');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const ICONS = ['💪', '🏋️‍♀️', '🏋️', '🦵', '🍑', '🚶‍♀️', '🧘‍♀️', '🤸‍♀️', '🚣', '📦', '🔥', '⚡'];
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onAdd({
+      name: name.trim(),
+      sets: parseInt(sets) || 3,
+      reps: reps.trim() || '10',
+      weight: weight ? parseFloat(weight) : null,
+      rest: parseInt(rest) || 60,
+      icon,
+      video_url: videoUrl.trim() || null,
+      notes: notes.trim() || null,
+    });
+    setName(''); setWeight(''); setVideoUrl(''); setNotes('');
+  };
+
+  return (
+    <div style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 10, marginBottom: 10 }}>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="שם התרגיל" style={{ ...inputStyle, marginBottom: 6 }} />
+      
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, overflowX: 'auto' }}>
+        {ICONS.map(ic => (
+          <button key={ic} onClick={() => setIcon(ic)} style={{
+            width: 34, height: 34, borderRadius: 8,
+            border: `2px solid ${icon === ic ? COLORS.primary : COLORS.border}`,
+            background: icon === ic ? 'white' : COLORS.bg,
+            cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', flexShrink: 0,
+          }}>{ic}</button>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+        <div>
+          <label style={{ fontSize: 10, color: COLORS.textMuted, display: 'block', marginBottom: 2 }}>סטים</label>
+          <input type="number" value={sets} onChange={e => setSets(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 10, color: COLORS.textMuted, display: 'block', marginBottom: 2 }}>חזרות</label>
+          <input value={reps} onChange={e => setReps(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
+        </div>
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
+        <div>
+          <label style={{ fontSize: 10, color: COLORS.textMuted, display: 'block', marginBottom: 2 }}>משקל (ק״ג)</label>
+          <input type="number" step="0.5" value={weight} onChange={e => setWeight(e.target.value)} placeholder="20" style={{ ...inputStyle, textAlign: 'center' }} />
+        </div>
+        <div>
+          <label style={{ fontSize: 10, color: COLORS.textMuted, display: 'block', marginBottom: 2 }}>מנוחה (שנ׳)</label>
+          <input type="number" value={rest} onChange={e => setRest(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
+        </div>
+      </div>
+      
+      <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="קישור לסרטון (אופציונלי)" style={{ ...inputStyle, marginBottom: 6, direction: 'ltr' }} />
+      <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות (אופציונלי)" style={{ ...inputStyle, marginBottom: 8 }} />
+      
+      <button onClick={submit} disabled={!name.trim()} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600,
+        cursor: name.trim() ? 'pointer' : 'default',
+        opacity: name.trim() ? 1 : 0.5, fontFamily: 'inherit',
+      }}>
+        + הוסיפי
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WEEKLY SCHEDULE — שיוך לוח שבועי ללקוחה
+═══════════════════════════════════════════════════════════ */
+function WeeklySchedule({ client, onBack, showToast }) {
+  const [schedule, setSchedule] = useState({});
+  const [meals, setMeals] = useState([]);
+  const [workouts, setWorkouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editDay, setEditDay] = useState(null);
+
+  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+  useEffect(() => { loadData(); }, [client.id]);
+
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const [schedRes, mealsRes, workoutsRes] = await Promise.all([
+      supabase.from('client_schedule').select('*').eq('client_id', client.id),
+      supabase.from('meals').select('id, name, total_calories').eq('coach_id', user.id).order('name'),
+      supabase.from('workouts').select('id, name').eq('coach_id', user.id).order('name'),
+    ]);
+
+    const schedMap = {};
+    (schedRes.data || []).forEach(s => { schedMap[s.day_of_week] = s; });
+    setSchedule(schedMap);
+    setMeals(mealsRes.data || []);
+    setWorkouts(workoutsRes.data || []);
+    setLoading(false);
+  };
+
+  const saveDay = async (day, mealId, workoutId) => {
+    const existing = schedule[day];
+    if (existing) {
+      await supabase.from('client_schedule').update({
+        meal_id: mealId, workout_id: workoutId,
+      }).eq('id', existing.id);
+      setSchedule(prev => ({ ...prev, [day]: { ...existing, meal_id: mealId, workout_id: workoutId }}));
+    } else {
+      const { data } = await supabase.from('client_schedule').insert({
+        client_id: client.id, day_of_week: day, meal_id: mealId, workout_id: workoutId,
+      }).select();
+      if (data?.[0]) setSchedule(prev => ({ ...prev, [day]: data[0] }));
+    }
+    showToast('💾 נשמר');
+    setEditDay(null);
+  };
+
+  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+
+  const getMealName = (id) => meals.find(m => m.id === id)?.name || 'ללא';
+  const getWorkoutName = (id) => workouts.find(w => w.id === id)?.name || 'ללא';
+
+  if (editDay !== null) {
+    const daySched = schedule[editDay] || {};
+    return (
+      <DayPicker
+        dayName={DAYS[editDay]}
+        meals={meals}
+        workouts={workouts}
+        currentMealId={daySched.meal_id}
+        currentWorkoutId={daySched.workout_id}
+        onBack={() => setEditDay(null)}
+        onSave={(mId, wId) => saveDay(editDay, mId, wId)}
+      />
+    );
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`לוח שבועי: ${client.name.split(' ')[0]}`} />
+
+      {(meals.length === 0 && workouts.length === 0) && (
+        <div style={{ padding: 16, background: '#FFF4CC', border: '1px solid #F5D76E', borderRadius: 10, fontSize: 12, color: '#8B6914' }}>
+          ⚠️ קודם צרי ארוחות ואימונים בלשוניות תזונה/אימונים
+        </div>
+      )}
+
+      {DAYS.map((dayName, idx) => {
+        const daySched = schedule[idx];
+        const hasContent = daySched?.meal_id || daySched?.workout_id;
+        return (
+          <div
+            key={idx}
+            onClick={() => setEditDay(idx)}
+            style={{
+              background: 'white',
+              border: `1px solid ${hasContent ? COLORS.primary : COLORS.border}`,
+              borderRadius: 12,
+              padding: 14,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasContent ? 8 : 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>📅 יום {dayName}</p>
+              <span style={{ fontSize: 11, color: COLORS.textMuted }}>{hasContent ? 'ערכי' : 'הגדרי'} ←</span>
+            </div>
+            {hasContent && (
+              <div>
+                {daySched.meal_id && <p style={{ margin: 0, fontSize: 11 }}>🍽️ <strong>תזונה:</strong> {getMealName(daySched.meal_id)}</p>}
+                {daySched.workout_id && <p style={{ margin: '4px 0 0', fontSize: 11 }}>💪 <strong>אימון:</strong> {getWorkoutName(daySched.workout_id)}</p>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DAY PICKER
+═══════════════════════════════════════════════════════════ */
+function DayPicker({ dayName, meals, workouts, currentMealId, currentWorkoutId, onBack, onSave }) {
+  const [mealId, setMealId] = useState(currentMealId || null);
+  const [workoutId, setWorkoutId] = useState(currentWorkoutId || null);
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`יום ${dayName}`} />
+      
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ תזונה</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button onClick={() => setMealId(null)} style={{
+            background: !mealId ? COLORS.primary : COLORS.bg, color: !mealId ? 'white' : COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+          }}>ללא תפריט</button>
+          {meals.map(m => (
+            <button key={m.id} onClick={() => setMealId(m.id)} style={{
+              background: mealId === m.id ? COLORS.primary : COLORS.bg, color: mealId === m.id ? 'white' : COLORS.text,
+              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+            }}>{m.name} · {Math.round(m.total_calories || 0)} קק״ל</button>
+          ))}
+        </div>
+      </section>
+      
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>💪 אימון</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button onClick={() => setWorkoutId(null)} style={{
+            background: !workoutId ? COLORS.primary : COLORS.bg, color: !workoutId ? 'white' : COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+          }}>יום מנוחה</button>
+          {workouts.map(w => (
+            <button key={w.id} onClick={() => setWorkoutId(w.id)} style={{
+              background: workoutId === w.id ? COLORS.primary : COLORS.bg, color: workoutId === w.id ? 'white' : COLORS.text,
+              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+            }}>{w.name}</button>
+          ))}
+        </div>
+      </section>
+      
+      <button onClick={() => onSave(mealId, workoutId)} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: 14, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+      }}>💾 שמרי</button>
+    </main>
+  );
+}
+
 
 /* ===================== SETTINGS TAB ===================== */
 function SettingsTab({ showToast, onLogout }) {
@@ -2242,366 +2416,7 @@ function CoachChat({ client, messages, onBack, onSend }) {
 /* ═══════════════════════════════════════════════════════════
    NUTRITION PLAN CREATOR — יוצרת תוכנית תזונה ללקוחה
 ═══════════════════════════════════════════════════════════ */
-function NutritionPlanCreator({ client, onBack, showToast }) {
-  const [breakfastCal, setBreakfastCal] = useState(350);
-  const [breakfastItems, setBreakfastItems] = useState('');
-  const [lunchCal, setLunchCal] = useState(520);
-  const [lunchItems, setLunchItems] = useState('');
-  const [snackCal, setSnackCal] = useState(200);
-  const [snackItems, setSnackItems] = useState('');
-  const [dinnerCal, setDinnerCal] = useState(400);
-  const [dinnerItems, setDinnerItems] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [existingPlan, setExistingPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadExisting();
-  }, [client.id]);
-
-  const loadExisting = async () => {
-    const { data } = await supabase
-      .from('nutrition_plans')
-      .select('*')
-      .eq('client_id', client.id)
-      .eq('active', true)
-      .limit(1);
-
-    if (data && data[0]) {
-      const p = data[0];
-      setExistingPlan(p);
-      setBreakfastCal(p.breakfast_cal || 350);
-      setBreakfastItems((p.breakfast_items || []).join('\n'));
-      setLunchCal(p.lunch_cal || 520);
-      setLunchItems((p.lunch_items || []).join('\n'));
-      setSnackCal(p.snack_cal || 200);
-      setSnackItems((p.snack_items || []).join('\n'));
-      setDinnerCal(p.dinner_cal || 400);
-      setDinnerItems((p.dinner_items || []).join('\n'));
-    }
-    setLoading(false);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-
-    const planData = {
-      client_id: client.id,
-      active: true,
-      breakfast_cal: parseInt(breakfastCal) || 0,
-      breakfast_items: breakfastItems.split('\n').filter(s => s.trim()),
-      lunch_cal: parseInt(lunchCal) || 0,
-      lunch_items: lunchItems.split('\n').filter(s => s.trim()),
-      snack_cal: parseInt(snackCal) || 0,
-      snack_items: snackItems.split('\n').filter(s => s.trim()),
-      dinner_cal: parseInt(dinnerCal) || 0,
-      dinner_items: dinnerItems.split('\n').filter(s => s.trim()),
-    };
-
-    if (existingPlan) {
-      // עדכן קיים
-      await supabase.from('nutrition_plans').update(planData).eq('id', existingPlan.id);
-    } else {
-      // צור חדש
-      await supabase.from('nutrition_plans').insert(planData);
-    }
-
-    setSaving(false);
-    showToast('💾 תוכנית תזונה נשמרה');
-    onBack();
-  };
-
-  const total = parseInt(breakfastCal || 0) + parseInt(lunchCal || 0) + parseInt(snackCal || 0) + parseInt(dinnerCal || 0);
-
-  if (loading) {
-    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-  }
-
-  const mealInput = (label, icon, cal, setCal, items, setItems, color) => (
-    <section style={{ ...cardStyle, borderRight: `4px solid ${color}` }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{icon} {label}</h4>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <input 
-            type="number" 
-            value={cal} 
-            onChange={(e) => setCal(e.target.value)}
-            style={{ width: '70px', ...inputStyle, textAlign: 'center', padding: '6px 8px' }}
-          />
-          <span style={{ fontSize: '12px', color: COLORS.textMuted }}>קק״ל</span>
-        </div>
-      </div>
-      <textarea
-        value={items}
-        onChange={(e) => setItems(e.target.value)}
-        placeholder={`לדוגמה:\nחזה עוף 150g\nאורז מלא 150g\nסלט ירוק`}
-        rows={4}
-        style={{ ...inputStyle, resize: 'vertical', direction: 'rtl' }}
-      />
-      <p style={{ fontSize: '10px', color: COLORS.textMuted, margin: '4px 0 0' }}>שורה לכל פריט</p>
-    </section>
-  );
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <BackHeader onBack={onBack} title={`תוכנית תזונה: ${client.name.split(' ')[0]}`} />
-      
-      <div style={{ ...cardStyle, background: COLORS.primarySoft, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: COLORS.primaryDark }}>סה״כ יומי:</span>
-        <span style={{ fontSize: '20px', fontWeight: 700, color: COLORS.primaryDark }}>{total} קק״ל</span>
-      </div>
-
-      {mealInput('ארוחת בוקר', '☀️', breakfastCal, setBreakfastCal, breakfastItems, setBreakfastItems, '#F4A460')}
-      {mealInput('ארוחת צהריים', '🌞', lunchCal, setLunchCal, lunchItems, setLunchItems, COLORS.primary)}
-      {mealInput('נשנוש', '🍎', snackCal, setSnackCal, snackItems, setSnackItems, '#E8A5A5')}
-      {mealInput('ארוחת ערב', '🌙', dinnerCal, setDinnerCal, dinnerItems, setDinnerItems, '#9B7FBF')}
-
-      <button onClick={handleSave} disabled={saving} style={{ 
-        width: '100%', 
-        background: COLORS.primary, 
-        color: 'white', 
-        border: 'none', 
-        padding: '14px', 
-        borderRadius: '12px', 
-        fontSize: '14px', 
-        fontWeight: 600, 
-        cursor: saving ? 'default' : 'pointer', 
-        fontFamily: 'inherit',
-        opacity: saving ? 0.5 : 1,
-      }}>
-        {saving ? 'שומרת...' : existingPlan ? '💾 עדכני תוכנית' : '✨ צרי תוכנית'}
-      </button>
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WORKOUT PLAN CREATOR — יוצרת תוכנית אימון ללקוחה
-═══════════════════════════════════════════════════════════ */
-function WorkoutPlanCreator({ client, onBack, showToast }) {
-  const [planName, setPlanName] = useState('אימון רגליים');
-  const [exercises, setExercises] = useState([]);
-  const [newName, setNewName] = useState('');
-  const [newSets, setNewSets] = useState(3);
-  const [newReps, setNewReps] = useState('10');
-  const [newRest, setNewRest] = useState(60);
-  const [saving, setSaving] = useState(false);
-  const [existingPlan, setExistingPlan] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadExisting();
-  }, [client.id]);
-
-  const loadExisting = async () => {
-    const { data } = await supabase
-      .from('workout_plans')
-      .select('*, workout_exercises(*)')
-      .eq('client_id', client.id)
-      .eq('active', true)
-      .limit(1);
-
-    if (data && data[0]) {
-      const p = data[0];
-      setExistingPlan(p);
-      setPlanName(p.name || 'אימון');
-      if (p.workout_exercises) {
-        setExercises(p.workout_exercises
-          .sort((a, b) => a.order_index - b.order_index)
-          .map(e => ({
-            id: e.id,
-            name: e.name,
-            sets: e.sets,
-            reps: e.reps,
-            rest: e.rest,
-            icon: e.icon || '💪',
-          })));
-      }
-    }
-    setLoading(false);
-  };
-
-  const addExercise = () => {
-    if (!newName.trim()) return;
-    setExercises(prev => [...prev, {
-      id: Date.now(),
-      name: newName.trim(),
-      sets: parseInt(newSets) || 3,
-      reps: newReps,
-      rest: parseInt(newRest) || 60,
-      icon: '💪',
-      isNew: true,
-    }]);
-    setNewName('');
-    setNewSets(3);
-    setNewReps('10');
-    setNewRest(60);
-  };
-
-  const removeExercise = (id) => {
-    setExercises(prev => prev.filter(e => e.id !== id));
-  };
-
-  const handleSave = async () => {
-    if (exercises.length === 0) {
-      showToast('⚠️ הוסיפי לפחות תרגיל אחד');
-      return;
-    }
-
-    setSaving(true);
-
-    let planId;
-    if (existingPlan) {
-      // עדכן תוכנית קיימת
-      await supabase.from('workout_plans').update({ name: planName }).eq('id', existingPlan.id);
-      planId = existingPlan.id;
-      // מחק את כל התרגילים הקיימים
-      await supabase.from('workout_exercises').delete().eq('plan_id', planId);
-    } else {
-      // צור תוכנית חדשה
-      const { data } = await supabase.from('workout_plans').insert({
-        client_id: client.id,
-        name: planName,
-        active: true,
-      }).select();
-      
-      if (data && data[0]) planId = data[0].id;
-    }
-
-    if (planId) {
-      // הכנס את כל התרגילים
-      const exToInsert = exercises.map((e, i) => ({
-        plan_id: planId,
-        name: e.name,
-        sets: e.sets,
-        reps: e.reps,
-        rest: e.rest,
-        icon: e.icon,
-        order_index: i,
-      }));
-      
-      await supabase.from('workout_exercises').insert(exToInsert);
-    }
-
-    setSaving(false);
-    showToast('💾 תוכנית אימון נשמרה');
-    onBack();
-  };
-
-  if (loading) {
-    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <BackHeader onBack={onBack} title={`תוכנית אימון: ${client.name.split(' ')[0]}`} />
-
-      <section style={cardStyle}>
-        <Field label="שם התוכנית">
-          <input value={planName} onChange={(e) => setPlanName(e.target.value)} style={inputStyle} />
-        </Field>
-      </section>
-
-      {/* רשימת תרגילים */}
-      <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
-          💪 תרגילים ({exercises.length})
-        </h4>
-        {exercises.length === 0 && (
-          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px', padding: '16px 0' }}>
-            עדיין לא הוספת תרגילים
-          </p>
-        )}
-        {exercises.map((ex, i) => (
-          <div key={ex.id} style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px', 
-            padding: '10px', 
-            background: COLORS.bg, 
-            borderRadius: '10px', 
-            marginBottom: '6px',
-            border: `1px solid ${COLORS.border}`
-          }}>
-            <span style={{ fontSize: '11px', color: COLORS.textMuted, minWidth: '20px' }}>{i + 1}.</span>
-            <span style={{ fontSize: '18px' }}>{ex.icon}</span>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>{ex.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                {ex.sets} סטים × {ex.reps} · מנוחה {ex.rest} שנ׳
-              </p>
-            </div>
-            <button 
-              onClick={() => removeExercise(ex.id)} 
-              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#C88A8A' }}
-            >
-              🗑️
-            </button>
-          </div>
-        ))}
-      </section>
-
-      {/* הוספת תרגיל */}
-      <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
-          ➕ הוסיפי תרגיל
-        </h4>
-        <Field label="שם התרגיל">
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="לדוגמה: סקוואט" style={inputStyle} />
-        </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>סטים</label>
-            <input type="number" value={newSets} onChange={(e) => setNewSets(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>חזרות</label>
-            <input value={newReps} onChange={(e) => setNewReps(e.target.value)} placeholder="10" style={{ ...inputStyle, textAlign: 'center' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>מנוחה (שנ׳)</label>
-            <input type="number" value={newRest} onChange={(e) => setNewRest(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
-          </div>
-        </div>
-        <button onClick={addExercise} disabled={!newName.trim()} style={{ 
-          width: '100%', 
-          background: COLORS.primarySoft, 
-          color: COLORS.primaryDark, 
-          border: `1px solid ${COLORS.border}`, 
-          padding: '10px', 
-          borderRadius: '10px', 
-          fontSize: '13px', 
-          fontWeight: 600, 
-          cursor: newName.trim() ? 'pointer' : 'default', 
-          fontFamily: 'inherit',
-          opacity: newName.trim() ? 1 : 0.5,
-        }}>
-          + הוסיפי לרשימה
-        </button>
-      </section>
-
-      <button onClick={handleSave} disabled={saving || exercises.length === 0} style={{ 
-        width: '100%', 
-        background: COLORS.primary, 
-        color: 'white', 
-        border: 'none', 
-        padding: '14px', 
-        borderRadius: '12px', 
-        fontSize: '14px', 
-        fontWeight: 600, 
-        cursor: (saving || exercises.length === 0) ? 'default' : 'pointer', 
-        fontFamily: 'inherit',
-        opacity: (saving || exercises.length === 0) ? 0.5 : 1,
-      }}>
-        {saving ? 'שומרת...' : existingPlan ? '💾 עדכני תוכנית' : '✨ צרי תוכנית'}
-      </button>
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CLIENT PROGRESS VIEWER — צפייה בהתקדמות הלקוחה
-═══════════════════════════════════════════════════════════ */
 function ClientProgress({ client, onBack }) {
   const [tab, setTab] = useState('meals');
   const [meals, setMeals] = useState([]);
@@ -3112,1289 +2927,3 @@ function AddClientModal({ onBack, showToast, onCreated }) {
 /* ═══════════════════════════════════════════════════════════
    MEAL PLAN BUILDER — ספיר בונה תפריט ללקוחה עם גרירה
 ═══════════════════════════════════════════════════════════ */
-function MealPlanBuilder({ client, onBack, showToast }) {
-  const [mealPlans, setMealPlans] = useState([]);
-  const [library, setLibrary] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [newMealName, setNewMealName] = useState('');
-  const [showNewMeal, setShowNewMeal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const dragItem = useRef(null);
-
-  useEffect(() => {
-    loadData();
-  }, [client.id]);
-
-  const loadData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.warn('No user found');
-        setLoading(false);
-        return;
-      }
-
-      // טען ספריית מאכלים של המאמנת
-      const { data: meals, error: mealsErr } = await supabase
-        .from('coach_meals')
-        .select('*')
-        .eq('coach_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (mealsErr) console.error('Error loading coach_meals:', mealsErr);
-      console.log('Loaded coach_meals:', meals?.length || 0);
-      if (meals) setLibrary(meals);
-
-      // טען תפריט קיים של הלקוחה
-      const { data: plans, error: plansErr } = await supabase
-        .from('client_meal_plans')
-        .select('*')
-        .eq('client_id', client.id)
-        .order('order_index');
-      
-      if (plansErr) console.error('Error loading client_meal_plans:', plansErr);
-      
-      if (plans) {
-        const withItems = await Promise.all(plans.map(async (p) => {
-          const { data: items, error: itemsErr } = await supabase
-            .from('client_meal_plan_items')
-            .select('*, coach_meals(*)')
-            .eq('meal_plan_id', p.id)
-            .order('order_index');
-          
-          if (itemsErr) console.error('Error loading items:', itemsErr);
-          return { ...p, items: items || [] };
-        }));
-        setMealPlans(withItems);
-      }
-    } catch (e) {
-      console.error('loadData error:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addMealSection = async () => {
-    if (!newMealName.trim()) return;
-    const { data } = await supabase.from('client_meal_plans').insert({
-      client_id: client.id,
-      meal_name: newMealName.trim(),
-      order_index: mealPlans.length,
-    }).select();
-    if (data?.[0]) {
-      setMealPlans(prev => [...prev, { ...data[0], items: [] }]);
-      setNewMealName('');
-      setShowNewMeal(false);
-      showToast('✅ ארוחה נוספה');
-    }
-  };
-
-  const deleteMealSection = async (id) => {
-    if (!confirm('למחוק את הארוחה הזו ואת כל המאכלים בה?')) return;
-    await supabase.from('client_meal_plans').delete().eq('id', id);
-    setMealPlans(prev => prev.filter(m => m.id !== id));
-    showToast('🗑️ נמחק');
-  };
-
-  const addFoodToMeal = async (mealPlanId, coachMealId) => {
-    const plan = mealPlans.find(p => p.id === mealPlanId);
-    if (!plan) return;
-    // בדוק אם כבר קיים
-    if (plan.items.find(i => i.coach_meal_id === coachMealId)) {
-      showToast('⚠️ כבר קיים בארוחה');
-      return;
-    }
-    const { data } = await supabase.from('client_meal_plan_items').insert({
-      meal_plan_id: mealPlanId,
-      coach_meal_id: coachMealId,
-      order_index: plan.items.length,
-    }).select('*, coach_meals(*)');
-    if (data?.[0]) {
-      setMealPlans(prev => prev.map(p => p.id === mealPlanId ? { ...p, items: [...p.items, data[0]] } : p));
-      showToast('✅ נוסף לארוחה');
-    }
-  };
-
-  const removeItem = async (mealPlanId, itemId) => {
-    await supabase.from('client_meal_plan_items').delete().eq('id', itemId);
-    setMealPlans(prev => prev.map(p => 
-      p.id === mealPlanId ? { ...p, items: p.items.filter(i => i.id !== itemId) } : p
-    ));
-  };
-
-  // Drag & drop handlers
-  const handleDragStart = (mealData) => { dragItem.current = mealData; };
-  const handleDragOver = (e) => { e.preventDefault(); };
-  const handleDrop = (mealPlanId) => {
-    if (dragItem.current) {
-      addFoodToMeal(mealPlanId, dragItem.current.id);
-      dragItem.current = null;
-    }
-  };
-
-  const handleTouchStart = (mealData) => { 
-    dragItem.current = mealData;
-    showToast(`🖐️ הקש על ארוחה כדי להוסיף "${mealData.name}"`);
-  };
-
-  if (loading) {
-    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`תפריט: ${client.name.split(' ')[0]}`} />
-
-      {/* רשימת ארוחות */}
-      {mealPlans.length === 0 && !showNewMeal ? (
-        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted, background: 'white', border: `1px dashed ${COLORS.border}`, borderRadius: 12 }}>
-          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין ארוחות בתפריט</p>
-          <button onClick={() => setShowNewMeal(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + הוסיפי ארוחה ראשונה
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {mealPlans.map(mp => (
-            <section
-              key={mp.id}
-              onDragOver={handleDragOver}
-              onDrop={() => handleDrop(mp.id)}
-              onClick={() => {
-                if (dragItem.current) {
-                  addFoodToMeal(mp.id, dragItem.current.id);
-                  dragItem.current = null;
-                }
-              }}
-              style={{ 
-                background: 'white', 
-                border: `1px solid ${COLORS.border}`, 
-                borderRadius: 12, 
-                padding: 12,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ {mp.meal_name}</p>
-                <button onClick={(e) => { e.stopPropagation(); deleteMealSection(mp.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: '#C88A8A' }}>🗑️</button>
-              </div>
-              
-              {mp.items.length === 0 ? (
-                <div style={{ padding: 12, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
-                  גררי מאכל מהרשימה למטה
-                </div>
-              ) : (
-                <div>
-                  {mp.items.map(item => (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{item.coach_meals?.name}</p>
-                        <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                          {Math.round(item.coach_meals?.total_calories || 0)} קק״ל · 
-                          חלבון {Math.round(item.coach_meals?.total_protein_g || 0)}g
-                        </p>
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); removeItem(mp.id, item.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          ))}
-        </div>
-      )}
-
-      {/* הוספת ארוחה */}
-      {showNewMeal ? (
-        <section style={cardStyle}>
-          <Field label="שם הארוחה">
-            <input value={newMealName} onChange={e => setNewMealName(e.target.value)} placeholder="לדוגמה: ארוחת בוקר" style={inputStyle} autoFocus />
-          </Field>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={addMealSection} disabled={!newMealName.trim()} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: newMealName.trim() ? 'pointer' : 'default', opacity: newMealName.trim() ? 1 : 0.5, fontFamily: 'inherit' }}>הוסיפי</button>
-            <button onClick={() => { setShowNewMeal(false); setNewMealName(''); }} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
-          </div>
-        </section>
-      ) : mealPlans.length > 0 && (
-        <button onClick={() => setShowNewMeal(true)} style={{ background: 'white', color: COLORS.primaryDark, border: `1px dashed ${COLORS.border}`, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + הוסיפי ארוחה
-        </button>
-      )}
-
-      {/* ספריית מאכלים */}
-      {mealPlans.length > 0 && library.length > 0 && (
-        <section style={{ ...cardStyle, marginTop: 8 }}>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-            📚 הספריה שלך ({library.length})
-          </p>
-          <p style={{ margin: '0 0 10px', fontSize: 10, color: COLORS.textMuted }}>
-            גררי מאכל לתוך ארוחה, או הקישי על מאכל ואז על ארוחה
-          </p>
-          {library.map(m => (
-            <div
-              key={m.id}
-              draggable
-              onDragStart={() => handleDragStart(m)}
-              onTouchStart={() => handleTouchStart(m)}
-              onClick={() => handleTouchStart(m)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: 8,
-                background: dragItem.current?.id === m.id ? COLORS.primarySoft : COLORS.bg,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                cursor: 'grab',
-                marginBottom: 4,
-                touchAction: 'none',
-              }}
-            >
-              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{m.name}</p>
-                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                  {Math.round(m.total_calories)} קק״ל · חלבון {Math.round(m.total_protein_g)}g · פחמ׳ {Math.round(m.total_carbs_g)}g · שומן {Math.round(m.total_fat_g)}g
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-      
-      {library.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 16, background: COLORS.primarySoft, borderRadius: 10, fontSize: 12, color: COLORS.primaryDark }}>
-          💡 עדיין אין מאכלים בספריה. צרי בלשונית "מאכלים" למטה.
-        </div>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WORKOUT PLAN BUILDER — ספיר בונה אימון ללקוחה עם גרירה
-═══════════════════════════════════════════════════════════ */
-function WorkoutPlanBuilder({ client, onBack, showToast }) {
-  const [plan, setPlan] = useState(null);
-  const [items, setItems] = useState([]);
-  const [library, setLibrary] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const dragItem = useRef(null);
-
-  useEffect(() => {
-    loadData();
-  }, [client.id]);
-
-  const loadData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      // טען ספריית תרגילים
-      const { data: exs, error: exsErr } = await supabase
-        .from('coach_exercises')
-        .select('*')
-        .eq('coach_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      if (exsErr) console.error('Error loading coach_exercises:', exsErr);
-      console.log('Loaded coach_exercises:', exs?.length || 0);
-      if (exs) setLibrary(exs);
-
-      // טען/צור תוכנית
-      let { data: plans, error: plansErr } = await supabase
-        .from('client_workout_plans')
-        .select('*')
-        .eq('client_id', client.id)
-        .limit(1);
-      
-      if (plansErr) console.error('Error loading client_workout_plans:', plansErr);
-      
-      let curPlan = plans?.[0];
-      
-      if (!curPlan) {
-        const { data, error: createErr } = await supabase
-          .from('client_workout_plans')
-          .insert({ client_id: client.id, workout_name: 'אימון' })
-          .select();
-        
-        if (createErr) console.error('Error creating plan:', createErr);
-        curPlan = data?.[0];
-      }
-      
-      if (curPlan) {
-        setPlan(curPlan);
-        const { data: planItems, error: itemsErr } = await supabase
-          .from('client_workout_items')
-          .select('*, coach_exercises(*)')
-          .eq('workout_plan_id', curPlan.id)
-          .order('order_index');
-        
-        if (itemsErr) console.error('Error loading workout items:', itemsErr);
-        if (planItems) setItems(planItems);
-      }
-    } catch (e) {
-      console.error('workout loadData error:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addExercise = async (exerciseId) => {
-    if (!plan) return;
-    if (items.find(i => i.coach_exercise_id === exerciseId)) {
-      showToast('⚠️ התרגיל כבר באימון');
-      return;
-    }
-    const { data } = await supabase.from('client_workout_items').insert({
-      workout_plan_id: plan.id,
-      coach_exercise_id: exerciseId,
-      order_index: items.length,
-    }).select('*, coach_exercises(*)');
-    if (data?.[0]) {
-      setItems(prev => [...prev, data[0]]);
-      showToast('✅ תרגיל נוסף');
-    }
-  };
-
-  const removeItem = async (itemId) => {
-    await supabase.from('client_workout_items').delete().eq('id', itemId);
-    setItems(prev => prev.filter(i => i.id !== itemId));
-  };
-
-  const handleDragStart = (ex) => { dragItem.current = ex; };
-  const handleDragOver = (e) => { e.preventDefault(); };
-  const handleDrop = () => {
-    if (dragItem.current) {
-      addExercise(dragItem.current.id);
-      dragItem.current = null;
-    }
-  };
-
-  const handleTouchTap = (ex) => { addExercise(ex.id); };
-
-  if (loading) {
-    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`אימון: ${client.name.split(' ')[0]}`} />
-
-      {/* תרגילים באימון */}
-      <section
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12, minHeight: 100 }}
-      >
-        <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-          💪 אימון הלקוחה ({items.length} תרגילים)
-        </p>
-        
-        {items.length === 0 ? (
-          <div style={{ padding: 20, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 12 }}>
-            גררי תרגיל מהרשימה למטה, או הקישי עליו
-          </div>
-        ) : (
-          <div>
-            {items.map((item, i) => {
-              const ex = item.coach_exercises;
-              if (!ex) return null;
-              return (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 18 }}>{i + 1}.</span>
-                  <span style={{ fontSize: 20 }}>{ex.icon || '💪'}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{ex.name}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                      {ex.sets} סטים × {ex.reps}
-                      {ex.weight_kg ? ` · ${ex.weight_kg} ק״ג` : ''}
-                      {ex.video_url ? ' · 📺' : ''}
-                    </p>
-                  </div>
-                  <button onClick={() => removeItem(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ספריית תרגילים */}
-      {library.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 16, background: COLORS.primarySoft, borderRadius: 10, fontSize: 12, color: COLORS.primaryDark }}>
-          💡 עדיין אין תרגילים בספריה. צרי בלשונית "תרגילים" למטה.
-        </div>
-      ) : (
-        <section style={cardStyle}>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-            📚 הספריה שלך ({library.length})
-          </p>
-          <p style={{ margin: '0 0 10px', fontSize: 10, color: COLORS.textMuted }}>
-            גררי או הקישי על תרגיל כדי להוסיף לאימון
-          </p>
-          {library.map(ex => (
-            <div
-              key={ex.id}
-              draggable
-              onDragStart={() => handleDragStart(ex)}
-              onClick={() => handleTouchTap(ex)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: 10,
-                background: COLORS.bg,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                cursor: 'grab',
-                marginBottom: 4,
-                touchAction: 'none',
-              }}
-            >
-              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
-              <span style={{ fontSize: 20 }}>{ex.icon || '💪'}</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
-                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                  {ex.sets}×{ex.reps}
-                  {ex.weight_kg ? ` · ${ex.weight_kg} ק״ג` : ''}
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MEAL TEMPLATES MANAGER — ניהול תבניות תפריט
-═══════════════════════════════════════════════════════════ */
-function MealTemplatesManager({ onBack, showToast }) {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-
-  useEffect(() => { load(); }, []);
-
-  const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('meal_templates')
-      .select('*, meal_template_sections(id, section_name, meal_template_items(id))')
-      .eq('coach_id', user.id)
-      .order('created_at', { ascending: false });
-    if (data) setTemplates(data);
-    setLoading(false);
-  };
-
-  const deleteTemplate = async (id, e) => {
-    e?.stopPropagation();
-    if (!confirm('למחוק את התבנית?')) return;
-    await supabase.from('meal_templates').delete().eq('id', id);
-    setTemplates(prev => prev.filter(t => t.id !== id));
-    showToast('🗑️ נמחקה');
-  };
-
-  const duplicateTemplate = async (tmpl, e) => {
-    e?.stopPropagation();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // שכפל את התבנית
-    const { data: newTmpl } = await supabase.from('meal_templates').insert({
-      coach_id: user.id,
-      name: tmpl.name + ' (עותק)',
-      description: tmpl.description,
-      total_calories: tmpl.total_calories,
-    }).select();
-    
-    if (!newTmpl?.[0]) return;
-    const newId = newTmpl[0].id;
-    
-    // שכפל sections
-    const { data: oldSections } = await supabase.from('meal_template_sections')
-      .select('*, meal_template_items(*)')
-      .eq('template_id', tmpl.id)
-      .order('order_index');
-    
-    for (const section of (oldSections || [])) {
-      const { data: newSection } = await supabase.from('meal_template_sections').insert({
-        template_id: newId,
-        section_name: section.section_name,
-        order_index: section.order_index,
-      }).select();
-      
-      if (newSection?.[0] && section.meal_template_items?.length) {
-        const items = section.meal_template_items.map(i => ({
-          section_id: newSection[0].id,
-          coach_meal_id: i.coach_meal_id,
-          order_index: i.order_index,
-        }));
-        await supabase.from('meal_template_items').insert(items);
-      }
-    }
-    
-    showToast('📋 שוכפלה');
-    load();
-  };
-
-  if (editingTemplate) {
-    return <MealTemplateEditor template={editingTemplate} onBack={() => { setEditingTemplate(null); load(); }} showToast={showToast} />;
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title="תבניות תפריט" rightAction={
-        <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ חדשה</button>
-      } />
-      
-      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
-       : templates.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין תבניות תפריט</p>
-          <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + צרי תבנית ראשונה
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {templates.map(t => {
-            const sections = t.meal_template_sections || [];
-            const totalItems = sections.reduce((s, sec) => s + (sec.meal_template_items?.length || 0), 0);
-            return (
-              <div key={t.id} onClick={() => setEditingTemplate(t)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{t.name}</p>
-                    {t.description && <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>{t.description}</p>}
-                    <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                      {sections.length} ארוחות · {totalItems} מאכלים
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={(e) => duplicateTemplate(t, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }} title="שכפלי">📋</button>
-                    <button onClick={(e) => deleteTemplate(t.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }} title="מחקי">🗑️</button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   MEAL TEMPLATE EDITOR
-═══════════════════════════════════════════════════════════ */
-function MealTemplateEditor({ template, onBack, showToast }) {
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [templateId, setTemplateId] = useState(template?.id || null);
-  const [sections, setSections] = useState([]);
-  const [library, setLibrary] = useState([]);
-  const [loading, setLoading] = useState(!!template?.id);
-  const [newSectionName, setNewSectionName] = useState('');
-  const [showNewSection, setShowNewSection] = useState(false);
-  const [selectedSectionType, setSelectedSectionType] = useState('breakfast');
-  const dragItem = useRef(null);
-
-  const SECTION_OPTIONS = [
-    { key: 'breakfast', label: 'ארוחת בוקר', icon: '☀️' },
-    { key: 'lunch', label: 'ארוחת צהריים', icon: '🌞' },
-    { key: 'snack', label: 'נשנוש', icon: '🍎' },
-    { key: 'dinner', label: 'ארוחת ערב', icon: '🌙' },
-  ];
-
-  useEffect(() => {
-    loadLibrary();
-    if (templateId) loadSections();
-  }, []);
-
-  const loadLibrary = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('coach_meals').select('*').eq('coach_id', user.id).order('name');
-    if (data) setLibrary(data);
-  };
-
-  const loadSections = async () => {
-    const { data } = await supabase.from('meal_template_sections')
-      .select('*, meal_template_items(*, coach_meals(*))')
-      .eq('template_id', templateId)
-      .order('order_index');
-    if (data) setSections(data.map(s => ({
-      ...s,
-      items: (s.meal_template_items || []).sort((a,b) => a.order_index - b.order_index),
-    })));
-    setLoading(false);
-  };
-
-  const ensureTemplateExists = async () => {
-    if (templateId) return templateId;
-    if (!name.trim()) {
-      showToast('⚠️ הוסיפי שם תבנית קודם');
-      return null;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('meal_templates').insert({
-      coach_id: user.id,
-      name: name.trim(),
-      description: description.trim() || null,
-    }).select();
-    if (data?.[0]) {
-      setTemplateId(data[0].id);
-      return data[0].id;
-    }
-    return null;
-  };
-
-  const saveName = async () => {
-    if (!templateId || !name.trim()) return;
-    await supabase.from('meal_templates').update({
-      name: name.trim(),
-      description: description.trim() || null,
-    }).eq('id', templateId);
-  };
-
-  const addSection = async () => {
-    const selected = SECTION_OPTIONS.find(o => o.key === selectedSectionType);
-    if (!selected) return;
-    const tid = await ensureTemplateExists();
-    if (!tid) return;
-    const sectionName = newSectionName.trim() || selected.label;
-    const { data } = await supabase.from('meal_template_sections').insert({
-      template_id: tid,
-      section_name: sectionName,
-      order_index: sections.length,
-    }).select();
-    if (data?.[0]) {
-      setSections(prev => [...prev, { ...data[0], items: [] }]);
-      setNewSectionName('');
-      setShowNewSection(false);
-      showToast('✅ נוספה');
-    }
-  };
-
-  const deleteSection = async (id) => {
-    if (!confirm('למחוק את הארוחה?')) return;
-    await supabase.from('meal_template_sections').delete().eq('id', id);
-    setSections(prev => prev.filter(s => s.id !== id));
-  };
-
-  const addMealToSection = async (sectionId, meal) => {
-    const section = sections.find(s => s.id === sectionId);
-    if (!section) return;
-    if (section.items.find(i => i.coach_meal_id === meal.id)) {
-      showToast('⚠️ כבר קיים');
-      return;
-    }
-    const { data } = await supabase.from('meal_template_items').insert({
-      section_id: sectionId,
-      coach_meal_id: meal.id,
-      order_index: section.items.length,
-    }).select('*, coach_meals(*)');
-    if (data?.[0]) {
-      setSections(prev => prev.map(s =>
-        s.id === sectionId ? { ...s, items: [...s.items, data[0]] } : s
-      ));
-    }
-  };
-
-  const removeMealFromSection = async (sectionId, itemId) => {
-    await supabase.from('meal_template_items').delete().eq('id', itemId);
-    setSections(prev => prev.map(s =>
-      s.id === sectionId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s
-    ));
-  };
-
-  const handleDragStart = (m) => { dragItem.current = m; };
-  const handleDragOver = (e) => { e.preventDefault(); };
-  const handleDropOnSection = (sectionId) => {
-    if (dragItem.current) {
-      addMealToSection(sectionId, dragItem.current);
-      dragItem.current = null;
-    }
-  };
-
-  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={async () => { await saveName(); onBack(); }} title={template?.id ? 'עריכת תבנית' : 'תבנית חדשה'} />
-      
-      <section style={cardStyle}>
-        <Field label="שם התבנית">
-          <input value={name} onChange={e => setName(e.target.value)} onBlur={saveName} placeholder="יום קל - 1500 קק״ל" style={inputStyle} />
-        </Field>
-        <Field label="תיאור (אופציונלי)">
-          <input value={description} onChange={e => setDescription(e.target.value)} onBlur={saveName} placeholder="לימים של מנוחה" style={inputStyle} />
-        </Field>
-      </section>
-
-      {/* Sections */}
-      {sections.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sections.map(sec => (
-            <section
-              key={sec.id}
-              onDragOver={handleDragOver}
-              onDrop={() => handleDropOnSection(sec.id)}
-              onClick={() => {
-                if (dragItem.current) {
-                  addMealToSection(sec.id, dragItem.current);
-                  dragItem.current = null;
-                }
-              }}
-              style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12 }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ {sec.section_name}</p>
-                <button onClick={(e) => { e.stopPropagation(); deleteSection(sec.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: '#C88A8A' }}>🗑️</button>
-              </div>
-              {sec.items.length === 0 ? (
-                <div style={{ padding: 12, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
-                  גררי/הקישי מאכל מהספריה
-                </div>
-              ) : (
-                sec.items.map(item => (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{item.coach_meals?.name}</p>
-                      <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                        {Math.round(item.coach_meals?.total_calories || 0)} קק״ל
-                      </p>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); removeMealFromSection(sec.id, item.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
-                  </div>
-                ))
-              )}
-            </section>
-          ))}
-        </div>
-      )}
-
-      {/* Add section */}
-      {showNewSection ? (
-        <section style={cardStyle}>
-          <Field label="סוג ארוחה">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              {SECTION_OPTIONS.map(opt => (
-                <button key={opt.key} onClick={() => setSelectedSectionType(opt.key)} style={{
-                  background: selectedSectionType === opt.key ? COLORS.primary : COLORS.primarySoft,
-                  color: selectedSectionType === opt.key ? 'white' : COLORS.text,
-                  border: 'none', borderRadius: 8, padding: 10, fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}>{opt.icon} {opt.label}</button>
-              ))}
-            </div>
-          </Field>
-          <Field label="שם מותאם (אופציונלי)">
-            <input value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder={SECTION_OPTIONS.find(o=>o.key===selectedSectionType)?.label} style={inputStyle} />
-          </Field>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={addSection} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>הוסיפי</button>
-            <button onClick={() => setShowNewSection(false)} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
-          </div>
-        </section>
-      ) : (
-        <button onClick={() => setShowNewSection(true)} style={{ background: 'white', color: COLORS.primaryDark, border: `1px dashed ${COLORS.border}`, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + הוסיפי ארוחה
-        </button>
-      )}
-
-      {/* Library */}
-      {library.length > 0 && (
-        <section style={cardStyle}>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-            📚 המאכלים שלי ({library.length})
-          </p>
-          {library.map(m => (
-            <div
-              key={m.id}
-              draggable
-              onDragStart={() => handleDragStart(m)}
-              onClick={() => { dragItem.current = m; showToast('הקישי על ארוחה'); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: 10,
-                background: dragItem.current?.id === m.id ? COLORS.primarySoft : COLORS.bg,
-                border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: 'grab',
-                marginBottom: 4, touchAction: 'none',
-              }}
-            >
-              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{m.name}</p>
-                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                  {Math.round(m.total_calories)} קק״ל
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WORKOUT TEMPLATES MANAGER
-═══════════════════════════════════════════════════════════ */
-function WorkoutTemplatesManager({ onBack, showToast }) {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingTemplate, setEditingTemplate] = useState(null);
-
-  useEffect(() => { load(); }, []);
-
-  const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('workout_templates')
-      .select('*, workout_template_exercises(id)')
-      .eq('coach_id', user.id)
-      .order('created_at', { ascending: false });
-    if (data) setTemplates(data);
-    setLoading(false);
-  };
-
-  const deleteTemplate = async (id, e) => {
-    e?.stopPropagation();
-    if (!confirm('למחוק את התבנית?')) return;
-    await supabase.from('workout_templates').delete().eq('id', id);
-    setTemplates(prev => prev.filter(t => t.id !== id));
-    showToast('🗑️ נמחקה');
-  };
-
-  const duplicateTemplate = async (tmpl, e) => {
-    e?.stopPropagation();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    const { data: newTmpl } = await supabase.from('workout_templates').insert({
-      coach_id: user.id,
-      name: tmpl.name + ' (עותק)',
-      description: tmpl.description,
-    }).select();
-    
-    if (!newTmpl?.[0]) return;
-    const newId = newTmpl[0].id;
-    
-    const { data: oldExs } = await supabase.from('workout_template_exercises')
-      .select('*')
-      .eq('template_id', tmpl.id)
-      .order('order_index');
-    
-    if (oldExs?.length) {
-      const exs = oldExs.map(e => ({
-        template_id: newId,
-        coach_exercise_id: e.coach_exercise_id,
-        order_index: e.order_index,
-      }));
-      await supabase.from('workout_template_exercises').insert(exs);
-    }
-    
-    showToast('📋 שוכפלה');
-    load();
-  };
-
-  if (editingTemplate) {
-    return <WorkoutTemplateEditor template={editingTemplate} onBack={() => { setEditingTemplate(null); load(); }} showToast={showToast} />;
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title="תבניות אימון" rightAction={
-        <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ חדשה</button>
-      } />
-      
-      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
-       : templates.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין תבניות אימון</p>
-          <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + צרי תבנית ראשונה
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {templates.map(t => (
-            <div key={t.id} onClick={() => setEditingTemplate(t)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>💪 {t.name}</p>
-                  {t.description && <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>{t.description}</p>}
-                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                    {t.workout_template_exercises?.length || 0} תרגילים
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={(e) => duplicateTemplate(t, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
-                  <button onClick={(e) => deleteTemplate(t.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WORKOUT TEMPLATE EDITOR
-═══════════════════════════════════════════════════════════ */
-function WorkoutTemplateEditor({ template, onBack, showToast }) {
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [templateId, setTemplateId] = useState(template?.id || null);
-  const [items, setItems] = useState([]);
-  const [library, setLibrary] = useState([]);
-  const [loading, setLoading] = useState(!!template?.id);
-  const dragItem = useRef(null);
-
-  useEffect(() => {
-    loadLibrary();
-    if (templateId) loadItems();
-  }, []);
-
-  const loadLibrary = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('name');
-    if (data) setLibrary(data);
-  };
-
-  const loadItems = async () => {
-    const { data } = await supabase.from('workout_template_exercises')
-      .select('*, coach_exercises(*)')
-      .eq('template_id', templateId)
-      .order('order_index');
-    if (data) setItems(data);
-    setLoading(false);
-  };
-
-  const ensureTemplateExists = async () => {
-    if (templateId) return templateId;
-    if (!name.trim()) {
-      showToast('⚠️ הוסיפי שם תבנית קודם');
-      return null;
-    }
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('workout_templates').insert({
-      coach_id: user.id,
-      name: name.trim(),
-      description: description.trim() || null,
-    }).select();
-    if (data?.[0]) {
-      setTemplateId(data[0].id);
-      return data[0].id;
-    }
-    return null;
-  };
-
-  const saveName = async () => {
-    if (!templateId || !name.trim()) return;
-    await supabase.from('workout_templates').update({
-      name: name.trim(),
-      description: description.trim() || null,
-    }).eq('id', templateId);
-  };
-
-  const addExercise = async (ex) => {
-    if (items.find(i => i.coach_exercise_id === ex.id)) {
-      showToast('⚠️ כבר באימון');
-      return;
-    }
-    const tid = await ensureTemplateExists();
-    if (!tid) return;
-    const { data } = await supabase.from('workout_template_exercises').insert({
-      template_id: tid,
-      coach_exercise_id: ex.id,
-      order_index: items.length,
-    }).select('*, coach_exercises(*)');
-    if (data?.[0]) setItems(prev => [...prev, data[0]]);
-  };
-
-  const removeExercise = async (id) => {
-    await supabase.from('workout_template_exercises').delete().eq('id', id);
-    setItems(prev => prev.filter(i => i.id !== id));
-  };
-
-  const handleDragStart = (ex) => { dragItem.current = ex; };
-
-  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={async () => { await saveName(); onBack(); }} title={template?.id ? 'עריכת תבנית' : 'תבנית חדשה'} />
-      
-      <section style={cardStyle}>
-        <Field label="שם האימון">
-          <input value={name} onChange={e => setName(e.target.value)} onBlur={saveName} placeholder="אימון רגליים" style={inputStyle} />
-        </Field>
-        <Field label="תיאור (אופציונלי)">
-          <input value={description} onChange={e => setDescription(e.target.value)} onBlur={saveName} placeholder="לימים של כוח" style={inputStyle} />
-        </Field>
-      </section>
-
-      {/* Items */}
-      <section
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={() => { if (dragItem.current) { addExercise(dragItem.current); dragItem.current = null; } }}
-        style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12, minHeight: 80 }}
-      >
-        <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-          💪 תרגילים ({items.length})
-        </p>
-        {items.length === 0 ? (
-          <div style={{ padding: 16, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
-            גררי/הקישי תרגיל מהספריה
-          </div>
-        ) : (
-          items.map((item, i) => {
-            const ex = item.coach_exercises;
-            if (!ex) return null;
-            return (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 18 }}>{i+1}.</span>
-                <span style={{ fontSize: 18 }}>{ex.icon || '💪'}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
-                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                    {ex.sets}×{ex.reps}{ex.weight_kg ? ` · ${ex.weight_kg}ק״ג` : ''}
-                  </p>
-                </div>
-                <button onClick={() => removeExercise(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
-              </div>
-            );
-          })
-        )}
-      </section>
-
-      {/* Library */}
-      {library.length > 0 && (
-        <section style={cardStyle}>
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
-            📚 התרגילים שלי ({library.length})
-          </p>
-          {library.map(ex => (
-            <div
-              key={ex.id}
-              draggable
-              onDragStart={() => handleDragStart(ex)}
-              onClick={() => addExercise(ex)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: 10,
-                background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-                borderRadius: 8, cursor: 'grab', marginBottom: 4, touchAction: 'none',
-              }}
-            >
-              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
-              <span style={{ fontSize: 18 }}>{ex.icon || '💪'}</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
-                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
-                  {ex.sets}×{ex.reps}{ex.weight_kg ? ` · ${ex.weight_kg}ק״ג` : ''}
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   WEEKLY SCHEDULE — שיוך תבניות לימי שבוע
-═══════════════════════════════════════════════════════════ */
-function WeeklySchedule({ client, onBack, showToast }) {
-  const [schedule, setSchedule] = useState({});
-  const [mealTemplates, setMealTemplates] = useState([]);
-  const [workoutTemplates, setWorkoutTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editDay, setEditDay] = useState(null);
-
-  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-
-  useEffect(() => {
-    loadData();
-  }, [client.id]);
-
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const [schedRes, mealTplRes, workoutTplRes] = await Promise.all([
-      supabase.from('client_schedule').select('*').eq('client_id', client.id),
-      supabase.from('meal_templates').select('*').eq('coach_id', user.id).order('name'),
-      supabase.from('workout_templates').select('*').eq('coach_id', user.id).order('name'),
-    ]);
-
-    const schedMap = {};
-    (schedRes.data || []).forEach(s => { schedMap[s.day_of_week] = s; });
-    setSchedule(schedMap);
-    setMealTemplates(mealTplRes.data || []);
-    setWorkoutTemplates(workoutTplRes.data || []);
-    setLoading(false);
-  };
-
-  const updateDay = async (day, mealTemplateId, workoutTemplateId) => {
-    const existing = schedule[day];
-    if (existing) {
-      await supabase.from('client_schedule').update({
-        meal_template_id: mealTemplateId,
-        workout_template_id: workoutTemplateId,
-      }).eq('id', existing.id);
-      setSchedule(prev => ({
-        ...prev,
-        [day]: { ...existing, meal_template_id: mealTemplateId, workout_template_id: workoutTemplateId }
-      }));
-    } else {
-      const { data } = await supabase.from('client_schedule').insert({
-        client_id: client.id,
-        day_of_week: day,
-        meal_template_id: mealTemplateId,
-        workout_template_id: workoutTemplateId,
-      }).select();
-      if (data?.[0]) setSchedule(prev => ({ ...prev, [day]: data[0] }));
-    }
-    showToast('💾 נשמר');
-    setEditDay(null);
-  };
-
-  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
-
-  const getMealName = (id) => mealTemplates.find(t => t.id === id)?.name || 'ללא';
-  const getWorkoutName = (id) => workoutTemplates.find(t => t.id === id)?.name || 'ללא';
-
-  if (editDay !== null) {
-    const daySchedule = schedule[editDay] || {};
-    return (
-      <DayEditor
-        dayName={DAYS[editDay]}
-        mealTemplates={mealTemplates}
-        workoutTemplates={workoutTemplates}
-        currentMealId={daySchedule.meal_template_id}
-        currentWorkoutId={daySchedule.workout_template_id}
-        onBack={() => setEditDay(null)}
-        onSave={(mId, wId) => updateDay(editDay, mId, wId)}
-      />
-    );
-  }
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`לוח שבועי: ${client.name.split(' ')[0]}`} />
-
-      <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
-        <p style={{ margin: 0, fontSize: 12, color: COLORS.primaryDark, lineHeight: 1.6 }}>
-          💡 הקישי על יום כדי לבחור תפריט ואימון לאותו היום.
-          {(mealTemplates.length === 0 || workoutTemplates.length === 0) && (
-            <span style={{ display: 'block', marginTop: 6, fontWeight: 600 }}>
-              ⚠️ צרי קודם תבניות בתפריט הראשי.
-            </span>
-          )}
-        </p>
-      </section>
-
-      {DAYS.map((dayName, idx) => {
-        const daySched = schedule[idx];
-        const hasContent = daySched?.meal_template_id || daySched?.workout_template_id;
-        return (
-          <div
-            key={idx}
-            onClick={() => setEditDay(idx)}
-            style={{
-              background: 'white',
-              border: `1px solid ${hasContent ? COLORS.primary : COLORS.border}`,
-              borderRadius: 12,
-              padding: 14,
-              cursor: 'pointer',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasContent ? 8 : 0 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>📅 יום {dayName}</p>
-              <span style={{ fontSize: 11, color: COLORS.textMuted }}>{hasContent ? 'ערוך' : 'הגדר'} ←</span>
-            </div>
-            {hasContent ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {daySched.meal_template_id && (
-                  <p style={{ margin: 0, fontSize: 11, color: COLORS.text }}>
-                    🍽️ <strong>תפריט:</strong> {getMealName(daySched.meal_template_id)}
-                  </p>
-                )}
-                {daySched.workout_template_id && (
-                  <p style={{ margin: 0, fontSize: 11, color: COLORS.text }}>
-                    💪 <strong>אימון:</strong> {getWorkoutName(daySched.workout_template_id)}
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-    </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   DAY EDITOR
-═══════════════════════════════════════════════════════════ */
-function DayEditor({ dayName, mealTemplates, workoutTemplates, currentMealId, currentWorkoutId, onBack, onSave }) {
-  const [mealId, setMealId] = useState(currentMealId || null);
-  const [workoutId, setWorkoutId] = useState(currentWorkoutId || null);
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`יום ${dayName}`} />
-      
-      <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ תפריט</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button onClick={() => setMealId(null)} style={{
-            background: !mealId ? COLORS.primary : COLORS.bg, color: !mealId ? 'white' : COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-          }}>ללא תפריט</button>
-          {mealTemplates.map(t => (
-            <button key={t.id} onClick={() => setMealId(t.id)} style={{
-              background: mealId === t.id ? COLORS.primary : COLORS.bg, color: mealId === t.id ? 'white' : COLORS.text,
-              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-            }}>{t.name}</button>
-          ))}
-        </div>
-      </section>
-      
-      <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>💪 אימון</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button onClick={() => setWorkoutId(null)} style={{
-            background: !workoutId ? COLORS.primary : COLORS.bg, color: !workoutId ? 'white' : COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-          }}>יום מנוחה</button>
-          {workoutTemplates.map(t => (
-            <button key={t.id} onClick={() => setWorkoutId(t.id)} style={{
-              background: workoutId === t.id ? COLORS.primary : COLORS.bg, color: workoutId === t.id ? 'white' : COLORS.text,
-              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-            }}>{t.name}</button>
-          ))}
-        </div>
-      </section>
-      
-      <button onClick={() => onSave(mealId, workoutId)} style={{
-        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
-        padding: 14, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-      }}>💾 שמרי לוח</button>
-    </main>
-  );
-}
-
