@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 
 
@@ -335,12 +335,16 @@ export default function App({ onLogout }) {
       </header>
 
       {/* Sub-views override tabs */}
-      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} />}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onNutrition={() => setSubView('nutritionPlan')} onWorkout={() => setSubView('workoutPlan')} onProgress={() => setSubView('progress')} />}
+      {subView === 'nutritionPlan' && selectedClient && <NutritionPlanCreator client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'workoutPlan' && selectedClient && <WorkoutPlanCreator client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
+      {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
       {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
       {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
       {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
       {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} />}
-      {subView === 'newClient' && <NewClient onBack={goBack} onInvite={(name) => { showToast(`✉️ הזמנה ל${name}`); goBack(); }} />}
+      {subView === 'newClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
       {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} />}
 
       {/* Notifications dropdown */}
@@ -402,23 +406,59 @@ export default function App({ onLogout }) {
 /* ===================== BOTTOM NAV ===================== */
 function BottomNav({ tab, setTab }) {
   const tabs = [
-    { id: 'dashboard', label: 'כללי', icon: '📊' },
-    { id: 'clients', label: 'לקוחות', icon: '👥' },
-    { id: 'meals', label: 'מנות', icon: '🍽️' },
-    { id: 'workouts', label: 'אימונים', icon: '💪' },
-    { id: 'settings', label: 'הגדרות', icon: '⚙️' },
+    { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
+    { id: 'clients', label: 'לקוחות', icon: 'clients' },
+    { id: 'meals', label: 'מנות', icon: 'food' },
+    { id: 'workouts', label: 'אימונים', icon: 'workout' },
+    { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   return (
-    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '6px 0 10px 0', zIndex: 25 }}>
+    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '8px 0 10px 0', zIndex: 25 }}>
       {tabs.map((t) => (
         <button key={t.id} onClick={() => setTab(t.id)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '6px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', minWidth: '56px' }}>
-          <span style={{ fontSize: '20px', filter: tab === t.id ? 'none' : 'grayscale(0.3) opacity(0.6)' }}>{t.icon}</span>
-          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : COLORS.textMuted, fontWeight: tab === t.id ? 700 : 500 }}>{t.label}</span>
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
+          <CoachNavIcon name={t.icon} active={tab === t.id} />
+          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
         </button>
       ))}
     </nav>
   );
+}
+
+/* ===================== NAV ICON ===================== */
+function CoachNavIcon({ name, active }) {
+  const color = active ? COLORS.primary : '#B0B0B0';
+  const size = 22;
+  
+  const icons = {
+    dashboard: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+      </svg>
+    ),
+    clients: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+      </svg>
+    ),
+    food: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+      </svg>
+    ),
+    workout: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/>
+      </svg>
+    ),
+    settings: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </svg>
+    ),
+  };
+  
+  return icons[name] || icons.dashboard;
 }
 
 /* ===================== DASHBOARD TAB ===================== */
@@ -567,16 +607,35 @@ function MealsTab({ showToast }) {
   const [mealFilter, setMealFilter] = useState('all');
   const [customMeals, setCustomMeals] = useState([]);
   const [showAIModal, setShowAIModal] = useState(false);
+  const [mealFavorites, setMealFavorites] = useState([]);
+  
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sappir_coach_meal_favs');
+      if (saved) setMealFavorites(JSON.parse(saved));
+    } catch(e) {}
+  }, []);
+  
+  const toggleMealFav = (mealId, e) => {
+    e?.stopPropagation();
+    const isFav = mealFavorites.includes(mealId);
+    const newFavs = isFav ? mealFavorites.filter(id => id !== mealId) : [...mealFavorites, mealId];
+    setMealFavorites(newFavs);
+    try { localStorage.setItem('sappir_coach_meal_favs', JSON.stringify(newFavs)); } catch(e) {}
+  };
 
   const allMeals = [...MEAL_LIBRARY, ...customMeals];
   const filters = [
     { id: 'all', label: `הכל ${allMeals.length}` },
+    { id: 'favorites', label: `⭐ מועדפים ${mealFavorites.length}` },
     { id: 'breakfast', label: `בוקר ${allMeals.filter(m => m.type === 'breakfast').length}` },
     { id: 'lunch', label: `צהריים ${allMeals.filter(m => m.type === 'lunch').length}` },
     { id: 'dinner', label: `ערב ${allMeals.filter(m => m.type === 'dinner').length}` },
     { id: 'snack', label: `נשנוש ${allMeals.filter(m => m.type === 'snack').length}` },
   ];
-  const filtered = mealFilter === 'all' ? allMeals : allMeals.filter((m) => m.type === mealFilter);
+  const filtered = mealFilter === 'all' ? allMeals 
+    : mealFilter === 'favorites' ? allMeals.filter(m => mealFavorites.includes(m.id))
+    : allMeals.filter((m) => m.type === mealFilter);
   const mealTypeLabel = { breakfast: 'בוקר', lunch: 'צהריים', dinner: 'ערב', snack: 'נשנוש' };
 
   return (
@@ -620,14 +679,23 @@ function MealsTab({ showToast }) {
 
       {/* Meal cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {filtered.map((m) => (
+        {filtered.length === 0 ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px', padding: '20px 0' }}>
+            {mealFilter === 'favorites' ? 'עדיין אין מנות מועדפות - לחצי על ☆' : 'אין מנות בקטגוריה זו'}
+          </p>
+        ) : filtered.map((m) => {
+          const isFav = mealFavorites.includes(m.id);
+          return (
           <div key={m.id} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
+              <button onClick={(e) => toggleMealFav(m.id, e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '2px 4px', color: isFav ? '#F5D76E' : '#D0D0D0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}>
+                {isFav ? '★' : '☆'}
+              </button>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{m.name}</p>
                 <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{m.desc}</p>
               </div>
-              <span style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', whiteSpace: 'nowrap', marginRight: '8px' }}>
+              <span style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, fontSize: '10px', fontWeight: 600, padding: '3px 10px', borderRadius: '999px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 ⚙️ {mealTypeLabel[m.type]}
               </span>
             </div>
@@ -638,7 +706,8 @@ function MealsTab({ showToast }) {
               <span style={{ color: COLORS.sky }}>P <strong>{m.p}g</strong></span>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
       </main>
     </>
@@ -746,6 +815,26 @@ type חייב להיות אחד מ: breakfast, lunch, dinner, snack`;
 
 /* ===================== WORKOUTS TAB — IMPROVEMENT #4 ===================== */
 function WorkoutsTab({ showToast }) {
+  const [workoutFavs, setWorkoutFavs] = useState([]);
+  const [showFavsOnly, setShowFavsOnly] = useState(false);
+  
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sappir_coach_workout_favs');
+      if (saved) setWorkoutFavs(JSON.parse(saved));
+    } catch(e) {}
+  }, []);
+  
+  const toggleFav = (id, e) => {
+    e?.stopPropagation();
+    const isFav = workoutFavs.includes(id);
+    const newFavs = isFav ? workoutFavs.filter(w => w !== id) : [...workoutFavs, id];
+    setWorkoutFavs(newFavs);
+    try { localStorage.setItem('sappir_coach_workout_favs', JSON.stringify(newFavs)); } catch(e) {}
+  };
+  
+  const filteredWorkouts = showFavsOnly ? WORKOUT_LIBRARY.filter(w => workoutFavs.includes(w.id)) : WORKOUT_LIBRARY;
+  
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -758,10 +847,28 @@ function WorkoutsTab({ showToast }) {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <button onClick={() => setShowFavsOnly(false)} style={{ background: !showFavsOnly ? COLORS.primary : 'white', color: !showFavsOnly ? 'white' : COLORS.text, border: `1px solid ${!showFavsOnly ? COLORS.primary : COLORS.border}`, borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          כל האימונים
+        </button>
+        <button onClick={() => setShowFavsOnly(true)} style={{ background: showFavsOnly ? '#F5D76E' : 'white', color: COLORS.text, border: `1px solid ${showFavsOnly ? '#F5D76E' : COLORS.border}`, borderRadius: '999px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          ⭐ מועדפים ({workoutFavs.length})
+        </button>
+      </div>
+
       {/* Workout cards — IMPROVEMENT #4 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {WORKOUT_LIBRARY.map((w) => (
+        {filteredWorkouts.length === 0 ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px', padding: '20px 0' }}>
+            {showFavsOnly ? 'עדיין אין אימונים מועדפים - לחצי על ☆' : 'אין אימונים'}
+          </p>
+        ) : filteredWorkouts.map((w) => {
+          const isFav = workoutFavs.includes(w.id);
+          return (
           <div key={w.id} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '16px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <button onClick={(e) => toggleFav(w.id, e)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', padding: '2px 4px', color: isFav ? '#F5D76E' : '#D0D0D0', fontFamily: 'inherit', lineHeight: 1, flexShrink: 0 }}>
+              {isFav ? '★' : '☆'}
+            </button>
             <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: COLORS.peachSoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
               💪
             </div>
@@ -788,7 +895,8 @@ function WorkoutsTab({ showToast }) {
               <button onClick={() => {}} style={{ background: COLORS.redSoft, border: 'none', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontFamily: 'inherit' }}>🗑️</button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </main>
   );
@@ -899,7 +1007,7 @@ function MiniStat({ label, value, color }) {
 }
 
 /* ===================== CLIENT PROFILE ===================== */
-function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit }) {
+function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onNutrition, onWorkout, onProgress }) {
   const [tab, setTab] = useState('overview');
   const c = client;
   const weightSeries = [
@@ -931,6 +1039,22 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit }) {
           <button onClick={onMessage} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💬 הודעה</button>
         </div>
       } />
+      
+      {/* Action buttons */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        <button onClick={onNutrition} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '20px' }}>🍽️</span>
+          תוכנית תזונה
+        </button>
+        <button onClick={onWorkout} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '20px' }}>💪</span>
+          תוכנית אימון
+        </button>
+        <button onClick={onProgress} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '20px' }}>📊</span>
+          התקדמות
+        </button>
+      </div>
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
@@ -1169,7 +1293,7 @@ function MacroClientPicker({ clients, onBack, onPick }) {
 function MessageCompose({ client, text, setText, onBack, onSend }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = React.useRef(null);
+  const scrollRef = useRef(null);
 
   const templates = [
     'בוקר טוב, זוכרת שיש לך אימון היום 💪',
@@ -1556,7 +1680,7 @@ function EditClientDetails({ client, onBack, onSave }) {
 function CoachChat({ client, messages, onBack, onSend }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const scrollRef = React.useRef(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -1665,3 +1789,874 @@ function CoachChat({ client, messages, onBack, onSend }) {
     </main>
   );
 }
+
+/* ═══════════════════════════════════════════════════════════
+   NUTRITION PLAN CREATOR — יוצרת תוכנית תזונה ללקוחה
+═══════════════════════════════════════════════════════════ */
+function NutritionPlanCreator({ client, onBack, showToast }) {
+  const [breakfastCal, setBreakfastCal] = useState(350);
+  const [breakfastItems, setBreakfastItems] = useState('');
+  const [lunchCal, setLunchCal] = useState(520);
+  const [lunchItems, setLunchItems] = useState('');
+  const [snackCal, setSnackCal] = useState(200);
+  const [snackItems, setSnackItems] = useState('');
+  const [dinnerCal, setDinnerCal] = useState(400);
+  const [dinnerItems, setDinnerItems] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [existingPlan, setExistingPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadExisting();
+  }, [client.id]);
+
+  const loadExisting = async () => {
+    const { data } = await supabase
+      .from('nutrition_plans')
+      .select('*')
+      .eq('client_id', client.id)
+      .eq('active', true)
+      .limit(1);
+
+    if (data && data[0]) {
+      const p = data[0];
+      setExistingPlan(p);
+      setBreakfastCal(p.breakfast_cal || 350);
+      setBreakfastItems((p.breakfast_items || []).join('\n'));
+      setLunchCal(p.lunch_cal || 520);
+      setLunchItems((p.lunch_items || []).join('\n'));
+      setSnackCal(p.snack_cal || 200);
+      setSnackItems((p.snack_items || []).join('\n'));
+      setDinnerCal(p.dinner_cal || 400);
+      setDinnerItems((p.dinner_items || []).join('\n'));
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+
+    const planData = {
+      client_id: client.id,
+      active: true,
+      breakfast_cal: parseInt(breakfastCal) || 0,
+      breakfast_items: breakfastItems.split('\n').filter(s => s.trim()),
+      lunch_cal: parseInt(lunchCal) || 0,
+      lunch_items: lunchItems.split('\n').filter(s => s.trim()),
+      snack_cal: parseInt(snackCal) || 0,
+      snack_items: snackItems.split('\n').filter(s => s.trim()),
+      dinner_cal: parseInt(dinnerCal) || 0,
+      dinner_items: dinnerItems.split('\n').filter(s => s.trim()),
+    };
+
+    if (existingPlan) {
+      // עדכן קיים
+      await supabase.from('nutrition_plans').update(planData).eq('id', existingPlan.id);
+    } else {
+      // צור חדש
+      await supabase.from('nutrition_plans').insert(planData);
+    }
+
+    setSaving(false);
+    showToast('💾 תוכנית תזונה נשמרה');
+    onBack();
+  };
+
+  const total = parseInt(breakfastCal || 0) + parseInt(lunchCal || 0) + parseInt(snackCal || 0) + parseInt(dinnerCal || 0);
+
+  if (loading) {
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+  }
+
+  const mealInput = (label, icon, cal, setCal, items, setItems, color) => (
+    <section style={{ ...cardStyle, borderRight: `4px solid ${color}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{icon} {label}</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <input 
+            type="number" 
+            value={cal} 
+            onChange={(e) => setCal(e.target.value)}
+            style={{ width: '70px', ...inputStyle, textAlign: 'center', padding: '6px 8px' }}
+          />
+          <span style={{ fontSize: '12px', color: COLORS.textMuted }}>קק״ל</span>
+        </div>
+      </div>
+      <textarea
+        value={items}
+        onChange={(e) => setItems(e.target.value)}
+        placeholder={`לדוגמה:\nחזה עוף 150g\nאורז מלא 150g\nסלט ירוק`}
+        rows={4}
+        style={{ ...inputStyle, resize: 'vertical', direction: 'rtl' }}
+      />
+      <p style={{ fontSize: '10px', color: COLORS.textMuted, margin: '4px 0 0' }}>שורה לכל פריט</p>
+    </section>
+  );
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <BackHeader onBack={onBack} title={`תוכנית תזונה: ${client.name.split(' ')[0]}`} />
+      
+      <div style={{ ...cardStyle, background: COLORS.primarySoft, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: COLORS.primaryDark }}>סה״כ יומי:</span>
+        <span style={{ fontSize: '20px', fontWeight: 700, color: COLORS.primaryDark }}>{total} קק״ל</span>
+      </div>
+
+      {mealInput('ארוחת בוקר', '☀️', breakfastCal, setBreakfastCal, breakfastItems, setBreakfastItems, '#F4A460')}
+      {mealInput('ארוחת צהריים', '🌞', lunchCal, setLunchCal, lunchItems, setLunchItems, COLORS.primary)}
+      {mealInput('נשנוש', '🍎', snackCal, setSnackCal, snackItems, setSnackItems, '#E8A5A5')}
+      {mealInput('ארוחת ערב', '🌙', dinnerCal, setDinnerCal, dinnerItems, setDinnerItems, '#9B7FBF')}
+
+      <button onClick={handleSave} disabled={saving} style={{ 
+        width: '100%', 
+        background: COLORS.primary, 
+        color: 'white', 
+        border: 'none', 
+        padding: '14px', 
+        borderRadius: '12px', 
+        fontSize: '14px', 
+        fontWeight: 600, 
+        cursor: saving ? 'default' : 'pointer', 
+        fontFamily: 'inherit',
+        opacity: saving ? 0.5 : 1,
+      }}>
+        {saving ? 'שומרת...' : existingPlan ? '💾 עדכני תוכנית' : '✨ צרי תוכנית'}
+      </button>
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKOUT PLAN CREATOR — יוצרת תוכנית אימון ללקוחה
+═══════════════════════════════════════════════════════════ */
+function WorkoutPlanCreator({ client, onBack, showToast }) {
+  const [planName, setPlanName] = useState('אימון רגליים');
+  const [exercises, setExercises] = useState([]);
+  const [newName, setNewName] = useState('');
+  const [newSets, setNewSets] = useState(3);
+  const [newReps, setNewReps] = useState('10');
+  const [newRest, setNewRest] = useState(60);
+  const [saving, setSaving] = useState(false);
+  const [existingPlan, setExistingPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadExisting();
+  }, [client.id]);
+
+  const loadExisting = async () => {
+    const { data } = await supabase
+      .from('workout_plans')
+      .select('*, workout_exercises(*)')
+      .eq('client_id', client.id)
+      .eq('active', true)
+      .limit(1);
+
+    if (data && data[0]) {
+      const p = data[0];
+      setExistingPlan(p);
+      setPlanName(p.name || 'אימון');
+      if (p.workout_exercises) {
+        setExercises(p.workout_exercises
+          .sort((a, b) => a.order_index - b.order_index)
+          .map(e => ({
+            id: e.id,
+            name: e.name,
+            sets: e.sets,
+            reps: e.reps,
+            rest: e.rest,
+            icon: e.icon || '💪',
+          })));
+      }
+    }
+    setLoading(false);
+  };
+
+  const addExercise = () => {
+    if (!newName.trim()) return;
+    setExercises(prev => [...prev, {
+      id: Date.now(),
+      name: newName.trim(),
+      sets: parseInt(newSets) || 3,
+      reps: newReps,
+      rest: parseInt(newRest) || 60,
+      icon: '💪',
+      isNew: true,
+    }]);
+    setNewName('');
+    setNewSets(3);
+    setNewReps('10');
+    setNewRest(60);
+  };
+
+  const removeExercise = (id) => {
+    setExercises(prev => prev.filter(e => e.id !== id));
+  };
+
+  const handleSave = async () => {
+    if (exercises.length === 0) {
+      showToast('⚠️ הוסיפי לפחות תרגיל אחד');
+      return;
+    }
+
+    setSaving(true);
+
+    let planId;
+    if (existingPlan) {
+      // עדכן תוכנית קיימת
+      await supabase.from('workout_plans').update({ name: planName }).eq('id', existingPlan.id);
+      planId = existingPlan.id;
+      // מחק את כל התרגילים הקיימים
+      await supabase.from('workout_exercises').delete().eq('plan_id', planId);
+    } else {
+      // צור תוכנית חדשה
+      const { data } = await supabase.from('workout_plans').insert({
+        client_id: client.id,
+        name: planName,
+        active: true,
+      }).select();
+      
+      if (data && data[0]) planId = data[0].id;
+    }
+
+    if (planId) {
+      // הכנס את כל התרגילים
+      const exToInsert = exercises.map((e, i) => ({
+        plan_id: planId,
+        name: e.name,
+        sets: e.sets,
+        reps: e.reps,
+        rest: e.rest,
+        icon: e.icon,
+        order_index: i,
+      }));
+      
+      await supabase.from('workout_exercises').insert(exToInsert);
+    }
+
+    setSaving(false);
+    showToast('💾 תוכנית אימון נשמרה');
+    onBack();
+  };
+
+  if (loading) {
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <BackHeader onBack={onBack} title={`תוכנית אימון: ${client.name.split(' ')[0]}`} />
+
+      <section style={cardStyle}>
+        <Field label="שם התוכנית">
+          <input value={planName} onChange={(e) => setPlanName(e.target.value)} style={inputStyle} />
+        </Field>
+      </section>
+
+      {/* רשימת תרגילים */}
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+          💪 תרגילים ({exercises.length})
+        </h4>
+        {exercises.length === 0 && (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px', padding: '16px 0' }}>
+            עדיין לא הוספת תרגילים
+          </p>
+        )}
+        {exercises.map((ex, i) => (
+          <div key={ex.id} style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '10px', 
+            padding: '10px', 
+            background: COLORS.bg, 
+            borderRadius: '10px', 
+            marginBottom: '6px',
+            border: `1px solid ${COLORS.border}`
+          }}>
+            <span style={{ fontSize: '11px', color: COLORS.textMuted, minWidth: '20px' }}>{i + 1}.</span>
+            <span style={{ fontSize: '18px' }}>{ex.icon}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>{ex.name}</p>
+              <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                {ex.sets} סטים × {ex.reps} · מנוחה {ex.rest} שנ׳
+              </p>
+            </div>
+            <button 
+              onClick={() => removeExercise(ex.id)} 
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#C88A8A' }}
+            >
+              🗑️
+            </button>
+          </div>
+        ))}
+      </section>
+
+      {/* הוספת תרגיל */}
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+          ➕ הוסיפי תרגיל
+        </h4>
+        <Field label="שם התרגיל">
+          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="לדוגמה: סקוואט" style={inputStyle} />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>סטים</label>
+            <input type="number" value={newSets} onChange={(e) => setNewSets(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>חזרות</label>
+            <input value={newReps} onChange={(e) => setNewReps(e.target.value)} placeholder="10" style={{ ...inputStyle, textAlign: 'center' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>מנוחה (שנ׳)</label>
+            <input type="number" value={newRest} onChange={(e) => setNewRest(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
+          </div>
+        </div>
+        <button onClick={addExercise} disabled={!newName.trim()} style={{ 
+          width: '100%', 
+          background: COLORS.primarySoft, 
+          color: COLORS.primaryDark, 
+          border: `1px solid ${COLORS.border}`, 
+          padding: '10px', 
+          borderRadius: '10px', 
+          fontSize: '13px', 
+          fontWeight: 600, 
+          cursor: newName.trim() ? 'pointer' : 'default', 
+          fontFamily: 'inherit',
+          opacity: newName.trim() ? 1 : 0.5,
+        }}>
+          + הוסיפי לרשימה
+        </button>
+      </section>
+
+      <button onClick={handleSave} disabled={saving || exercises.length === 0} style={{ 
+        width: '100%', 
+        background: COLORS.primary, 
+        color: 'white', 
+        border: 'none', 
+        padding: '14px', 
+        borderRadius: '12px', 
+        fontSize: '14px', 
+        fontWeight: 600, 
+        cursor: (saving || exercises.length === 0) ? 'default' : 'pointer', 
+        fontFamily: 'inherit',
+        opacity: (saving || exercises.length === 0) ? 0.5 : 1,
+      }}>
+        {saving ? 'שומרת...' : existingPlan ? '💾 עדכני תוכנית' : '✨ צרי תוכנית'}
+      </button>
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CLIENT PROGRESS VIEWER — צפייה בהתקדמות הלקוחה
+═══════════════════════════════════════════════════════════ */
+function ClientProgress({ client, onBack }) {
+  const [tab, setTab] = useState('meals');
+  const [meals, setMeals] = useState([]);
+  const [weights, setWeights] = useState([]);
+  const [waterLogs, setWaterLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadProgress();
+  }, [client.id]);
+
+  const loadProgress = async () => {
+    // טען ארוחות של שבוע אחרון
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const [mealsRes, weightsRes, waterRes] = await Promise.all([
+      supabase.from('meal_logs').select('*').eq('client_id', client.id).gte('logged_at', weekAgo.toISOString()).order('logged_at', { ascending: false }),
+      supabase.from('weight_logs').select('*').eq('client_id', client.id).order('logged_at', { ascending: false }).limit(30),
+      supabase.from('water_logs').select('*').eq('client_id', client.id).gte('logged_at', weekAgo.toISOString()),
+    ]);
+
+    setMeals(mealsRes.data || []);
+    setWeights(weightsRes.data || []);
+    setWaterLogs(waterRes.data || []);
+    setLoading(false);
+  };
+
+  // סיכום ארוחות לפי יום
+  const mealsByDay = {};
+  meals.forEach(m => {
+    const day = new Date(m.logged_at).toLocaleDateString('he-IL');
+    if (!mealsByDay[day]) mealsByDay[day] = { meals: [], totalCal: 0, totalP: 0 };
+    mealsByDay[day].meals.push(m);
+    mealsByDay[day].totalCal += m.calories || 0;
+    mealsByDay[day].totalP += m.protein_g || 0;
+  });
+
+  // סיכום מים לפי יום
+  const waterByDay = {};
+  waterLogs.forEach(w => {
+    const day = new Date(w.logged_at).toLocaleDateString('he-IL');
+    if (!waterByDay[day]) waterByDay[day] = 0;
+    waterByDay[day] += w.amount_ml || 0;
+  });
+
+  if (loading) {
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת נתונים...</main>;
+  }
+
+  const mealIcon = { breakfast: '☀️', lunch: '🌞', dinner: '🌙', snack: '🍎' };
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <BackHeader onBack={onBack} title={`התקדמות ${client.name.split(' ')[0]}`} />
+
+      <div style={{ display: 'flex', gap: '4px', background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '10px', padding: '4px' }}>
+        {[
+          { id: 'meals', label: '🍽️ תזונה' },
+          { id: 'weight', label: '⚖️ משקל' },
+          { id: 'water', label: '💧 מים' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1,
+            background: tab === t.id ? COLORS.primary : 'transparent',
+            color: tab === t.id ? 'white' : COLORS.text,
+            border: 'none', borderRadius: '8px', padding: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit'
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'meals' && (
+        <>
+          {Object.entries(mealsByDay).length === 0 && (
+            <section style={{ ...cardStyle, textAlign: 'center', color: COLORS.textMuted, fontSize: '13px' }}>
+              אין רישומי ארוחות בשבוע האחרון
+            </section>
+          )}
+          {Object.entries(mealsByDay).map(([day, data]) => (
+            <section key={day} style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>{day}</h4>
+                <span style={{ fontSize: '12px', color: COLORS.textMuted }}>
+                  {data.totalCal} קק״ל · {data.totalP}g חלבון
+                </span>
+              </div>
+              {data.meals.map(m => (
+                <div key={m.id} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  padding: '6px', 
+                  background: COLORS.bg, 
+                  borderRadius: '8px', 
+                  marginBottom: '4px' 
+                }}>
+                  <span>{mealIcon[m.meal_type] || '🍽️'}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: '12px', fontWeight: 600 }}>{m.name}</p>
+                    <p style={{ margin: 0, fontSize: '10px', color: COLORS.textMuted }}>
+                      {m.calories} קק״ל · {new Date(m.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </section>
+          ))}
+        </>
+      )}
+
+      {tab === 'weight' && (
+        <section style={cardStyle}>
+          <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+            📉 היסטוריית משקל
+          </h4>
+          {weights.length === 0 && (
+            <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px' }}>
+              אין רישומי משקל
+            </p>
+          )}
+          {weights.map((w, i) => {
+            const prev = weights[i + 1];
+            const diff = prev ? +(w.weight - prev.weight).toFixed(1) : null;
+            return (
+              <div key={w.id} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                padding: '10px', 
+                background: i === 0 ? COLORS.primarySoft : COLORS.bg, 
+                borderRadius: '8px', 
+                marginBottom: '6px',
+                border: `1px solid ${COLORS.border}`
+              }}>
+                <span style={{ fontSize: '11px', color: COLORS.textMuted }}>
+                  {new Date(w.logged_at).toLocaleDateString('he-IL')}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: 700 }}>{w.weight} ק״ג</span>
+                  {diff !== null && (
+                    <span style={{ 
+                      fontSize: '11px', 
+                      color: diff < 0 ? COLORS.primaryDark : '#C88A8A', 
+                      fontWeight: 600 
+                    }}>
+                      {diff > 0 ? '+' : ''}{diff}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {tab === 'water' && (
+        <section style={cardStyle}>
+          <h4 style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+            💧 צריכת מים שבועית
+          </h4>
+          {Object.entries(waterByDay).length === 0 && (
+            <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '12px' }}>
+              אין רישומי שתייה
+            </p>
+          )}
+          {Object.entries(waterByDay).map(([day, amount]) => (
+            <div key={day} style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              padding: '10px', 
+              background: COLORS.bg, 
+              borderRadius: '8px', 
+              marginBottom: '6px',
+              border: `1px solid ${COLORS.border}`
+            }}>
+              <span style={{ fontSize: '12px' }}>{day}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '100px', height: '6px', background: '#E5DEF0', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${Math.min(100, (amount / 2500) * 100)}%`, 
+                    height: '100%', 
+                    background: '#A896C7' 
+                  }} />
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: 600, minWidth: '50px' }}>{amount} מ״ל</span>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADD CLIENT — הוספת לקוחה חדשה
+═══════════════════════════════════════════════════════════ */
+function AddClientModal({ onBack, showToast, onCreated }) {
+  const [step, setStep] = useState(1);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [height, setHeight] = useState('');
+  const [age, setAge] = useState('');
+  const [startWeight, setStartWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const fullName = `${firstName} ${lastName}`.trim();
+  const canGoStep2 = firstName.trim() && lastName.trim();
+  const canCreate = email.trim() && password.length >= 8 && startWeight && targetWeight;
+
+  // צור אימייל טכני אוטומטי מהשם
+  const generateEmail = () => {
+    const clean = firstName.trim().toLowerCase()
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .substring(0, 10);
+    const suffix = Math.random().toString(36).substring(2, 6);
+    return `${clean || 'user'}${suffix}@sappir.app`;
+  };
+
+  const generatePassword = () => {
+    const base = firstName.trim().charAt(0).toUpperCase() + firstName.trim().slice(1, 5);
+    const num = Math.floor(1000 + Math.random() * 9000);
+    return `${base || 'User'}${num}!`;
+  };
+
+  const handleGenerate = () => {
+    setEmail(generateEmail());
+    setPassword(generatePassword());
+  };
+
+  const handleCreate = async () => {
+    setCreating(true);
+    setError('');
+
+    try {
+      const { data: { user: coach } } = await supabase.auth.getUser();
+      if (!coach) {
+        setError('שגיאה: לא מזוהה מאמנת');
+        setCreating(false);
+        return;
+      }
+
+      // צור משתמש חדש ב-Supabase
+      // שים לב: זה לא ייצור user ב-auth בלי admin API
+      // במקום זאת, נציג הוראות לספיר ליצור אותו ידנית
+      setResult({
+        fullName,
+        phone,
+        email,
+        password,
+        height,
+        age,
+        startWeight,
+        targetWeight,
+        coachId: coach.id,
+      });
+      setStep(3);
+    } catch (e) {
+      setError('שגיאה: ' + e.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (step === 3 && result) {
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <BackHeader onBack={onBack} title="יצירת לקוחה חדשה" />
+        
+        <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `2px dashed ${COLORS.primary}` }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 12px', color: COLORS.primaryDark, textAlign: 'center' }}>
+            📋 פרטי הלקוחה החדשה
+          </h3>
+          <p style={{ fontSize: '12px', color: COLORS.text, margin: '0 0 12px', lineHeight: 1.6 }}>
+            כדי להשלים את יצירת הלקוחה, בצעי את השלבים הבאים ב-Supabase:
+          </p>
+
+          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>🔐 שלב 1: Authentication → Users → Add user</p>
+            <div style={{ fontSize: '12px', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}>
+              <p style={{ margin: '2px 0' }}>Email: <strong>{result.email}</strong></p>
+              <p style={{ margin: '2px 0' }}>Password: <strong>{result.password}</strong></p>
+              <p style={{ margin: '2px 0', fontSize: '10px', color: COLORS.textMuted }}>✓ Auto Confirm User</p>
+            </div>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>📝 שלב 2: העתיקי את ה-UUID שנוצר</p>
+          </div>
+
+          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>💾 שלב 3: SQL Editor — הדביקי:</p>
+            <pre style={{ 
+              fontSize: '10px', 
+              background: COLORS.bg, 
+              padding: '8px', 
+              borderRadius: '6px', 
+              direction: 'ltr', 
+              textAlign: 'left',
+              overflowX: 'auto',
+              margin: 0,
+              whiteSpace: 'pre-wrap'
+            }}>
+{`insert into clients (
+  id, coach_id, full_name, email, phone,
+  height_cm, age, start_weight, 
+  current_weight, target_weight,
+  goal, activity_level,
+  daily_calorie_goal, daily_protein_goal, 
+  daily_carb_goal, daily_fat_goal,
+  daily_water_goal_ml
+) values (
+  'UUID_HERE',
+  '${result.coachId}',
+  '${result.fullName}',
+  '${result.email}',
+  '${result.phone || ''}',
+  ${result.height || 'null'}, ${result.age || 'null'},
+  ${result.startWeight}, ${result.startWeight}, ${result.targetWeight},
+  'lose', 'moderate',
+  1800, 113, 225, 50, 2500
+);`}
+            </pre>
+          </div>
+
+          <button 
+            onClick={() => {
+              const text = `אימייל: ${result.email}\nסיסמה: ${result.password}\nשם: ${result.fullName}`;
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(text);
+                showToast('📋 הועתק!');
+              }
+            }}
+            style={{ 
+              width: '100%', 
+              background: 'white', 
+              color: COLORS.primaryDark, 
+              border: `1px solid ${COLORS.border}`, 
+              padding: '10px', 
+              borderRadius: '10px', 
+              fontSize: '13px', 
+              fontWeight: 600, 
+              cursor: 'pointer', 
+              fontFamily: 'inherit',
+              marginBottom: '6px'
+            }}
+          >
+            📋 העתיקי פרטים
+          </button>
+          <button 
+            onClick={onBack}
+            style={{ 
+              width: '100%', 
+              background: COLORS.primary, 
+              color: 'white', 
+              border: 'none', 
+              padding: '12px', 
+              borderRadius: '10px', 
+              fontSize: '13px', 
+              fontWeight: 600, 
+              cursor: 'pointer', 
+              fontFamily: 'inherit' 
+            }}
+          >
+            סיימתי ✓
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <BackHeader onBack={() => setStep(1)} title="פרטים ויעדים" />
+        
+        <section style={cardStyle}>
+          <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+            🔐 פרטי התחברות
+          </h4>
+          <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: '0 0 10px' }}>
+            לחצי "צרי אוטומטית" או הזיני ידנית
+          </p>
+          <button onClick={handleGenerate} style={{ 
+            width: '100%', 
+            background: COLORS.primarySoft, 
+            color: COLORS.primaryDark, 
+            border: `1px solid ${COLORS.border}`, 
+            padding: '10px', 
+            borderRadius: '10px', 
+            fontSize: '12px', 
+            fontWeight: 600, 
+            cursor: 'pointer', 
+            fontFamily: 'inherit',
+            marginBottom: '10px'
+          }}>
+            ✨ צרי פרטי התחברות אוטומטית
+          </button>
+
+          <Field label="אימייל טכני (להתחברות)">
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@sappir.app" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+          </Field>
+          <Field label="סיסמה (לפחות 8 תווים)">
+            <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password123!" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+          </Field>
+        </section>
+
+        <section style={cardStyle}>
+          <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+            📏 פרטים אישיים
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <Field label="גובה (ס״מ)">
+              <input type="number" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="165" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+            </Field>
+            <Field label="גיל">
+              <input type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="30" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+            </Field>
+          </div>
+        </section>
+
+        <section style={cardStyle}>
+          <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+            ⚖️ יעדי משקל
+          </h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <Field label="משקל התחלתי (ק״ג)">
+              <input type="number" step="0.1" value={startWeight} onChange={(e) => setStartWeight(e.target.value)} placeholder="70" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+            </Field>
+            <Field label="משקל יעד (ק״ג)">
+              <input type="number" step="0.1" value={targetWeight} onChange={(e) => setTargetWeight(e.target.value)} placeholder="65" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+            </Field>
+          </div>
+        </section>
+
+        {error && (
+          <div style={{ background: '#FADDDD', border: '1px solid #E8A5A5', borderRadius: '10px', padding: '12px', fontSize: '13px', color: '#C88A8A' }}>
+            {error}
+          </div>
+        )}
+
+        <button onClick={handleCreate} disabled={!canCreate || creating} style={{ 
+          width: '100%', 
+          background: COLORS.primary, 
+          color: 'white', 
+          border: 'none', 
+          padding: '14px', 
+          borderRadius: '12px', 
+          fontSize: '14px', 
+          fontWeight: 600, 
+          cursor: (canCreate && !creating) ? 'pointer' : 'default', 
+          fontFamily: 'inherit',
+          opacity: (canCreate && !creating) ? 1 : 0.5,
+        }}>
+          {creating ? 'יוצרת...' : 'המשיכי ←'}
+        </button>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title="לקוחה חדשה" />
+      
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>
+          👤 פרטים בסיסיים
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <Field label="שם פרטי">
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="וונדר" style={inputStyle} />
+          </Field>
+          <Field label="שם משפחה">
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="וומן" style={inputStyle} />
+          </Field>
+        </div>
+        <Field label="טלפון">
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="050-1234567" style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+        </Field>
+      </section>
+
+      <button onClick={() => setStep(2)} disabled={!canGoStep2} style={{ 
+        width: '100%', 
+        background: COLORS.primary, 
+        color: 'white', 
+        border: 'none', 
+        padding: '14px', 
+        borderRadius: '12px', 
+        fontSize: '14px', 
+        fontWeight: 600, 
+        cursor: canGoStep2 ? 'pointer' : 'default', 
+        fontFamily: 'inherit',
+        opacity: canGoStep2 ? 1 : 0.5,
+      }}>
+        המשיכי ←
+      </button>
+    </main>
+  );
+}
+
