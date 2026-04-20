@@ -225,24 +225,33 @@ export default function App({onLogout}){
 
     if (clientData) setProfile(clientData);
 
-    // טען תוכנית תזונה החדשה - meal_plans + items
-    const { data: mealPlansData } = await supabase
-      .from('client_meal_plans')
-      .select('*, client_meal_plan_items(*, coach_meals(*))')
+    // טען לוח שבועי ומצא יום נוכחי
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0=ראשון
+    
+    const { data: scheduleData } = await supabase
+      .from('client_schedule')
+      .select('*, meal_templates(*, meal_template_sections(*, meal_template_items(*, coach_meals(*))))')
       .eq('client_id', user.id)
-      .order('order_index');
-
-    if (mealPlansData && mealPlansData.length > 0) {
-      // בנה מבנה תואם לתפריט הישן
-      const newPlan = { meals: mealPlansData.map(mp => ({
-        name: mp.meal_name,
-        key: mp.id,
-        items: (mp.client_meal_plan_items || [])
+      .eq('day_of_week', dayOfWeek)
+      .limit(1);
+    
+    const todaySchedule = scheduleData?.[0];
+    const mealTemplate = todaySchedule?.meal_templates;
+    
+    if (mealTemplate?.meal_template_sections?.length) {
+      const sections = mealTemplate.meal_template_sections
+        .sort((a,b) => a.order_index - b.order_index);
+      
+      const newPlan = { meals: sections.map(sec => ({
+        name: sec.section_name,
+        key: sec.id,
+        items: (sec.meal_template_items || [])
           .sort((a,b) => a.order_index - b.order_index)
           .map(i => i.coach_meals)
           .filter(Boolean),
-        totalCal: (mp.client_meal_plan_items || []).reduce((s, i) => s + (i.coach_meals?.total_calories || 0), 0),
-        totalP: (mp.client_meal_plan_items || []).reduce((s, i) => s + (i.coach_meals?.total_protein_g || 0), 0),
+        totalCal: (sec.meal_template_items || []).reduce((s, i) => s + (i.coach_meals?.total_calories || 0), 0),
+        totalP: (sec.meal_template_items || []).reduce((s, i) => s + (i.coach_meals?.total_protein_g || 0), 0),
       })) };
       setPlan(newPlan);
     }
@@ -300,16 +309,18 @@ export default function App({onLogout}){
       setUnread(msgsData.filter(m => !m.read).length);
     }
 
-    // טען תוכנית אימון החדשה
-    const { data: workoutPlans } = await supabase
-      .from('client_workout_plans')
-      .select('*, client_workout_items(*, coach_exercises(*))')
+    // טען אימון של יום נוכחי מהלוח השבועי
+    const { data: workoutSchedData } = await supabase
+      .from('client_schedule')
+      .select('*, workout_templates(*, workout_template_exercises(*, coach_exercises(*)))')
       .eq('client_id', user.id)
+      .eq('day_of_week', dayOfWeek)
       .limit(1);
-    const workoutPlan = workoutPlans?.[0];
-
-    if (workoutPlan?.client_workout_items?.length) {
-      setExs(workoutPlan.client_workout_items
+    
+    const workoutTemplate = workoutSchedData?.[0]?.workout_templates;
+    
+    if (workoutTemplate?.workout_template_exercises?.length) {
+      setExs(workoutTemplate.workout_template_exercises
         .sort((a,b) => a.order_index - b.order_index)
         .map(item => ({
           id: item.id,
