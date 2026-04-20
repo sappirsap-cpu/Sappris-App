@@ -141,7 +141,18 @@ export default function App({ onLogout }) {
     loadAll();
     // רענן הודעות כל 10 שניות
     const interval = setInterval(() => loadMessages(), 10000);
-    return () => clearInterval(interval);
+    
+    // מאזינים לפתיחת מסכי תבניות
+    const handleOpenMealTemplates = () => setSubView('mealTemplates');
+    const handleOpenWorkoutTemplates = () => setSubView('workoutTemplates');
+    window.addEventListener('openMealTemplates', handleOpenMealTemplates);
+    window.addEventListener('openWorkoutTemplates', handleOpenWorkoutTemplates);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('openMealTemplates', handleOpenMealTemplates);
+      window.removeEventListener('openWorkoutTemplates', handleOpenWorkoutTemplates);
+    };
   }, []);
 
   const loadMessages = async () => {
@@ -335,9 +346,10 @@ export default function App({ onLogout }) {
       </header>
 
       {/* Sub-views override tabs */}
-      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onNutrition={() => setSubView('nutritionPlan')} onWorkout={() => setSubView('workoutPlan')} onProgress={() => setSubView('progress')} />}
-      {subView === 'nutritionPlan' && selectedClient && <MealPlanBuilder client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
-      {subView === 'workoutPlan' && selectedClient && <WorkoutPlanBuilder client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onProgress={() => setSubView('progress')} />}
+      {subView === 'schedule' && selectedClient && <WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'mealTemplates' && <MealTemplatesManager onBack={goBack} showToast={showToast} />}
+      {subView === 'workoutTemplates' && <WorkoutTemplatesManager onBack={goBack} showToast={showToast} />}
       {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
       {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
       {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
@@ -671,6 +683,10 @@ function MealsTab({ showToast }) {
           + מאכל חדש
         </button>
       </div>
+      
+      <button onClick={() => window.dispatchEvent(new CustomEvent('openMealTemplates'))} style={{ width: '100%', background: COLORS.primarySoft, color: COLORS.primaryDark, border: `1px solid ${COLORS.primary}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        📋 תבניות תפריט →
+      </button>
 
       <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
         {filters.map(f => (
@@ -689,7 +705,7 @@ function MealsTab({ showToast }) {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
           <p style={{ fontSize: '14px', margin: '0 0 8px' }}>
-            {filter === 'favorites' ? '⭐ עדיין אין מנות במועדפים' : 'עדיין לא יצרת מאכלים'}
+            {filter === 'favorites' ? '⭐ עדיין אין מאכלים במועדפים' : 'עדיין לא יצרת מאכלים'}
           </p>
           {filter !== 'favorites' && (
             <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}>
@@ -1177,6 +1193,10 @@ function WorkoutsTab({ showToast }) {
           + תרגיל חדש
         </button>
       </div>
+      
+      <button onClick={() => window.dispatchEvent(new CustomEvent('openWorkoutTemplates'))} style={{ width: '100%', background: COLORS.primarySoft, color: COLORS.primaryDark, border: `1px solid ${COLORS.primary}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+        📋 תבניות אימון →
+      </button>
 
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 חיפוש תרגיל..." style={inputStyle} />
 
@@ -1440,7 +1460,7 @@ function MiniStat({ label, value, color }) {
 }
 
 /* ===================== CLIENT PROFILE ===================== */
-function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onNutrition, onWorkout, onProgress }) {
+function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSchedule, onProgress }) {
   const [tab, setTab] = useState('overview');
   const c = client;
   const weightSeries = [
@@ -1474,17 +1494,13 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onNutri
       } />
       
       {/* Action buttons */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
-        <button onClick={onNutrition} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '20px' }}>🍽️</span>
-          תוכנית תזונה
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+        <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '22px' }}>📅</span>
+          לוח שבועי
         </button>
-        <button onClick={onWorkout} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '20px' }}>💪</span>
-          תוכנית אימון
-        </button>
-        <button onClick={onProgress} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '10px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-          <span style={{ fontSize: '20px' }}>📊</span>
+        <button onClick={onProgress} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '22px' }}>📊</span>
           התקדמות
         </button>
       </div>
@@ -3110,23 +3126,52 @@ function MealPlanBuilder({ client, onBack, showToast }) {
   }, [client.id]);
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.warn('No user found');
+        setLoading(false);
+        return;
+      }
 
-    // טען ספריית מאכלים של המאמנת
-    const { data: meals } = await supabase.from('coach_meals').select('*').eq('coach_id', user.id).order('name');
-    if (meals) setLibrary(meals);
+      // טען ספריית מאכלים של המאמנת
+      const { data: meals, error: mealsErr } = await supabase
+        .from('coach_meals')
+        .select('*')
+        .eq('coach_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (mealsErr) console.error('Error loading coach_meals:', mealsErr);
+      console.log('Loaded coach_meals:', meals?.length || 0);
+      if (meals) setLibrary(meals);
 
-    // טען תפריט קיים של הלקוחה
-    const { data: plans } = await supabase.from('client_meal_plans').select('*').eq('client_id', client.id).order('order_index');
-    if (plans) {
-      const withItems = await Promise.all(plans.map(async (p) => {
-        const { data: items } = await supabase.from('client_meal_plan_items').select('*, coach_meals(*)').eq('meal_plan_id', p.id).order('order_index');
-        return { ...p, items: items || [] };
-      }));
-      setMealPlans(withItems);
+      // טען תפריט קיים של הלקוחה
+      const { data: plans, error: plansErr } = await supabase
+        .from('client_meal_plans')
+        .select('*')
+        .eq('client_id', client.id)
+        .order('order_index');
+      
+      if (plansErr) console.error('Error loading client_meal_plans:', plansErr);
+      
+      if (plans) {
+        const withItems = await Promise.all(plans.map(async (p) => {
+          const { data: items, error: itemsErr } = await supabase
+            .from('client_meal_plan_items')
+            .select('*, coach_meals(*)')
+            .eq('meal_plan_id', p.id)
+            .order('order_index');
+          
+          if (itemsErr) console.error('Error loading items:', itemsErr);
+          return { ...p, items: items || [] };
+        }));
+        setMealPlans(withItems);
+      }
+    } catch (e) {
+      console.error('loadData error:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const addMealSection = async () => {
@@ -3340,32 +3385,61 @@ function WorkoutPlanBuilder({ client, onBack, showToast }) {
   }, [client.id]);
 
   const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    // טען ספריית תרגילים
-    const { data: exs } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('name');
-    if (exs) setLibrary(exs);
+      // טען ספריית תרגילים
+      const { data: exs, error: exsErr } = await supabase
+        .from('coach_exercises')
+        .select('*')
+        .eq('coach_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (exsErr) console.error('Error loading coach_exercises:', exsErr);
+      console.log('Loaded coach_exercises:', exs?.length || 0);
+      if (exs) setLibrary(exs);
 
-    // טען/צור תוכנית
-    let { data: plans } = await supabase.from('client_workout_plans').select('*').eq('client_id', client.id).limit(1);
-    let curPlan = plans?.[0];
-    
-    if (!curPlan) {
-      const { data } = await supabase.from('client_workout_plans').insert({
-        client_id: client.id,
-        workout_name: 'אימון',
-      }).select();
-      curPlan = data?.[0];
+      // טען/צור תוכנית
+      let { data: plans, error: plansErr } = await supabase
+        .from('client_workout_plans')
+        .select('*')
+        .eq('client_id', client.id)
+        .limit(1);
+      
+      if (plansErr) console.error('Error loading client_workout_plans:', plansErr);
+      
+      let curPlan = plans?.[0];
+      
+      if (!curPlan) {
+        const { data, error: createErr } = await supabase
+          .from('client_workout_plans')
+          .insert({ client_id: client.id, workout_name: 'אימון' })
+          .select();
+        
+        if (createErr) console.error('Error creating plan:', createErr);
+        curPlan = data?.[0];
+      }
+      
+      if (curPlan) {
+        setPlan(curPlan);
+        const { data: planItems, error: itemsErr } = await supabase
+          .from('client_workout_items')
+          .select('*, coach_exercises(*)')
+          .eq('workout_plan_id', curPlan.id)
+          .order('order_index');
+        
+        if (itemsErr) console.error('Error loading workout items:', itemsErr);
+        if (planItems) setItems(planItems);
+      }
+    } catch (e) {
+      console.error('workout loadData error:', e);
+    } finally {
+      setLoading(false);
     }
-    
-    if (curPlan) {
-      setPlan(curPlan);
-      const { data: planItems } = await supabase.from('client_workout_items').select('*, coach_exercises(*)').eq('workout_plan_id', curPlan.id).order('order_index');
-      if (planItems) setItems(planItems);
-    }
-    
-    setLoading(false);
   };
 
   const addExercise = async (exerciseId) => {
@@ -3493,6 +3567,833 @@ function WorkoutPlanBuilder({ client, onBack, showToast }) {
           ))}
         </section>
       )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MEAL TEMPLATES MANAGER — ניהול תבניות תפריט
+═══════════════════════════════════════════════════════════ */
+function MealTemplatesManager({ onBack, showToast }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('meal_templates')
+      .select('*, meal_template_sections(id, section_name, meal_template_items(id))')
+      .eq('coach_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setTemplates(data);
+    setLoading(false);
+  };
+
+  const deleteTemplate = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('למחוק את התבנית?')) return;
+    await supabase.from('meal_templates').delete().eq('id', id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
+    showToast('🗑️ נמחקה');
+  };
+
+  const duplicateTemplate = async (tmpl, e) => {
+    e?.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // שכפל את התבנית
+    const { data: newTmpl } = await supabase.from('meal_templates').insert({
+      coach_id: user.id,
+      name: tmpl.name + ' (עותק)',
+      description: tmpl.description,
+      total_calories: tmpl.total_calories,
+    }).select();
+    
+    if (!newTmpl?.[0]) return;
+    const newId = newTmpl[0].id;
+    
+    // שכפל sections
+    const { data: oldSections } = await supabase.from('meal_template_sections')
+      .select('*, meal_template_items(*)')
+      .eq('template_id', tmpl.id)
+      .order('order_index');
+    
+    for (const section of (oldSections || [])) {
+      const { data: newSection } = await supabase.from('meal_template_sections').insert({
+        template_id: newId,
+        section_name: section.section_name,
+        order_index: section.order_index,
+      }).select();
+      
+      if (newSection?.[0] && section.meal_template_items?.length) {
+        const items = section.meal_template_items.map(i => ({
+          section_id: newSection[0].id,
+          coach_meal_id: i.coach_meal_id,
+          order_index: i.order_index,
+        }));
+        await supabase.from('meal_template_items').insert(items);
+      }
+    }
+    
+    showToast('📋 שוכפלה');
+    load();
+  };
+
+  if (editingTemplate) {
+    return <MealTemplateEditor template={editingTemplate} onBack={() => { setEditingTemplate(null); load(); }} showToast={showToast} />;
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title="תבניות תפריט" rightAction={
+        <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ חדשה</button>
+      } />
+      
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : templates.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין תבניות תפריט</p>
+          <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + צרי תבנית ראשונה
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {templates.map(t => {
+            const sections = t.meal_template_sections || [];
+            const totalItems = sections.reduce((s, sec) => s + (sec.meal_template_items?.length || 0), 0);
+            return (
+              <div key={t.id} onClick={() => setEditingTemplate(t)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{t.name}</p>
+                    {t.description && <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>{t.description}</p>}
+                    <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                      {sections.length} ארוחות · {totalItems} מאכלים
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={(e) => duplicateTemplate(t, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }} title="שכפלי">📋</button>
+                    <button onClick={(e) => deleteTemplate(t.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }} title="מחקי">🗑️</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MEAL TEMPLATE EDITOR
+═══════════════════════════════════════════════════════════ */
+function MealTemplateEditor({ template, onBack, showToast }) {
+  const [name, setName] = useState(template?.name || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [templateId, setTemplateId] = useState(template?.id || null);
+  const [sections, setSections] = useState([]);
+  const [library, setLibrary] = useState([]);
+  const [loading, setLoading] = useState(!!template?.id);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [showNewSection, setShowNewSection] = useState(false);
+  const [selectedSectionType, setSelectedSectionType] = useState('breakfast');
+  const dragItem = useRef(null);
+
+  const SECTION_OPTIONS = [
+    { key: 'breakfast', label: 'ארוחת בוקר', icon: '☀️' },
+    { key: 'lunch', label: 'ארוחת צהריים', icon: '🌞' },
+    { key: 'snack', label: 'נשנוש', icon: '🍎' },
+    { key: 'dinner', label: 'ארוחת ערב', icon: '🌙' },
+  ];
+
+  useEffect(() => {
+    loadLibrary();
+    if (templateId) loadSections();
+  }, []);
+
+  const loadLibrary = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('coach_meals').select('*').eq('coach_id', user.id).order('name');
+    if (data) setLibrary(data);
+  };
+
+  const loadSections = async () => {
+    const { data } = await supabase.from('meal_template_sections')
+      .select('*, meal_template_items(*, coach_meals(*))')
+      .eq('template_id', templateId)
+      .order('order_index');
+    if (data) setSections(data.map(s => ({
+      ...s,
+      items: (s.meal_template_items || []).sort((a,b) => a.order_index - b.order_index),
+    })));
+    setLoading(false);
+  };
+
+  const ensureTemplateExists = async () => {
+    if (templateId) return templateId;
+    if (!name.trim()) {
+      showToast('⚠️ הוסיפי שם תבנית קודם');
+      return null;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('meal_templates').insert({
+      coach_id: user.id,
+      name: name.trim(),
+      description: description.trim() || null,
+    }).select();
+    if (data?.[0]) {
+      setTemplateId(data[0].id);
+      return data[0].id;
+    }
+    return null;
+  };
+
+  const saveName = async () => {
+    if (!templateId || !name.trim()) return;
+    await supabase.from('meal_templates').update({
+      name: name.trim(),
+      description: description.trim() || null,
+    }).eq('id', templateId);
+  };
+
+  const addSection = async () => {
+    const selected = SECTION_OPTIONS.find(o => o.key === selectedSectionType);
+    if (!selected) return;
+    const tid = await ensureTemplateExists();
+    if (!tid) return;
+    const sectionName = newSectionName.trim() || selected.label;
+    const { data } = await supabase.from('meal_template_sections').insert({
+      template_id: tid,
+      section_name: sectionName,
+      order_index: sections.length,
+    }).select();
+    if (data?.[0]) {
+      setSections(prev => [...prev, { ...data[0], items: [] }]);
+      setNewSectionName('');
+      setShowNewSection(false);
+      showToast('✅ נוספה');
+    }
+  };
+
+  const deleteSection = async (id) => {
+    if (!confirm('למחוק את הארוחה?')) return;
+    await supabase.from('meal_template_sections').delete().eq('id', id);
+    setSections(prev => prev.filter(s => s.id !== id));
+  };
+
+  const addMealToSection = async (sectionId, meal) => {
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) return;
+    if (section.items.find(i => i.coach_meal_id === meal.id)) {
+      showToast('⚠️ כבר קיים');
+      return;
+    }
+    const { data } = await supabase.from('meal_template_items').insert({
+      section_id: sectionId,
+      coach_meal_id: meal.id,
+      order_index: section.items.length,
+    }).select('*, coach_meals(*)');
+    if (data?.[0]) {
+      setSections(prev => prev.map(s =>
+        s.id === sectionId ? { ...s, items: [...s.items, data[0]] } : s
+      ));
+    }
+  };
+
+  const removeMealFromSection = async (sectionId, itemId) => {
+    await supabase.from('meal_template_items').delete().eq('id', itemId);
+    setSections(prev => prev.map(s =>
+      s.id === sectionId ? { ...s, items: s.items.filter(i => i.id !== itemId) } : s
+    ));
+  };
+
+  const handleDragStart = (m) => { dragItem.current = m; };
+  const handleDragOver = (e) => { e.preventDefault(); };
+  const handleDropOnSection = (sectionId) => {
+    if (dragItem.current) {
+      addMealToSection(sectionId, dragItem.current);
+      dragItem.current = null;
+    }
+  };
+
+  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={async () => { await saveName(); onBack(); }} title={template?.id ? 'עריכת תבנית' : 'תבנית חדשה'} />
+      
+      <section style={cardStyle}>
+        <Field label="שם התבנית">
+          <input value={name} onChange={e => setName(e.target.value)} onBlur={saveName} placeholder="יום קל - 1500 קק״ל" style={inputStyle} />
+        </Field>
+        <Field label="תיאור (אופציונלי)">
+          <input value={description} onChange={e => setDescription(e.target.value)} onBlur={saveName} placeholder="לימים של מנוחה" style={inputStyle} />
+        </Field>
+      </section>
+
+      {/* Sections */}
+      {sections.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {sections.map(sec => (
+            <section
+              key={sec.id}
+              onDragOver={handleDragOver}
+              onDrop={() => handleDropOnSection(sec.id)}
+              onClick={() => {
+                if (dragItem.current) {
+                  addMealToSection(sec.id, dragItem.current);
+                  dragItem.current = null;
+                }
+              }}
+              style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12 }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ {sec.section_name}</p>
+                <button onClick={(e) => { e.stopPropagation(); deleteSection(sec.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: '#C88A8A' }}>🗑️</button>
+              </div>
+              {sec.items.length === 0 ? (
+                <div style={{ padding: 12, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
+                  גררי/הקישי מאכל מהספריה
+                </div>
+              ) : (
+                sec.items.map(item => (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{item.coach_meals?.name}</p>
+                      <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                        {Math.round(item.coach_meals?.total_calories || 0)} קק״ל
+                      </p>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); removeMealFromSection(sec.id, item.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+                  </div>
+                ))
+              )}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* Add section */}
+      {showNewSection ? (
+        <section style={cardStyle}>
+          <Field label="סוג ארוחה">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {SECTION_OPTIONS.map(opt => (
+                <button key={opt.key} onClick={() => setSelectedSectionType(opt.key)} style={{
+                  background: selectedSectionType === opt.key ? COLORS.primary : COLORS.primarySoft,
+                  color: selectedSectionType === opt.key ? 'white' : COLORS.text,
+                  border: 'none', borderRadius: 8, padding: 10, fontSize: 12, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}>{opt.icon} {opt.label}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label="שם מותאם (אופציונלי)">
+            <input value={newSectionName} onChange={e => setNewSectionName(e.target.value)} placeholder={SECTION_OPTIONS.find(o=>o.key===selectedSectionType)?.label} style={inputStyle} />
+          </Field>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={addSection} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>הוסיפי</button>
+            <button onClick={() => setShowNewSection(false)} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
+          </div>
+        </section>
+      ) : (
+        <button onClick={() => setShowNewSection(true)} style={{ background: 'white', color: COLORS.primaryDark, border: `1px dashed ${COLORS.border}`, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + הוסיפי ארוחה
+        </button>
+      )}
+
+      {/* Library */}
+      {library.length > 0 && (
+        <section style={cardStyle}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+            📚 המאכלים שלי ({library.length})
+          </p>
+          {library.map(m => (
+            <div
+              key={m.id}
+              draggable
+              onDragStart={() => handleDragStart(m)}
+              onClick={() => { dragItem.current = m; showToast('הקישי על ארוחה'); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: 10,
+                background: dragItem.current?.id === m.id ? COLORS.primarySoft : COLORS.bg,
+                border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: 'grab',
+                marginBottom: 4, touchAction: 'none',
+              }}
+            >
+              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{m.name}</p>
+                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                  {Math.round(m.total_calories)} קק״ל
+                </p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKOUT TEMPLATES MANAGER
+═══════════════════════════════════════════════════════════ */
+function WorkoutTemplatesManager({ onBack, showToast }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('workout_templates')
+      .select('*, workout_template_exercises(id)')
+      .eq('coach_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setTemplates(data);
+    setLoading(false);
+  };
+
+  const deleteTemplate = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('למחוק את התבנית?')) return;
+    await supabase.from('workout_templates').delete().eq('id', id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
+    showToast('🗑️ נמחקה');
+  };
+
+  const duplicateTemplate = async (tmpl, e) => {
+    e?.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const { data: newTmpl } = await supabase.from('workout_templates').insert({
+      coach_id: user.id,
+      name: tmpl.name + ' (עותק)',
+      description: tmpl.description,
+    }).select();
+    
+    if (!newTmpl?.[0]) return;
+    const newId = newTmpl[0].id;
+    
+    const { data: oldExs } = await supabase.from('workout_template_exercises')
+      .select('*')
+      .eq('template_id', tmpl.id)
+      .order('order_index');
+    
+    if (oldExs?.length) {
+      const exs = oldExs.map(e => ({
+        template_id: newId,
+        coach_exercise_id: e.coach_exercise_id,
+        order_index: e.order_index,
+      }));
+      await supabase.from('workout_template_exercises').insert(exs);
+    }
+    
+    showToast('📋 שוכפלה');
+    load();
+  };
+
+  if (editingTemplate) {
+    return <WorkoutTemplateEditor template={editingTemplate} onBack={() => { setEditingTemplate(null); load(); }} showToast={showToast} />;
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title="תבניות אימון" rightAction={
+        <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>+ חדשה</button>
+      } />
+      
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : templates.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין תבניות אימון</p>
+          <button onClick={() => setEditingTemplate({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + צרי תבנית ראשונה
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {templates.map(t => (
+            <div key={t.id} onClick={() => setEditingTemplate(t)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 6 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>💪 {t.name}</p>
+                  {t.description && <p style={{ margin: '2px 0 0', fontSize: '11px', color: COLORS.textMuted }}>{t.description}</p>}
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                    {t.workout_template_exercises?.length || 0} תרגילים
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={(e) => duplicateTemplate(t, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
+                  <button onClick={(e) => deleteTemplate(t.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKOUT TEMPLATE EDITOR
+═══════════════════════════════════════════════════════════ */
+function WorkoutTemplateEditor({ template, onBack, showToast }) {
+  const [name, setName] = useState(template?.name || '');
+  const [description, setDescription] = useState(template?.description || '');
+  const [templateId, setTemplateId] = useState(template?.id || null);
+  const [items, setItems] = useState([]);
+  const [library, setLibrary] = useState([]);
+  const [loading, setLoading] = useState(!!template?.id);
+  const dragItem = useRef(null);
+
+  useEffect(() => {
+    loadLibrary();
+    if (templateId) loadItems();
+  }, []);
+
+  const loadLibrary = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('name');
+    if (data) setLibrary(data);
+  };
+
+  const loadItems = async () => {
+    const { data } = await supabase.from('workout_template_exercises')
+      .select('*, coach_exercises(*)')
+      .eq('template_id', templateId)
+      .order('order_index');
+    if (data) setItems(data);
+    setLoading(false);
+  };
+
+  const ensureTemplateExists = async () => {
+    if (templateId) return templateId;
+    if (!name.trim()) {
+      showToast('⚠️ הוסיפי שם תבנית קודם');
+      return null;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('workout_templates').insert({
+      coach_id: user.id,
+      name: name.trim(),
+      description: description.trim() || null,
+    }).select();
+    if (data?.[0]) {
+      setTemplateId(data[0].id);
+      return data[0].id;
+    }
+    return null;
+  };
+
+  const saveName = async () => {
+    if (!templateId || !name.trim()) return;
+    await supabase.from('workout_templates').update({
+      name: name.trim(),
+      description: description.trim() || null,
+    }).eq('id', templateId);
+  };
+
+  const addExercise = async (ex) => {
+    if (items.find(i => i.coach_exercise_id === ex.id)) {
+      showToast('⚠️ כבר באימון');
+      return;
+    }
+    const tid = await ensureTemplateExists();
+    if (!tid) return;
+    const { data } = await supabase.from('workout_template_exercises').insert({
+      template_id: tid,
+      coach_exercise_id: ex.id,
+      order_index: items.length,
+    }).select('*, coach_exercises(*)');
+    if (data?.[0]) setItems(prev => [...prev, data[0]]);
+  };
+
+  const removeExercise = async (id) => {
+    await supabase.from('workout_template_exercises').delete().eq('id', id);
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
+
+  const handleDragStart = (ex) => { dragItem.current = ex; };
+
+  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={async () => { await saveName(); onBack(); }} title={template?.id ? 'עריכת תבנית' : 'תבנית חדשה'} />
+      
+      <section style={cardStyle}>
+        <Field label="שם האימון">
+          <input value={name} onChange={e => setName(e.target.value)} onBlur={saveName} placeholder="אימון רגליים" style={inputStyle} />
+        </Field>
+        <Field label="תיאור (אופציונלי)">
+          <input value={description} onChange={e => setDescription(e.target.value)} onBlur={saveName} placeholder="לימים של כוח" style={inputStyle} />
+        </Field>
+      </section>
+
+      {/* Items */}
+      <section
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={() => { if (dragItem.current) { addExercise(dragItem.current); dragItem.current = null; } }}
+        style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12, minHeight: 80 }}
+      >
+        <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+          💪 תרגילים ({items.length})
+        </p>
+        {items.length === 0 ? (
+          <div style={{ padding: 16, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
+            גררי/הקישי תרגיל מהספריה
+          </div>
+        ) : (
+          items.map((item, i) => {
+            const ex = item.coach_exercises;
+            if (!ex) return null;
+            return (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 18 }}>{i+1}.</span>
+                <span style={{ fontSize: 18 }}>{ex.icon || '💪'}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                    {ex.sets}×{ex.reps}{ex.weight_kg ? ` · ${ex.weight_kg}ק״ג` : ''}
+                  </p>
+                </div>
+                <button onClick={() => removeExercise(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+              </div>
+            );
+          })
+        )}
+      </section>
+
+      {/* Library */}
+      {library.length > 0 && (
+        <section style={cardStyle}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+            📚 התרגילים שלי ({library.length})
+          </p>
+          {library.map(ex => (
+            <div
+              key={ex.id}
+              draggable
+              onDragStart={() => handleDragStart(ex)}
+              onClick={() => addExercise(ex)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: 10,
+                background: COLORS.bg, border: `1px solid ${COLORS.border}`,
+                borderRadius: 8, cursor: 'grab', marginBottom: 4, touchAction: 'none',
+              }}
+            >
+              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
+              <span style={{ fontSize: 18 }}>{ex.icon || '💪'}</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
+                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                  {ex.sets}×{ex.reps}{ex.weight_kg ? ` · ${ex.weight_kg}ק״ג` : ''}
+                </p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WEEKLY SCHEDULE — שיוך תבניות לימי שבוע
+═══════════════════════════════════════════════════════════ */
+function WeeklySchedule({ client, onBack, showToast }) {
+  const [schedule, setSchedule] = useState({});
+  const [mealTemplates, setMealTemplates] = useState([]);
+  const [workoutTemplates, setWorkoutTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editDay, setEditDay] = useState(null);
+
+  const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+  useEffect(() => {
+    loadData();
+  }, [client.id]);
+
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const [schedRes, mealTplRes, workoutTplRes] = await Promise.all([
+      supabase.from('client_schedule').select('*').eq('client_id', client.id),
+      supabase.from('meal_templates').select('*').eq('coach_id', user.id).order('name'),
+      supabase.from('workout_templates').select('*').eq('coach_id', user.id).order('name'),
+    ]);
+
+    const schedMap = {};
+    (schedRes.data || []).forEach(s => { schedMap[s.day_of_week] = s; });
+    setSchedule(schedMap);
+    setMealTemplates(mealTplRes.data || []);
+    setWorkoutTemplates(workoutTplRes.data || []);
+    setLoading(false);
+  };
+
+  const updateDay = async (day, mealTemplateId, workoutTemplateId) => {
+    const existing = schedule[day];
+    if (existing) {
+      await supabase.from('client_schedule').update({
+        meal_template_id: mealTemplateId,
+        workout_template_id: workoutTemplateId,
+      }).eq('id', existing.id);
+      setSchedule(prev => ({
+        ...prev,
+        [day]: { ...existing, meal_template_id: mealTemplateId, workout_template_id: workoutTemplateId }
+      }));
+    } else {
+      const { data } = await supabase.from('client_schedule').insert({
+        client_id: client.id,
+        day_of_week: day,
+        meal_template_id: mealTemplateId,
+        workout_template_id: workoutTemplateId,
+      }).select();
+      if (data?.[0]) setSchedule(prev => ({ ...prev, [day]: data[0] }));
+    }
+    showToast('💾 נשמר');
+    setEditDay(null);
+  };
+
+  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+
+  const getMealName = (id) => mealTemplates.find(t => t.id === id)?.name || 'ללא';
+  const getWorkoutName = (id) => workoutTemplates.find(t => t.id === id)?.name || 'ללא';
+
+  if (editDay !== null) {
+    const daySchedule = schedule[editDay] || {};
+    return (
+      <DayEditor
+        dayName={DAYS[editDay]}
+        mealTemplates={mealTemplates}
+        workoutTemplates={workoutTemplates}
+        currentMealId={daySchedule.meal_template_id}
+        currentWorkoutId={daySchedule.workout_template_id}
+        onBack={() => setEditDay(null)}
+        onSave={(mId, wId) => updateDay(editDay, mId, wId)}
+      />
+    );
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`לוח שבועי: ${client.name.split(' ')[0]}`} />
+
+      <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
+        <p style={{ margin: 0, fontSize: 12, color: COLORS.primaryDark, lineHeight: 1.6 }}>
+          💡 הקישי על יום כדי לבחור תפריט ואימון לאותו היום.
+          {(mealTemplates.length === 0 || workoutTemplates.length === 0) && (
+            <span style={{ display: 'block', marginTop: 6, fontWeight: 600 }}>
+              ⚠️ צרי קודם תבניות בתפריט הראשי.
+            </span>
+          )}
+        </p>
+      </section>
+
+      {DAYS.map((dayName, idx) => {
+        const daySched = schedule[idx];
+        const hasContent = daySched?.meal_template_id || daySched?.workout_template_id;
+        return (
+          <div
+            key={idx}
+            onClick={() => setEditDay(idx)}
+            style={{
+              background: 'white',
+              border: `1px solid ${hasContent ? COLORS.primary : COLORS.border}`,
+              borderRadius: 12,
+              padding: 14,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: hasContent ? 8 : 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>📅 יום {dayName}</p>
+              <span style={{ fontSize: 11, color: COLORS.textMuted }}>{hasContent ? 'ערוך' : 'הגדר'} ←</span>
+            </div>
+            {hasContent ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {daySched.meal_template_id && (
+                  <p style={{ margin: 0, fontSize: 11, color: COLORS.text }}>
+                    🍽️ <strong>תפריט:</strong> {getMealName(daySched.meal_template_id)}
+                  </p>
+                )}
+                {daySched.workout_template_id && (
+                  <p style={{ margin: 0, fontSize: 11, color: COLORS.text }}>
+                    💪 <strong>אימון:</strong> {getWorkoutName(daySched.workout_template_id)}
+                  </p>
+                )}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DAY EDITOR
+═══════════════════════════════════════════════════════════ */
+function DayEditor({ dayName, mealTemplates, workoutTemplates, currentMealId, currentWorkoutId, onBack, onSave }) {
+  const [mealId, setMealId] = useState(currentMealId || null);
+  const [workoutId, setWorkoutId] = useState(currentWorkoutId || null);
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`יום ${dayName}`} />
+      
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ תפריט</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button onClick={() => setMealId(null)} style={{
+            background: !mealId ? COLORS.primary : COLORS.bg, color: !mealId ? 'white' : COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+          }}>ללא תפריט</button>
+          {mealTemplates.map(t => (
+            <button key={t.id} onClick={() => setMealId(t.id)} style={{
+              background: mealId === t.id ? COLORS.primary : COLORS.bg, color: mealId === t.id ? 'white' : COLORS.text,
+              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+            }}>{t.name}</button>
+          ))}
+        </div>
+      </section>
+      
+      <section style={cardStyle}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>💪 אימון</h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button onClick={() => setWorkoutId(null)} style={{
+            background: !workoutId ? COLORS.primary : COLORS.bg, color: !workoutId ? 'white' : COLORS.text,
+            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+          }}>יום מנוחה</button>
+          {workoutTemplates.map(t => (
+            <button key={t.id} onClick={() => setWorkoutId(t.id)} style={{
+              background: workoutId === t.id ? COLORS.primary : COLORS.bg, color: workoutId === t.id ? 'white' : COLORS.text,
+              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+            }}>{t.name}</button>
+          ))}
+        </div>
+      </section>
+      
+      <button onClick={() => onSave(mealId, workoutId)} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: 14, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+      }}>💾 שמרי לוח</button>
     </main>
   );
 }
