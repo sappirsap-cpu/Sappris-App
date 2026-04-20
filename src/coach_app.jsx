@@ -336,8 +336,8 @@ export default function App({ onLogout }) {
 
       {/* Sub-views override tabs */}
       {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onNutrition={() => setSubView('nutritionPlan')} onWorkout={() => setSubView('workoutPlan')} onProgress={() => setSubView('progress')} />}
-      {subView === 'nutritionPlan' && selectedClient && <NutritionPlanCreator client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
-      {subView === 'workoutPlan' && selectedClient && <WorkoutPlanCreator client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'nutritionPlan' && selectedClient && <MealPlanBuilder client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'workoutPlan' && selectedClient && <WorkoutPlanBuilder client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
       {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
       {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
       {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
@@ -408,8 +408,8 @@ function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
     { id: 'clients', label: 'לקוחות', icon: 'clients' },
-    { id: 'meals', label: 'מנות', icon: 'food' },
-    { id: 'workouts', label: 'אימונים', icon: 'workout' },
+    { id: 'meals', label: 'מאכלים', icon: 'food' },
+    { id: 'workouts', label: 'תרגילים', icon: 'workout' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   return (
@@ -637,10 +637,10 @@ function MealsTab({ showToast }) {
 
   const deleteMeal = async (id, e) => {
     e?.stopPropagation();
-    if (!confirm('למחוק את המנה?')) return;
+    if (!confirm('למחוק את המאכל?')) return;
     await supabase.from('coach_meals').delete().eq('id', id);
     setMeals(prev => prev.filter(m => m.id !== id));
-    showToast('🗑️ המנה נמחקה');
+    showToast('🗑️ המאכל נמחק');
   };
 
   const filters = [
@@ -666,9 +666,9 @@ function MealsTab({ showToast }) {
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית מנות</h2>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ספריית מאכלים</h2>
         <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + מנה חדשה
+          + מאכל חדש
         </button>
       </div>
 
@@ -689,11 +689,11 @@ function MealsTab({ showToast }) {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted }}>
           <p style={{ fontSize: '14px', margin: '0 0 8px' }}>
-            {filter === 'favorites' ? '⭐ עדיין אין מנות במועדפים' : 'עדיין לא יצרת מנות'}
+            {filter === 'favorites' ? '⭐ עדיין אין מנות במועדפים' : 'עדיין לא יצרת מאכלים'}
           </p>
           {filter !== 'favorites' && (
             <button onClick={() => setShowCreator(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}>
-              + צרי מנה ראשונה
+              + צרי מאכל ראשון
             </button>
           )}
         </div>
@@ -912,11 +912,11 @@ function MealCreator({ meal, onBack, onSaved }) {
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={meal ? 'עריכת מנה' : 'מנה חדשה'} />
+      <BackHeader onBack={onBack} title={meal ? 'עריכת מאכל' : 'מאכל חדש'} />
 
       <section style={cardStyle}>
-        <Field label="שם המנה">
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: סלט עוף וקינואה" style={inputStyle} />
+        <Field label="שם המאכל">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: סלט חזה עוף" style={inputStyle} />
         </Field>
         <Field label="סוג ארוחה">
           <div style={{ display: 'flex', gap: 4 }}>
@@ -936,7 +936,7 @@ function MealCreator({ meal, onBack, onSaved }) {
 
       {/* סיכום מאקרו */}
       <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
-        <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>📊 סה״כ במנה</p>
+        <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>📊 סה״כ במאכל</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
           <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.text }}>{Math.round(totals.cal)}</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>קק״ל</p></div>
           <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.sky }}>{Math.round(totals.p)}g</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>חלבון</p></div>
@@ -948,7 +948,7 @@ function MealCreator({ meal, onBack, onSaved }) {
       {/* רשימת פריטים */}
       {items.length > 0 && (
         <section style={cardStyle}>
-          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>🍽️ פריטים בארוחה ({items.length})</p>
+          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>🍽️ מרכיבים ({items.length})</p>
           {items.map(i => {
             const r = (i.quantity || 100) / 100;
             return (
@@ -1014,7 +1014,7 @@ function MealCreator({ meal, onBack, onSaved }) {
         cursor: (name.trim() && items.length > 0 && !saving) ? 'pointer' : 'default',
         opacity: (name.trim() && items.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
-        {saving ? 'שומרת...' : '💾 שמרי מנה'}
+        {saving ? 'שומרת...' : '💾 שמרי מאכל'}
       </button>
     </main>
   );
@@ -1035,7 +1035,7 @@ function AIMealModal({ onClose, onAdd }) {
 
     const systemPrompt = `אתה תזונאית מקצועית. המשתמשת מבקשת ממך ליצור מנת אוכל.
 ענה אך ורק ב-JSON תקני ללא מרכאות backtick ובלי טקסט נוסף, בדיוק בפורמט הבא:
-{"name":"שם המנה","type":"breakfast","desc":"תיאור קצר","cal":320,"p":18,"c":40,"f":8}
+{"name":"שם המאכל","type":"breakfast","desc":"תיאור קצר","cal":320,"p":18,"c":40,"f":8}
 type חייב להיות אחד מ: breakfast, lunch, dinner, snack`;
 
     try {
@@ -1241,6 +1241,7 @@ function ExerciseEditor({ exercise, onBack, onSaved }) {
   const [rest, setRest] = useState(exercise?.rest_seconds || 60);
   const [icon, setIcon] = useState(exercise?.icon || '💪');
   const [notes, setNotes] = useState(exercise?.notes || '');
+  const [videoUrl, setVideoUrl] = useState(exercise?.video_url || '');
   const [saving, setSaving] = useState(false);
 
   const ICONS = ['💪', '🏋️‍♀️', '🏋️', '🦵', '🍑', '🚶‍♀️', '🧘‍♀️', '🤸‍♀️', '🚣', '📦', '🔥', '⚡'];
@@ -1260,6 +1261,7 @@ function ExerciseEditor({ exercise, onBack, onSaved }) {
       rest_seconds: parseInt(rest) || 60,
       icon,
       notes: notes.trim() || null,
+      video_url: videoUrl.trim() || null,
     };
 
     if (exercise?.id) {
@@ -1311,6 +1313,10 @@ function ExerciseEditor({ exercise, onBack, onSaved }) {
             <input type="number" value={rest} onChange={e => setRest(e.target.value)} style={{ ...inputStyle, textAlign: 'center' }} />
           </Field>
         </div>
+
+        <Field label="קישור לסרטון הדגמה (YouTube/Instagram)">
+          <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://youtube.com/..." style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }} />
+        </Field>
 
         <Field label="הערות (אופציונלי)">
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="טכניקה, נקודות חשובות..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
@@ -1886,7 +1892,7 @@ function NewClient({ onBack, onInvite }) {
   if (step === 2) {
     return (
       <main style={{ padding: '14px' }}>
-        <BackHeader onBack={() => setStep(1)} title="הזמנה חדשה" />
+        <BackHeader onBack={() => setStep(1)} title="הזמאכל חדש" />
         <section style={{ ...cardStyle, textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '8px' }}>🎉</div>
           <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: COLORS.primaryDark }}>{fullName} נוספה!</h3>
@@ -3083,6 +3089,410 @@ function AddClientModal({ onBack, showToast, onCreated }) {
       }}>
         המשיכי ←
       </button>
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MEAL PLAN BUILDER — ספיר בונה תפריט ללקוחה עם גרירה
+═══════════════════════════════════════════════════════════ */
+function MealPlanBuilder({ client, onBack, showToast }) {
+  const [mealPlans, setMealPlans] = useState([]);
+  const [library, setLibrary] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newMealName, setNewMealName] = useState('');
+  const [showNewMeal, setShowNewMeal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const dragItem = useRef(null);
+
+  useEffect(() => {
+    loadData();
+  }, [client.id]);
+
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // טען ספריית מאכלים של המאמנת
+    const { data: meals } = await supabase.from('coach_meals').select('*').eq('coach_id', user.id).order('name');
+    if (meals) setLibrary(meals);
+
+    // טען תפריט קיים של הלקוחה
+    const { data: plans } = await supabase.from('client_meal_plans').select('*').eq('client_id', client.id).order('order_index');
+    if (plans) {
+      const withItems = await Promise.all(plans.map(async (p) => {
+        const { data: items } = await supabase.from('client_meal_plan_items').select('*, coach_meals(*)').eq('meal_plan_id', p.id).order('order_index');
+        return { ...p, items: items || [] };
+      }));
+      setMealPlans(withItems);
+    }
+    setLoading(false);
+  };
+
+  const addMealSection = async () => {
+    if (!newMealName.trim()) return;
+    const { data } = await supabase.from('client_meal_plans').insert({
+      client_id: client.id,
+      meal_name: newMealName.trim(),
+      order_index: mealPlans.length,
+    }).select();
+    if (data?.[0]) {
+      setMealPlans(prev => [...prev, { ...data[0], items: [] }]);
+      setNewMealName('');
+      setShowNewMeal(false);
+      showToast('✅ ארוחה נוספה');
+    }
+  };
+
+  const deleteMealSection = async (id) => {
+    if (!confirm('למחוק את הארוחה הזו ואת כל המאכלים בה?')) return;
+    await supabase.from('client_meal_plans').delete().eq('id', id);
+    setMealPlans(prev => prev.filter(m => m.id !== id));
+    showToast('🗑️ נמחק');
+  };
+
+  const addFoodToMeal = async (mealPlanId, coachMealId) => {
+    const plan = mealPlans.find(p => p.id === mealPlanId);
+    if (!plan) return;
+    // בדוק אם כבר קיים
+    if (plan.items.find(i => i.coach_meal_id === coachMealId)) {
+      showToast('⚠️ כבר קיים בארוחה');
+      return;
+    }
+    const { data } = await supabase.from('client_meal_plan_items').insert({
+      meal_plan_id: mealPlanId,
+      coach_meal_id: coachMealId,
+      order_index: plan.items.length,
+    }).select('*, coach_meals(*)');
+    if (data?.[0]) {
+      setMealPlans(prev => prev.map(p => p.id === mealPlanId ? { ...p, items: [...p.items, data[0]] } : p));
+      showToast('✅ נוסף לארוחה');
+    }
+  };
+
+  const removeItem = async (mealPlanId, itemId) => {
+    await supabase.from('client_meal_plan_items').delete().eq('id', itemId);
+    setMealPlans(prev => prev.map(p => 
+      p.id === mealPlanId ? { ...p, items: p.items.filter(i => i.id !== itemId) } : p
+    ));
+  };
+
+  // Drag & drop handlers
+  const handleDragStart = (mealData) => { dragItem.current = mealData; };
+  const handleDragOver = (e) => { e.preventDefault(); };
+  const handleDrop = (mealPlanId) => {
+    if (dragItem.current) {
+      addFoodToMeal(mealPlanId, dragItem.current.id);
+      dragItem.current = null;
+    }
+  };
+
+  const handleTouchStart = (mealData) => { 
+    dragItem.current = mealData;
+    showToast(`🖐️ הקש על ארוחה כדי להוסיף "${mealData.name}"`);
+  };
+
+  if (loading) {
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`תפריט: ${client.name.split(' ')[0]}`} />
+
+      {/* רשימת ארוחות */}
+      {mealPlans.length === 0 && !showNewMeal ? (
+        <div style={{ textAlign: 'center', padding: '30px 20px', color: COLORS.textMuted, background: 'white', border: `1px dashed ${COLORS.border}`, borderRadius: 12 }}>
+          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין ארוחות בתפריט</p>
+          <button onClick={() => setShowNewMeal(true)} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + הוסיפי ארוחה ראשונה
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {mealPlans.map(mp => (
+            <section
+              key={mp.id}
+              onDragOver={handleDragOver}
+              onDrop={() => handleDrop(mp.id)}
+              onClick={() => {
+                if (dragItem.current) {
+                  addFoodToMeal(mp.id, dragItem.current.id);
+                  dragItem.current = null;
+                }
+              }}
+              style={{ 
+                background: 'white', 
+                border: `1px solid ${COLORS.border}`, 
+                borderRadius: 12, 
+                padding: 12,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ {mp.meal_name}</p>
+                <button onClick={(e) => { e.stopPropagation(); deleteMealSection(mp.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: '#C88A8A' }}>🗑️</button>
+              </div>
+              
+              {mp.items.length === 0 ? (
+                <div style={{ padding: 12, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 11 }}>
+                  גררי מאכל מהרשימה למטה
+                </div>
+              ) : (
+                <div>
+                  {mp.items.map(item => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{item.coach_meals?.name}</p>
+                        <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                          {Math.round(item.coach_meals?.total_calories || 0)} קק״ל · 
+                          חלבון {Math.round(item.coach_meals?.total_protein_g || 0)}g
+                        </p>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); removeItem(mp.id, item.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* הוספת ארוחה */}
+      {showNewMeal ? (
+        <section style={cardStyle}>
+          <Field label="שם הארוחה">
+            <input value={newMealName} onChange={e => setNewMealName(e.target.value)} placeholder="לדוגמה: ארוחת בוקר" style={inputStyle} autoFocus />
+          </Field>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={addMealSection} disabled={!newMealName.trim()} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: newMealName.trim() ? 'pointer' : 'default', opacity: newMealName.trim() ? 1 : 0.5, fontFamily: 'inherit' }}>הוסיפי</button>
+            <button onClick={() => { setShowNewMeal(false); setNewMealName(''); }} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
+          </div>
+        </section>
+      ) : mealPlans.length > 0 && (
+        <button onClick={() => setShowNewMeal(true)} style={{ background: 'white', color: COLORS.primaryDark, border: `1px dashed ${COLORS.border}`, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+          + הוסיפי ארוחה
+        </button>
+      )}
+
+      {/* ספריית מאכלים */}
+      {mealPlans.length > 0 && library.length > 0 && (
+        <section style={{ ...cardStyle, marginTop: 8 }}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+            📚 הספריה שלך ({library.length})
+          </p>
+          <p style={{ margin: '0 0 10px', fontSize: 10, color: COLORS.textMuted }}>
+            גררי מאכל לתוך ארוחה, או הקישי על מאכל ואז על ארוחה
+          </p>
+          {library.map(m => (
+            <div
+              key={m.id}
+              draggable
+              onDragStart={() => handleDragStart(m)}
+              onTouchStart={() => handleTouchStart(m)}
+              onClick={() => handleTouchStart(m)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: 8,
+                background: dragItem.current?.id === m.id ? COLORS.primarySoft : COLORS.bg,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 8,
+                cursor: 'grab',
+                marginBottom: 4,
+                touchAction: 'none',
+              }}
+            >
+              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{m.name}</p>
+                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                  {Math.round(m.total_calories)} קק״ל · חלבון {Math.round(m.total_protein_g)}g · פחמ׳ {Math.round(m.total_carbs_g)}g · שומן {Math.round(m.total_fat_g)}g
+                </p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+      
+      {library.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 16, background: COLORS.primarySoft, borderRadius: 10, fontSize: 12, color: COLORS.primaryDark }}>
+          💡 עדיין אין מאכלים בספריה. צרי בלשונית "מאכלים" למטה.
+        </div>
+      )}
+    </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORKOUT PLAN BUILDER — ספיר בונה אימון ללקוחה עם גרירה
+═══════════════════════════════════════════════════════════ */
+function WorkoutPlanBuilder({ client, onBack, showToast }) {
+  const [plan, setPlan] = useState(null);
+  const [items, setItems] = useState([]);
+  const [library, setLibrary] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const dragItem = useRef(null);
+
+  useEffect(() => {
+    loadData();
+  }, [client.id]);
+
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // טען ספריית תרגילים
+    const { data: exs } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('name');
+    if (exs) setLibrary(exs);
+
+    // טען/צור תוכנית
+    let { data: plans } = await supabase.from('client_workout_plans').select('*').eq('client_id', client.id).limit(1);
+    let curPlan = plans?.[0];
+    
+    if (!curPlan) {
+      const { data } = await supabase.from('client_workout_plans').insert({
+        client_id: client.id,
+        workout_name: 'אימון',
+      }).select();
+      curPlan = data?.[0];
+    }
+    
+    if (curPlan) {
+      setPlan(curPlan);
+      const { data: planItems } = await supabase.from('client_workout_items').select('*, coach_exercises(*)').eq('workout_plan_id', curPlan.id).order('order_index');
+      if (planItems) setItems(planItems);
+    }
+    
+    setLoading(false);
+  };
+
+  const addExercise = async (exerciseId) => {
+    if (!plan) return;
+    if (items.find(i => i.coach_exercise_id === exerciseId)) {
+      showToast('⚠️ התרגיל כבר באימון');
+      return;
+    }
+    const { data } = await supabase.from('client_workout_items').insert({
+      workout_plan_id: plan.id,
+      coach_exercise_id: exerciseId,
+      order_index: items.length,
+    }).select('*, coach_exercises(*)');
+    if (data?.[0]) {
+      setItems(prev => [...prev, data[0]]);
+      showToast('✅ תרגיל נוסף');
+    }
+  };
+
+  const removeItem = async (itemId) => {
+    await supabase.from('client_workout_items').delete().eq('id', itemId);
+    setItems(prev => prev.filter(i => i.id !== itemId));
+  };
+
+  const handleDragStart = (ex) => { dragItem.current = ex; };
+  const handleDragOver = (e) => { e.preventDefault(); };
+  const handleDrop = () => {
+    if (dragItem.current) {
+      addExercise(dragItem.current.id);
+      dragItem.current = null;
+    }
+  };
+
+  const handleTouchTap = (ex) => { addExercise(ex.id); };
+
+  if (loading) {
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+  }
+
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <BackHeader onBack={onBack} title={`אימון: ${client.name.split(' ')[0]}`} />
+
+      {/* תרגילים באימון */}
+      <section
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 12, minHeight: 100 }}
+      >
+        <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+          💪 אימון הלקוחה ({items.length} תרגילים)
+        </p>
+        
+        {items.length === 0 ? (
+          <div style={{ padding: 20, background: COLORS.bg, borderRadius: 8, border: `1px dashed ${COLORS.border}`, textAlign: 'center', color: COLORS.textMuted, fontSize: 12 }}>
+            גררי תרגיל מהרשימה למטה, או הקישי עליו
+          </div>
+        ) : (
+          <div>
+            {items.map((item, i) => {
+              const ex = item.coach_exercises;
+              if (!ex) return null;
+              return (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 18 }}>{i + 1}.</span>
+                  <span style={{ fontSize: 20 }}>{ex.icon || '💪'}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{ex.name}</p>
+                    <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                      {ex.sets} סטים × {ex.reps}
+                      {ex.weight_kg ? ` · ${ex.weight_kg} ק״ג` : ''}
+                      {ex.video_url ? ' · 📺' : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => removeItem(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ספריית תרגילים */}
+      {library.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 16, background: COLORS.primarySoft, borderRadius: 10, fontSize: 12, color: COLORS.primaryDark }}>
+          💡 עדיין אין תרגילים בספריה. צרי בלשונית "תרגילים" למטה.
+        </div>
+      ) : (
+        <section style={cardStyle}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+            📚 הספריה שלך ({library.length})
+          </p>
+          <p style={{ margin: '0 0 10px', fontSize: 10, color: COLORS.textMuted }}>
+            גררי או הקישי על תרגיל כדי להוסיף לאימון
+          </p>
+          {library.map(ex => (
+            <div
+              key={ex.id}
+              draggable
+              onDragStart={() => handleDragStart(ex)}
+              onClick={() => handleTouchTap(ex)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: 10,
+                background: COLORS.bg,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 8,
+                cursor: 'grab',
+                marginBottom: 4,
+                touchAction: 'none',
+              }}
+            >
+              <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
+              <span style={{ fontSize: 20 }}>{ex.icon || '💪'}</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{ex.name}</p>
+                <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+                  {ex.sets}×{ex.reps}
+                  {ex.weight_kg ? ` · ${ex.weight_kg} ק״ג` : ''}
+                </p>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
     </main>
   );
 }
