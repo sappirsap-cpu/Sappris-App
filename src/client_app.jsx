@@ -9,16 +9,71 @@ const COLORS = {
 };
 
 const FOOD_LIB=[
-  {id:'f1',name:'חזה עוף 100g',   cal:165,p:31,c:0, f:3, icon:'🍗'},
-  {id:'f2',name:'אורז מלא 100g',  cal:216,p:5, c:45,f:2, icon:'🍚'},
-  {id:'f3',name:'ביצה אחת',       cal:72, p:6, c:0, f:5, icon:'🥚'},
-  {id:'f4',name:'בננה',           cal:89, p:1, c:23,f:0, icon:'🍌'},
-  {id:'f5',name:'יוגורט יווני 150g',cal:130,p:17,c:7,f:4,icon:'🥛'},
-  {id:'f6',name:'שקדים 30g',      cal:173,p:6, c:6, f:15,icon:'🌰'},
-  {id:'f7',name:'סלמון 120g',     cal:250,p:25,c:0, f:16,icon:'🐟'},
-  {id:'f8',name:'אבוקדו חצי',     cal:120,p:1, c:6, f:11,icon:'🥑'},
-  {id:'f9',name:'בטטה 150g',      cal:129,p:3, c:30,f:0, icon:'🍠'},
-  {id:'f10',name:'קוטג׳ 200g',    cal:142,p:16,c:6, f:6, icon:'🧀'},
+  // חלבונים
+  {id:'f1',name:'חזה עוף 100g',   cal:165,p:31,c:0, f:3, icon:'🍗',cat:'חלבון'},
+  {id:'f2',name:'חזה הודו 100g',  cal:135,p:30,c:0, f:1, icon:'🦃',cat:'חלבון'},
+  {id:'f3',name:'בשר בקר רזה 100g',cal:200,p:26,c:0, f:10,icon:'🥩',cat:'חלבון'},
+  {id:'f4',name:'סלמון 120g',     cal:250,p:25,c:0, f:16,icon:'🐟',cat:'חלבון'},
+  {id:'f5',name:'טונה במים 100g', cal:116,p:26,c:0, f:1, icon:'🐟',cat:'חלבון'},
+  {id:'f6',name:'ביצה אחת',       cal:72, p:6, c:0, f:5, icon:'🥚',cat:'חלבון'},
+  {id:'f7',name:'חלבון מי גבינה סקופ',cal:120,p:24,c:3,f:1,icon:'💪',cat:'חלבון'},
+  {id:'f8',name:'טופו 100g',      cal:76, p:8, c:2, f:5, icon:'🥢',cat:'חלבון'},
+  
+  // מוצרי חלב
+  {id:'f9',name:'יוגורט יווני 150g',cal:130,p:17,c:7,f:4,icon:'🥛',cat:'חלב'},
+  {id:'f10',name:'קוטג׳ 5% 200g',  cal:142,p:16,c:6, f:6, icon:'🧀',cat:'חלב'},
+  {id:'f11',name:'גבינה לבנה 5% 100g',cal:100,p:11,c:3,f:5,icon:'🧀',cat:'חלב'},
+  {id:'f12',name:'חלב 2% כוס',    cal:122,p:8, c:12,f:5, icon:'🥛',cat:'חלב'},
+  {id:'f13',name:'גבינת פטה 30g', cal:75, p:4, c:1, f:6, icon:'🧀',cat:'חלב'},
+  
+  // פחמימות
+  {id:'f14',name:'אורז מלא 100g',  cal:216,p:5, c:45,f:2, icon:'🍚',cat:'פחמימה'},
+  {id:'f15',name:'אורז לבן 100g',  cal:130,p:3, c:28,f:0, icon:'🍚',cat:'פחמימה'},
+  {id:'f16',name:'קינואה 100g',    cal:120,p:4, c:21,f:2, icon:'🌾',cat:'פחמימה'},
+  {id:'f17',name:'פסטה מלאה 100g', cal:131,p:5, c:25,f:1, icon:'🍝',cat:'פחמימה'},
+  {id:'f18',name:'בטטה 150g',      cal:129,p:3, c:30,f:0, icon:'🍠',cat:'פחמימה'},
+  {id:'f19',name:'תפוח אדמה 150g', cal:116,p:3, c:26,f:0, icon:'🥔',cat:'פחמימה'},
+  {id:'f20',name:'לחם מלא פרוסה',  cal:80, p:4, c:15,f:1, icon:'🍞',cat:'פחמימה'},
+  {id:'f21',name:'לחמנייה',        cal:200,p:7, c:38,f:3, icon:'🍞',cat:'פחמימה'},
+  {id:'f22',name:'פיתה מלאה',      cal:170,p:6, c:34,f:2, icon:'🫓',cat:'פחמימה'},
+  {id:'f23',name:'שיבולת שועל 50g',cal:190,p:7, c:33,f:3, icon:'🥣',cat:'פחמימה'},
+  
+  // קטניות
+  {id:'f24',name:'עדשים מבושלות 100g',cal:116,p:9,c:20,f:0,icon:'🫘',cat:'קטנית'},
+  {id:'f25',name:'חומוס מבושל 100g',cal:164,p:9, c:27,f:3, icon:'🫘',cat:'קטנית'},
+  {id:'f26',name:'שעועית לבנה 100g',cal:127,p:9, c:23,f:1, icon:'🫘',cat:'קטנית'},
+  {id:'f27',name:'טחינה גולמית כף',cal:89,p:3, c:3, f:8, icon:'🥜',cat:'קטנית'},
+  
+  // פירות
+  {id:'f28',name:'בננה',           cal:89, p:1, c:23,f:0, icon:'🍌',cat:'פרי'},
+  {id:'f29',name:'תפוח',           cal:95, p:0, c:25,f:0, icon:'🍎',cat:'פרי'},
+  {id:'f30',name:'תפוז',           cal:62, p:1, c:15,f:0, icon:'🍊',cat:'פרי'},
+  {id:'f31',name:'קיווי',          cal:42, p:1, c:10,f:0, icon:'🥝',cat:'פרי'},
+  {id:'f32',name:'תותים 100g',     cal:32, p:1, c:8, f:0, icon:'🍓',cat:'פרי'},
+  {id:'f33',name:'אוכמניות 100g',  cal:57, p:1, c:14,f:0, icon:'🫐',cat:'פרי'},
+  {id:'f34',name:'אבטיח 200g',     cal:60, p:1, c:15,f:0, icon:'🍉',cat:'פרי'},
+  {id:'f35',name:'ענבים 100g',     cal:67, p:1, c:17,f:0, icon:'🍇',cat:'פרי'},
+  
+  // ירקות
+  {id:'f36',name:'עגבנייה',        cal:22, p:1, c:5, f:0, icon:'🍅',cat:'ירק'},
+  {id:'f37',name:'מלפפון',         cal:16, p:1, c:4, f:0, icon:'🥒',cat:'ירק'},
+  {id:'f38',name:'גזר',            cal:25, p:1, c:6, f:0, icon:'🥕',cat:'ירק'},
+  {id:'f39',name:'ברוקולי 100g',   cal:34, p:3, c:7, f:0, icon:'🥦',cat:'ירק'},
+  {id:'f40',name:'חסה כוס',        cal:5,  p:0, c:1, f:0, icon:'🥬',cat:'ירק'},
+  {id:'f41',name:'פלפל אדום',      cal:31, p:1, c:7, f:0, icon:'🫑',cat:'ירק'},
+  {id:'f42',name:'כרוב 100g',      cal:25, p:1, c:6, f:0, icon:'🥬',cat:'ירק'},
+  
+  // שומנים בריאים
+  {id:'f43',name:'אבוקדו חצי',     cal:120,p:1, c:6, f:11,icon:'🥑',cat:'שומן'},
+  {id:'f44',name:'שמן זית כף',     cal:120,p:0, c:0, f:14,icon:'🫒',cat:'שומן'},
+  {id:'f45',name:'שקדים 30g',      cal:173,p:6, c:6, f:15,icon:'🌰',cat:'שומן'},
+  {id:'f46',name:'אגוזי מלך 30g',  cal:185,p:4, c:4, f:18,icon:'🌰',cat:'שומן'},
+  {id:'f47',name:'חמאת בוטנים כף', cal:90, p:4, c:3, f:8, icon:'🥜',cat:'שומן'},
+  
+  // חטיפים ואחר
+  {id:'f48',name:'חטיף חלבון',     cal:200,p:20,c:15,f:7, icon:'🍫',cat:'חטיף'},
+  {id:'f49',name:'פירות יבשים 30g',cal:120,p:1, c:30,f:0, icon:'🍇',cat:'חטיף'},
+  {id:'f50',name:'שוקולד מריר 20g',cal:120,p:2, c:9, f:9, icon:'🍫',cat:'חטיף'},
 ];
 
 const EX_LIB=[
@@ -38,9 +93,61 @@ const DEFAULT_EXERCISES=[
   {id:5,name:'קפיצות קופסה',  sets:3,reps:'15',rest:45,icon:'📦',   done:false},
 ];
 
+// חיפוש ב-Open Food Facts API (מאגר מוצרים עולמי חינמי)
+async function searchOpenFoodFacts(query) {
+  try {
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=15&fields=product_name,product_name_he,brands,image_small_url,nutriments,serving_size,code`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.products) return [];
+    
+    return data.products
+      .filter(p => {
+        const n = p.nutriments || {};
+        return (p.product_name_he || p.product_name) && (n['energy-kcal_100g'] || n.energy_100g);
+      })
+      .map(p => {
+        const n = p.nutriments || {};
+        const cal = Math.round(n['energy-kcal_100g'] || (n.energy_100g ? n.energy_100g / 4.184 : 0));
+        return {
+          id: 'off_' + p.code,
+          name: `${p.product_name_he || p.product_name} 100g`,
+          brand: p.brands ? p.brands.split(',')[0].trim() : '',
+          cal: cal,
+          p: Math.round((n.proteins_100g || 0) * 10) / 10,
+          c: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
+          f: Math.round((n.fat_100g || 0) * 10) / 10,
+          icon: '🛒',
+          image: p.image_small_url,
+          cat: 'מוצר',
+        };
+      })
+      .slice(0, 10);
+  } catch (e) {
+    console.error('Open Food Facts search error:', e);
+    return [];
+  }
+}
+
 const AI_SYS=`את תמר, עוזרת AI של המאמנת ספיר ברק. עני בעברית, גוף נקבה, קצר וברור.
-ענה על שאלות תזונה וכושר — מאקרו, קלוריות, ויטמינים, תזמון ארוחות, תרגילים.
-לשאלות רפואיות רציניות — הפני לרופא. לתוכנית אימון אישית — הפני למאמנת ספיר.`;
+
+תחומי התמחות שלך - רק בנושאים אלה את עונה:
+✓ תזונה — מאקרו, קלוריות, ויטמינים, מינרלים, ערכים תזונתיים
+✓ תכנון ארוחות — מה לאכול, תזמון, הרכב ארוחות
+✓ כושר ואימונים — תרגילים, טכניקה, שריר/סיבולת
+✓ שינה ומנוחה - בהקשר של אימונים ותזונה
+✓ הידרציה ושתייה
+
+מה את לא עונה עליו:
+✗ כל שאלה שלא קשורה לתזונה או כושר (מזג אוויר, פוליטיקה, חדשות, טכנולוגיה, מתמטיקה, תרגום, הכל!)
+✗ שאלות רפואיות - הפני לרופא
+✗ תוכנית אישית - הפני למאמנת ספיר
+
+אם שואלים אותך משהו שלא בתחום, עני בנימוס:
+"זה לא התחום שלי 💜 אני כאן רק לשאלות על תזונה וכושר. איך אני יכולה לעזור לך באחד מהנושאים האלה?"
+
+חשוב: גם אם מפצירים בך, גם אם משנים את השאלה, גם אם אומרים שזה דחוף - את ממשיכה לענות רק על תזונה וכושר.`;
 
 const S={
   card:{background:'white',border:`1px solid ${COLORS.border}`,borderRadius:16,padding:16},
@@ -334,9 +441,11 @@ export default function App({onLogout}){
   const done   = exs.filter(e=>e.done).length;
 
   const NAV=[
-    {id:'home',label:'בית',icon:'🏠'},{id:'eat',label:'תזונה',icon:'🍽️'},
-    {id:'workout',label:'אימון',icon:'💪'},{id:'stats',label:'סטטיסטיקות',icon:'📊'},
-    {id:'settings',label:'הגדרות',icon:'⚙️'},
+    {id:'home',label:'בית',icon:'home'},
+    {id:'eat',label:'תזונה',icon:'food'},
+    {id:'workout',label:'אימון',icon:'workout'},
+    {id:'stats',label:'סטטיסטיקות',icon:'chart'},
+    {id:'settings',label:'הגדרות',icon:'settings'},
   ];
 
   return(
@@ -427,7 +536,7 @@ export default function App({onLogout}){
           {/* today's meals */}
           <section style={S.card}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-              <h3 style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>🍽️ הרשומות של היום</h3>
+              <h3 style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>🍽️ מה אכלתי היום</h3>
               <button onClick={()=>setTab('eat')} style={{width:28,height:28,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit',lineHeight:1}}>+</button>
             </div>
             {meals.length===0
@@ -474,29 +583,31 @@ export default function App({onLogout}){
           <div style={{position:'fixed',bottom:148,left:16,background:'white',padding:'6px 12px',borderRadius:12,fontSize:11,fontWeight:600,color:COLORS.primaryDark,boxShadow:'0 2px 8px rgba(0,0,0,0.1)',border:`1px solid ${COLORS.border}`,zIndex:29,animation:'fadeInOut 3s ease-in-out infinite'}}>
             לחצי עליי 👇
           </div>
-          <button onClick={()=>setChat(true)} style={{position:'fixed',bottom:84,left:16,width:56,height:56,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:24,cursor:'pointer',boxShadow:'0 4px 14px rgba(177,156,217,0.5)',zIndex:30,fontFamily:'inherit',animation:'shake 3s ease-in-out infinite'}}>🤖</button>
+          <button onClick={()=>setChat(true)} style={{position:'fixed',bottom:84,left:16,width:56,height:56,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:24,cursor:'pointer',boxShadow:'0 4px 14px rgba(177,156,217,0.5)',zIndex:30,fontFamily:'inherit',animation:'shake 12s ease-in-out 2s infinite'}}>🤖</button>
           <style>{`
             @keyframes shake {
-              0%, 90%, 100% { transform: translateX(0) rotate(0deg); }
-              92% { transform: translateX(-3px) rotate(-5deg); }
-              94% { transform: translateX(3px) rotate(5deg); }
-              96% { transform: translateX(-3px) rotate(-3deg); }
-              98% { transform: translateX(2px) rotate(2deg); }
+              0%, 85%, 100% { transform: translateX(0) rotate(0deg); }
+              87% { transform: translateX(-4px) rotate(-8deg); }
+              89% { transform: translateX(4px) rotate(8deg); }
+              91% { transform: translateX(-4px) rotate(-6deg); }
+              93% { transform: translateX(3px) rotate(5deg); }
+              95% { transform: translateX(-2px) rotate(-3deg); }
+              97% { transform: translateX(1px) rotate(2deg); }
             }
             @keyframes fadeInOut {
-              0%, 100% { opacity: 0; transform: translateY(5px); }
-              50% { opacity: 1; transform: translateY(0); }
+              0%, 85%, 100% { opacity: 0; transform: translateY(5px); }
+              87%, 95% { opacity: 1; transform: translateY(0); }
             }
           `}</style>
         </>
       )}
       {chat&&<AIChat profile={p} onClose={()=>setChat(false)}/>}
 
-      <nav style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:420,margin:'0 auto',background:'white',borderTop:`1px solid ${COLORS.border}`,display:'flex',justifyContent:'space-around',padding:'6px 0 10px',zIndex:25}}>
+      <nav style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:420,margin:'0 auto',background:'white',borderTop:`1px solid ${COLORS.border}`,display:'flex',justifyContent:'space-around',padding:'8px 0 10px',zIndex:25}}>
         {NAV.map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontFamily:'inherit',padding:6,display:'flex',flexDirection:'column',alignItems:'center',gap:2,minWidth:48}}>
-            <span style={{fontSize:20,filter:tab===t.id?'none':'grayscale(0.4) opacity(0.55)'}}>{t.icon}</span>
-            <span style={{fontSize:9,color:tab===t.id?COLORS.primaryDark:COLORS.textMuted,fontWeight:tab===t.id?700:500}}>{t.label}</span>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontFamily:'inherit',padding:4,display:'flex',flexDirection:'column',alignItems:'center',gap:3,minWidth:48}}>
+            <NavIcon name={t.icon} active={tab===t.id}/>
+            <span style={{fontSize:10,color:tab===t.id?COLORS.primaryDark:'#9B9B9B',fontWeight:tab===t.id?600:500}}>{t.label}</span>
           </button>
         ))}
       </nav>
@@ -565,20 +676,7 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
 
       {mode==='drag'&&(
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <section style={S.card}>
-            <h4 style={{margin:'0 0 10px',fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>📚 ספריית מזון</h4>
-            {FOOD_LIB.map(food=>(
-              <div key={food.id} draggable onDragStart={e=>e.dataTransfer.setData('fid',food.id)} onTouchStart={()=>addToBasket(food)}
-                style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:basket.find(f=>f.id===food.id)?COLORS.mintSoft:COLORS.bg,border:`1px solid ${COLORS.border}`,borderRadius:10,cursor:'grab',marginBottom:6,opacity:basket.find(f=>f.id===food.id)?0.5:1}}>
-                <span style={{fontSize:20}}>{food.icon}</span>
-                <div style={{flex:1}}>
-                  <p style={{margin:0,fontSize:13,fontWeight:600}}>{food.name}</p>
-                  <p style={{margin:0,fontSize:10,color:COLORS.textMuted}}>{food.cal} קק״ל · {food.p}g P</p>
-                </div>
-                <span style={{fontSize:14,color:COLORS.textMuted}}>⠿</span>
-              </div>
-            ))}
-          </section>
+          <FoodSearchAndLibrary basket={basket} addToBasket={addToBasket} />
           <section onDragOver={e=>e.preventDefault()} onDrop={e=>{const food=FOOD_LIB.find(f=>f.id===e.dataTransfer.getData('fid'));if(food)addToBasket(food);}}
             style={{...S.card,minHeight:110,borderStyle:'dashed',borderColor:COLORS.primary,background:COLORS.primarySoft}}>
             <h4 style={{margin:'0 0 8px',fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>🍽️ הארוחה שלי</h4>
@@ -633,11 +731,31 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
   const[timerOn,setTimerOn]=useState(false);
   const[activeEx,setActiveEx]=useState(null);
   const[showLib,setShowLib]=useState(false);
+  const[exFavorites,setExFavorites]=useState([]);
+  const[showFavsOnly,setShowFavsOnly]=useState(false);
   const iRef=useRef(null);
   const eRefs=useRef([]);
   const dnd=useDnd(exs,setExs);
   const total=exs.length;
   const pct=total?Math.round(done/total*100):0;
+  
+  // טען מועדפים מ-localStorage
+  useEffect(()=>{
+    try{
+      const saved=localStorage.getItem('sappir_ex_favorites');
+      if(saved)setExFavorites(JSON.parse(saved));
+    }catch(e){}
+  },[]);
+  
+  const toggleExFav=(exId,e)=>{
+    e?.stopPropagation();
+    const isFav=exFavorites.includes(exId);
+    const newFavs=isFav?exFavorites.filter(id=>id!==exId):[...exFavorites,exId];
+    setExFavorites(newFavs);
+    try{localStorage.setItem('sappir_ex_favorites',JSON.stringify(newFavs));}catch(e){}
+  };
+  
+  const filteredLib=showFavsOnly?EX_LIB.filter(ex=>exFavorites.includes(ex.id)):EX_LIB;
 
   useEffect(()=>{
     if(timerOn&&timer>0)iRef.current=setInterval(()=>setTimer(t=>t-1),1000);
@@ -685,17 +803,30 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
 
       {showLib&&(
         <section style={S.card}>
-          <h4 style={{margin:'0 0 10px',fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>📚 הוסיפי תרגיל</h4>
-          {EX_LIB.map(ex=>(
-            <div key={ex.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${COLORS.border}`}}>
-              <span style={{fontSize:20}}>{ex.icon}</span>
-              <div style={{flex:1}}>
-                <p style={{margin:0,fontSize:13,fontWeight:600}}>{ex.name}</p>
-                <p style={{margin:0,fontSize:11,color:COLORS.textMuted}}>{ex.sets}×{ex.reps}</p>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <h4 style={{margin:0,fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>📚 הוסיפי תרגיל</h4>
+            <button onClick={()=>setShowFavsOnly(s=>!s)} style={{background:showFavsOnly?'#F5D76E':COLORS.bg,color:showFavsOnly?COLORS.text:COLORS.textMuted,border:`1px solid ${COLORS.border}`,borderRadius:999,padding:'4px 10px',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+              {showFavsOnly?'★ מועדפים':'☆ כל התרגילים'}
+            </button>
+          </div>
+          {filteredLib.length===0?(
+            <p style={{textAlign:'center',color:COLORS.textMuted,fontSize:12,padding:'12px 0'}}>אין תרגילים מועדפים עדיין</p>
+          ):filteredLib.map(ex=>{
+            const isFav=exFavorites.includes(ex.id);
+            return(
+              <div key={ex.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:`1px solid ${COLORS.border}`}}>
+                <button onClick={e=>toggleExFav(ex.id,e)} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:18,padding:4,color:isFav?'#F5D76E':'#D0D0D0',fontFamily:'inherit',lineHeight:1}}>
+                  {isFav?'★':'☆'}
+                </button>
+                <span style={{fontSize:20}}>{ex.icon}</span>
+                <div style={{flex:1}}>
+                  <p style={{margin:0,fontSize:13,fontWeight:600}}>{ex.name}</p>
+                  <p style={{margin:0,fontSize:11,color:COLORS.textMuted}}>{ex.sets}×{ex.reps}</p>
+                </div>
+                <button onClick={()=>addEx(ex)} style={{background:COLORS.primary,color:'white',border:'none',padding:'5px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>+ הוסף</button>
               </div>
-              <button onClick={()=>addEx(ex)} style={{background:COLORS.primary,color:'white',border:'none',padding:'5px 12px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>+ הוסף</button>
-            </div>
-          ))}
+            );
+          })}
         </section>
       )}
 
@@ -951,3 +1082,297 @@ function AIChat({profile,onClose}){
     </div>
   );
 }
+
+/* ══ FOOD SEARCH & LIBRARY COMPONENT (עם מועדפים + גרירה משופרת) ══ */
+function FoodSearchAndLibrary({ basket, addToBasket }) {
+  const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [activeCat, setActiveCat] = useState('הכל');
+  const [favorites, setFavorites] = useState([]);
+  const [favoriteFoods, setFavoriteFoods] = useState([]); // for OFF products saved as favs
+  const searchTimer = useRef(null);
+
+  // טען מועדפים מ-localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sappir_favorites');
+      if (saved) setFavorites(JSON.parse(saved));
+      const savedFoods = localStorage.getItem('sappir_favorite_foods');
+      if (savedFoods) setFavoriteFoods(JSON.parse(savedFoods));
+    } catch(e) {}
+  }, []);
+
+  // שמור מועדפים ב-localStorage
+  const toggleFavorite = (food, e) => {
+    e?.stopPropagation();
+    const isFav = favorites.includes(food.id);
+    let newFavs;
+    let newFavFoods;
+    if (isFav) {
+      newFavs = favorites.filter(id => id !== food.id);
+      newFavFoods = favoriteFoods.filter(f => f.id !== food.id);
+    } else {
+      newFavs = [...favorites, food.id];
+      newFavFoods = [...favoriteFoods.filter(f => f.id !== food.id), food];
+    }
+    setFavorites(newFavs);
+    setFavoriteFoods(newFavFoods);
+    try {
+      localStorage.setItem('sappir_favorites', JSON.stringify(newFavs));
+      localStorage.setItem('sappir_favorite_foods', JSON.stringify(newFavFoods));
+    } catch(e) {}
+  };
+
+  const categories = ['הכל', '⭐ מועדפים', 'חלבון', 'חלב', 'פחמימה', 'קטנית', 'פרי', 'ירק', 'שומן', 'חטיף'];
+
+  // חיפוש במאגר המקומי + מועדפים
+  const favoriteList = favoriteFoods;
+  const localResults = search.trim()
+    ? [...FOOD_LIB, ...favoriteFoods].filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+    : activeCat === '⭐ מועדפים'
+      ? favoriteList
+      : FOOD_LIB.filter(f => activeCat === 'הכל' || f.cat === activeCat);
+
+  // חיפוש ב-Open Food Facts (debounced)
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!search.trim() || search.trim().length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      const results = await searchOpenFoodFacts(search.trim());
+      setSearchResults(results);
+      setSearching(false);
+    }, 600);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [search]);
+
+  // גרירה מתקדמת - עם visual feedback לנייד
+  const handleTouchStart = (e, food) => {
+    const touch = e.touches[0];
+    const startY = touch.clientY;
+    const startX = touch.clientX;
+    const el = e.currentTarget;
+    
+    // שמור reference
+    window._draggedFood = food;
+    window._dragStartY = startY;
+    
+    // תן פידבק ויזואלי
+    el.style.opacity = '0.6';
+    el.style.transform = 'scale(0.95)';
+  };
+
+  const handleTouchEnd = (e, food) => {
+    const el = e.currentTarget;
+    el.style.opacity = '';
+    el.style.transform = '';
+    
+    // אם הייתה גרירה אמיתית (move של 20+ פיקסלים), הוסף לסל
+    const touch = e.changedTouches[0];
+    if (window._dragStartY && Math.abs(touch.clientY - window._dragStartY) > 20) {
+      addToBasket(food);
+    } else {
+      // לחיצה פשוטה
+      addToBasket(food);
+    }
+    window._draggedFood = null;
+    window._dragStartY = null;
+  };
+
+  const renderFoodItem = (food) => {
+    const isFav = favorites.includes(food.id);
+    const inBasket = basket.find(f => f.id === food.id);
+    
+    return (
+      <div 
+        key={food.id} 
+        draggable 
+        onDragStart={e => e.dataTransfer.setData('fid', food.id)}
+        onTouchStart={e => handleTouchStart(e, food)}
+        onTouchEnd={e => handleTouchEnd(e, food)}
+        onClick={() => addToBasket(food)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 10px',
+          background: inBasket ? COLORS.mintSoft : COLORS.bg,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 10,
+          cursor: 'grab',
+          marginBottom: 6,
+          opacity: inBasket ? 0.5 : 1,
+          touchAction: 'none',
+          userSelect: 'none',
+          transition: 'all 0.15s',
+        }}
+      >
+        {/* כוכב מועדפים */}
+        <button
+          onClick={e => toggleFavorite(food, e)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 4,
+            fontSize: 18,
+            lineHeight: 1,
+            color: isFav ? '#F5D76E' : '#D0D0D0',
+            fontFamily: 'inherit',
+          }}
+          aria-label="מועדפים"
+        >
+          {isFav ? '★' : '☆'}
+        </button>
+        
+        {food.image ? (
+          <img src={food.image} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 6 }} />
+        ) : (
+          <span style={{ fontSize: 20 }}>{food.icon}</span>
+        )}
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{food.name}</p>
+          <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>
+            {food.brand && <span>{food.brand} · </span>}
+            {food.cal} קק״ל · {food.p}g P · {food.c}g C · {food.f}g F
+          </p>
+        </div>
+        <span style={{ fontSize: 16, color: COLORS.textMuted }}>⠿</span>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <section style={S.card}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+          🔍 חיפוש מזון
+        </h4>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="חפשי מוצר (שופרסל, אסם, וכו׳)..."
+          style={{ ...S.inp, marginBottom: 8 }}
+        />
+        <p style={{ fontSize: 10, color: COLORS.textMuted, margin: '4px 0 0' }}>
+          💡 הקלידי 3+ אותיות לחיפוש ברשת · ⭐ לשמירה למועדפים · גררי או הקישי להוסיף
+        </p>
+      </section>
+
+      {/* תוצאות חיפוש מהרשת */}
+      {search.trim().length >= 3 && (
+        <section style={S.card}>
+          <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+            🛒 מוצרים ממאגר Open Food Facts
+          </h4>
+          {searching ? (
+            <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: '12px 0' }}>
+              מחפשת ברשת...
+            </p>
+          ) : searchResults.length === 0 ? (
+            <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: '8px 0' }}>
+              לא נמצאו מוצרים - נסי חיפוש אחר
+            </p>
+          ) : (
+            searchResults.map(renderFoodItem)
+          )}
+        </section>
+      )}
+
+      {/* ספריה מקומית */}
+      <section style={S.card}>
+        <h4 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: COLORS.primaryDark }}>
+          📚 המאגר שלי ({localResults.length})
+        </h4>
+        
+        {/* קטגוריות */}
+        {!search.trim() && (
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 8, marginBottom: 8 }}>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCat(cat)}
+                style={{
+                  background: activeCat === cat ? COLORS.primary : COLORS.bg,
+                  color: activeCat === cat ? 'white' : COLORS.text,
+                  border: `1px solid ${activeCat === cat ? COLORS.primary : COLORS.border}`,
+                  borderRadius: 999,
+                  padding: '4px 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {localResults.length === 0 ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: '8px 0' }}>
+            {activeCat === '⭐ מועדפים' ? 'עדיין אין מועדפים - לחצי על ☆ כדי להוסיף' : 'אין פריטים'}
+          </p>
+        ) : (
+          localResults.map(renderFoodItem)
+        )}
+      </section>
+    </>
+  );
+}
+
+/* ══ NAV ICON COMPONENT ══ */
+function NavIcon({name, active}) {
+  const color = active ? '#9B7FBF' : '#B0B0B0';
+  const size = 22;
+  
+  const icons = {
+    home: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M12 3l-9 7.5V20a1 1 0 0 0 1 1h5v-6h6v6h5a1 1 0 0 0 1-1v-9.5L12 3z"/>
+      </svg>
+    ),
+    food: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+      </svg>
+    ),
+    workout: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/>
+      </svg>
+    ),
+    chart: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/>
+      </svg>
+    ),
+    settings: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </svg>
+    ),
+    dashboard: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+      </svg>
+    ),
+    clients: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+      </svg>
+    ),
+  };
+  
+  return icons[name] || icons.home;
+}
+
