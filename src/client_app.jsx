@@ -225,15 +225,27 @@ export default function App({onLogout}){
 
     if (clientData) setProfile(clientData);
 
-    // טען תוכנית תזונה פעילה
-    const { data: plansData } = await supabase
-      .from('nutrition_plans')
-      .select('*')
+    // טען תוכנית תזונה החדשה - meal_plans + items
+    const { data: mealPlansData } = await supabase
+      .from('client_meal_plans')
+      .select('*, client_meal_plan_items(*, coach_meals(*))')
       .eq('client_id', user.id)
-      .eq('active', true)
-      .limit(1);
+      .order('order_index');
 
-    if (plansData && plansData.length > 0) setPlan(plansData[0]);
+    if (mealPlansData && mealPlansData.length > 0) {
+      // בנה מבנה תואם לתפריט הישן
+      const newPlan = { meals: mealPlansData.map(mp => ({
+        name: mp.meal_name,
+        key: mp.id,
+        items: (mp.client_meal_plan_items || [])
+          .sort((a,b) => a.order_index - b.order_index)
+          .map(i => i.coach_meals)
+          .filter(Boolean),
+        totalCal: (mp.client_meal_plan_items || []).reduce((s, i) => s + (i.coach_meals?.total_calories || 0), 0),
+        totalP: (mp.client_meal_plan_items || []).reduce((s, i) => s + (i.coach_meals?.total_protein_g || 0), 0),
+      })) };
+      setPlan(newPlan);
+    }
 
     // טען ארוחות של היום
     const today = new Date().toISOString().slice(0,10);
@@ -288,19 +300,30 @@ export default function App({onLogout}){
       setUnread(msgsData.filter(m => !m.read).length);
     }
 
-    // טען תוכנית אימון פעילה
+    // טען תוכנית אימון החדשה
     const { data: workoutPlans } = await supabase
-      .from('workout_plans')
-      .select('*, workout_exercises(*)')
+      .from('client_workout_plans')
+      .select('*, client_workout_items(*, coach_exercises(*))')
       .eq('client_id', user.id)
-      .eq('active', true)
       .limit(1);
     const workoutPlan = workoutPlans?.[0];
 
-    if (workoutPlan?.workout_exercises?.length) {
-      setExs(workoutPlan.workout_exercises
+    if (workoutPlan?.client_workout_items?.length) {
+      setExs(workoutPlan.client_workout_items
         .sort((a,b) => a.order_index - b.order_index)
-        .map(e => ({ ...e, done: false })));
+        .map(item => ({
+          id: item.id,
+          name: item.coach_exercises?.name || 'תרגיל',
+          sets: item.coach_exercises?.sets || 3,
+          reps: item.coach_exercises?.reps || '10',
+          rest: item.coach_exercises?.rest_seconds || 60,
+          weight: item.coach_exercises?.weight_kg,
+          icon: item.coach_exercises?.icon || '💪',
+          videoUrl: item.coach_exercises?.video_url,
+          notes: item.coach_exercises?.notes,
+          done: false,
+        }))
+        .filter(e => e.name !== 'תרגיל'));
     }
 
     setLoading(false);
@@ -419,17 +442,20 @@ export default function App({onLogout}){
     goal: profile.goal || 'lose',
   };
 
-  const todayPlan = plan ? {
-    breakfast: { name: 'ארוחת בוקר', cal: plan.breakfast_cal, items: plan.breakfast_items || [], p:0,c:0,f:0 },
-    lunch:     { name: 'ארוחת צהריים', cal: plan.lunch_cal,  items: plan.lunch_items || [],  p:0,c:0,f:0 },
-    snack:     { name: 'נשנוש', cal: plan.snack_cal,         items: plan.snack_items || [],  p:0,c:0,f:0 },
-    dinner:    { name: 'ארוחת ערב', cal: plan.dinner_cal,    items: plan.dinner_items || [], p:0,c:0,f:0 },
-  } : {
-    breakfast:{name:'ארוחת בוקר',cal:350,p:20,c:40,f:10,items:['חביתה מ-2 ביצים','לחם מלא','ירקות']},
-    lunch:    {name:'ארוחת צהריים',cal:520,p:38,c:55,f:8, items:['חזה עוף 150g','אורז מלא 150g','סלט']},
-    snack:    {name:'נשנוש',cal:200,p:10,c:20,f:6, items:['יוגורט יווני','שקדים 30g']},
-    dinner:   {name:'ארוחת ערב',cal:400,p:30,c:30,f:14,items:['סלמון 120g','בטטה 200g','ברוקולי']},
-  };
+  // בנה todayPlan מהמבנה החדש של Supabase
+  const todayPlan = plan?.meals?.length ? 
+    plan.meals.reduce((acc, m) => {
+      acc[m.key] = {
+        name: m.name,
+        cal: Math.round(m.totalCal || 0),
+        p: Math.round(m.totalP || 0),
+        c: 0, f: 0,
+        items: (m.items || []).map(i => i.name),
+        meals: m.items || [],
+      };
+      return acc;
+    }, {})
+    : {};
 
   const cal  = meals.reduce((s,m)=>s+(m.cal||0),0);
   const prot = meals.reduce((s,m)=>s+(m.p||0),0);
@@ -652,25 +678,45 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
 
       {mode==='plan'&&(
         <section style={S.card}>
-          <p style={{fontSize:12,color:COLORS.textMuted,margin:'0 0 12px'}}>ספיר בנתה לך תפריט. לחצי לסמן.</p>
-          {Object.entries(todayPlan).map(([key,meal])=>{
-            const logged=meals.find(m=>m.planKey===key);
-            return(
-              <div key={key} style={{border:`1px solid ${logged?COLORS.mint:COLORS.border}`,background:logged?COLORS.mintSoft:'white',borderRadius:12,padding:12,marginBottom:8}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                  <div>
-                    <p style={{margin:0,fontSize:14,fontWeight:700}}>{meal.name}</p>
-                    <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{meal.cal} קק״ל</p>
+          {Object.keys(todayPlan).length===0 ? (
+            <div style={{textAlign:'center',padding:'30px 20px',color:COLORS.textMuted}}>
+              <p style={{fontSize:14,margin:'0 0 4px'}}>💜 ספיר עדיין לא בנתה לך תפריט</p>
+              <p style={{fontSize:11,margin:0}}>בקרוב תקבלי הודעה כשהתפריט יהיה מוכן</p>
+            </div>
+          ) : (
+            <>
+              <p style={{fontSize:12,color:COLORS.textMuted,margin:'0 0 12px'}}>התפריט שלך. לחצי על "סימנתי" כשאכלת.</p>
+              {Object.entries(todayPlan).map(([key,meal])=>{
+                const logged=meals.find(m=>m.planKey===key);
+                return(
+                  <div key={key} style={{border:`1px solid ${logged?COLORS.mint:COLORS.border}`,background:logged?COLORS.mintSoft:'white',borderRadius:12,padding:12,marginBottom:8}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                      <div>
+                        <p style={{margin:0,fontSize:14,fontWeight:700}}>🍽️ {meal.name}</p>
+                        <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>
+                          סה״כ: {meal.cal} קק״ל · חלבון {meal.p}g
+                        </p>
+                      </div>
+                      {logged
+                        ?<span style={{background:COLORS.mint,color:'white',fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999}}>✓ אכלתי</span>
+                        :<button onClick={()=>onPlan(key,meal)} style={{background:COLORS.primary,color:'white',border:'none',padding:'6px 14px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>סימנתי</button>
+                      }
+                    </div>
+                    {meal.meals?.length>0 && (
+                      <div style={{background:COLORS.bg,borderRadius:8,padding:8,marginTop:6}}>
+                        {meal.meals.map((m,i)=>(
+                          <div key={m.id||i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0',borderBottom:i<meal.meals.length-1?`1px solid ${COLORS.border}`:'none'}}>
+                            <span style={{fontSize:11,fontWeight:600}}>{m.name}</span>
+                            <span style={{fontSize:10,color:COLORS.textMuted}}>{Math.round(m.total_calories||0)} קק״ל</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {logged
-                    ?<span style={{background:COLORS.mint,color:'white',fontSize:11,fontWeight:700,padding:'4px 10px',borderRadius:999}}>✓ אכלתי</span>
-                    :<button onClick={()=>onPlan(key,meal)} style={{background:COLORS.primary,color:'white',border:'none',padding:'6px 14px',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>סמני</button>
-                  }
-                </div>
-                {meal.items?.length>0&&<ul style={{margin:0,paddingRight:16,fontSize:11,color:COLORS.textMuted}}>{meal.items.map((it,i)=><li key={i}>{it}</li>)}</ul>}
-              </div>
-            );
-          })}
+                );
+              })}
+            </>
+          )}
         </section>
       )}
 
