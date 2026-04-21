@@ -199,6 +199,18 @@ export default function App({onLogout}){
   const [toast, setToast]     = useState(null);
   const showToast = t => { setToast(t); setTimeout(()=>setToast(null), 2500); };
 
+  // 🔍 דיבוג - מה המצב של החיבור בין מאמנת למתאמנת
+  const [debugInfo, setDebugInfo] = useState({
+    userId: '',
+    dayOfWeek: '',
+    scheduleRows: 0,
+    mealsFound: 0,
+    workoutsFound: 0,
+    exercisesFound: 0,
+    mealError: '',
+    workoutError: '',
+  });
+
   // נתונים שנשמרים ב-Supabase
   const [meals, setMeals]     = useState([]);
   const [water, setWater]     = useState(0);
@@ -251,6 +263,16 @@ export default function App({onLogout}){
       .filter(Boolean);
     
     console.log('🔍 [DEBUG] Today meals extracted:', todayMeals);
+    
+    // עדכון debug info
+    setDebugInfo(prev => ({
+      ...prev,
+      userId: user.id.slice(0, 8) + '...',
+      dayOfWeek: ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][dayOfWeek],
+      scheduleRows: (scheduleData || []).length,
+      mealsFound: todayMeals.length,
+      mealError: schedErr ? (schedErr.message || JSON.stringify(schedErr)) : '',
+    }));
     
     if (todayMeals.length > 0) {
       const newPlan = { 
@@ -361,6 +383,14 @@ export default function App({onLogout}){
     });
     
     console.log('🔍 [DEBUG] All exercises to show:', allExercises);
+    
+    // עדכון debug info - אימונים
+    setDebugInfo(prev => ({
+      ...prev,
+      workoutsFound: (workoutSched || []).filter(s => s.workouts).length,
+      exercisesFound: allExercises.length,
+      workoutError: woErr ? (woErr.message || JSON.stringify(woErr)) : '',
+    }));
     
     if (allExercises.length > 0) setExs(allExercises);
 
@@ -529,6 +559,43 @@ export default function App({onLogout}){
           {unread>0&&<span style={{position:'absolute',top:-4,left:-4,background:COLORS.accentDark,color:'white',fontSize:10,fontWeight:700,borderRadius:999,width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center'}}>{unread}</span>}
         </button>
       </header>
+
+      {/* 🔍 באנר דיבוג - זמני */}
+      <div style={{
+        background: debugInfo.scheduleRows > 0 ? '#D4EDDA' : '#FFF3CD',
+        border: `1px solid ${debugInfo.scheduleRows > 0 ? '#155724' : '#856404'}`,
+        color: debugInfo.scheduleRows > 0 ? '#155724' : '#856404',
+        padding: '10px 14px',
+        fontSize: 12,
+        margin: '8px 14px',
+        borderRadius: 8,
+        lineHeight: 1.6,
+      }}>
+        <div style={{fontWeight: 700, marginBottom: 4, fontSize: 13}}>
+          🔍 מידע דיבוג - חיבור למאמנת
+        </div>
+        <div>👤 <b>User ID:</b> {debugInfo.userId || 'טוען...'}</div>
+        <div>📅 <b>היום:</b> יום {debugInfo.dayOfWeek}</div>
+        <div>📋 <b>שורות בלוח שבועי:</b> {debugInfo.scheduleRows}</div>
+        <div>🍽️ <b>ארוחות מצורפות:</b> {debugInfo.mealsFound}</div>
+        <div>💪 <b>אימונים מצורפים:</b> {debugInfo.workoutsFound}</div>
+        <div>🏋️ <b>תרגילים להציג:</b> {debugInfo.exercisesFound}</div>
+        {debugInfo.mealError && (
+          <div style={{color: '#721C24', marginTop: 4, fontWeight: 600}}>
+            ❌ שגיאת ארוחות: {debugInfo.mealError}
+          </div>
+        )}
+        {debugInfo.workoutError && (
+          <div style={{color: '#721C24', marginTop: 4, fontWeight: 600}}>
+            ❌ שגיאת אימונים: {debugInfo.workoutError}
+          </div>
+        )}
+        {debugInfo.scheduleRows === 0 && !debugInfo.mealError && !debugInfo.workoutError && (
+          <div style={{marginTop: 6, fontStyle: 'italic'}}>
+            💡 לא נמצא לוח שבועי ליום הזה - בדוק שהמאמנת הקצתה תוכנית ליום הנכון
+          </div>
+        )}
+      </div>
 
       {/* HOME */}
       {tab==='home'&&(
