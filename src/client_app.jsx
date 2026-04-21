@@ -258,12 +258,12 @@ export default function App({onLogout}){
     }
 
     // טען ארוחות של היום
-    const today = new Date().toISOString().slice(0,10);
+    const todayStr = new Date().toISOString().slice(0,10);
     const { data: mealsData } = await supabase
       .from('meal_logs')
       .select('*')
       .eq('client_id', user.id)
-      .gte('logged_at', today)
+      .gte('logged_at', todayStr)
       .order('logged_at', { ascending: true });
 
     if (mealsData) setMeals(mealsData.map(m => ({
@@ -291,7 +291,7 @@ export default function App({onLogout}){
       .from('water_logs')
       .select('amount_ml')
       .eq('client_id', user.id)
-      .gte('logged_at', today);
+      .gte('logged_at', todayStr);
 
     if (waterData) setWater(waterData.reduce((s,w)=>s+w.amount_ml, 0));
 
