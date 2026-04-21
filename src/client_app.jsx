@@ -228,7 +228,7 @@ export default function App({onLogout}){
 
     if (clientData) setProfile(clientData);
 
-    // טען לוח שבועי של היום הנוכחי
+    // טען לוח שבועי של היום הנוכחי - תמיכה בכמה ארוחות
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=ראשון, 6=שבת
     
@@ -237,22 +237,24 @@ export default function App({onLogout}){
       .select('*, meals(*)')
       .eq('client_id', user.id)
       .eq('day_of_week', dayOfWeek)
-      .limit(1);
+      .not('meal_id', 'is', null)
+      .order('order_index');
     
-    const todayMeal = scheduleData?.[0]?.meals;
+    const todayMeals = (scheduleData || [])
+      .map(s => s.meals)
+      .filter(Boolean);
     
-    if (todayMeal) {
-      // הארוחה היחידה של היום - היא גם התפריט
+    if (todayMeals.length > 0) {
       const newPlan = { 
-        meals: [{
-          name: todayMeal.name,
-          key: todayMeal.id,
-          items: todayMeal.items || [],
-          totalCal: Math.round(todayMeal.total_calories || 0),
-          totalP: Math.round(todayMeal.total_protein_g || 0),
-          totalC: Math.round(todayMeal.total_carbs_g || 0),
-          totalF: Math.round(todayMeal.total_fat_g || 0),
-        }]
+        meals: todayMeals.map(m => ({
+          name: m.name,
+          key: m.id,
+          items: m.items || [],
+          totalCal: Math.round(m.total_calories || 0),
+          totalP: Math.round(m.total_protein_g || 0),
+          totalC: Math.round(m.total_carbs_g || 0),
+          totalF: Math.round(m.total_fat_g || 0),
+        }))
       };
       setPlan(newPlan);
     }
@@ -310,30 +312,40 @@ export default function App({onLogout}){
       setUnread(msgsData.filter(m => !m.read).length);
     }
 
-    // טען אימון של היום (מבנה חדש)
+    // טען אימון של היום - תמיכה בכמה אימונים
     const { data: workoutSched } = await supabase
       .from('client_schedule')
       .select('*, workouts(*)')
       .eq('client_id', user.id)
       .eq('day_of_week', dayOfWeek)
-      .limit(1);
+      .not('workout_id', 'is', null)
+      .order('order_index');
     
-    const todayWorkout = workoutSched?.[0]?.workouts;
+    // צרף את כל התרגילים מכל האימונים של היום
+    const allExercises = [];
+    let exIdx = 0;
+    (workoutSched || []).forEach(s => {
+      const w = s.workouts;
+      if (w?.exercises?.length) {
+        w.exercises.forEach(ex => {
+          allExercises.push({
+            id: `ex-${exIdx++}`,
+            name: ex.name,
+            sets: ex.sets || 3,
+            reps: ex.reps || '10',
+            rest: ex.rest || 60,
+            weight: ex.weight,
+            icon: ex.icon || '💪',
+            videoUrl: ex.video_url,
+            notes: ex.notes,
+            workoutName: w.name,
+            done: false,
+          });
+        });
+      }
+    });
     
-    if (todayWorkout?.exercises?.length) {
-      setExs(todayWorkout.exercises.map((ex, idx) => ({
-        id: `ex-${idx}`,
-        name: ex.name,
-        sets: ex.sets || 3,
-        reps: ex.reps || '10',
-        rest: ex.rest || 60,
-        weight: ex.weight,
-        icon: ex.icon || '💪',
-        videoUrl: ex.video_url,
-        notes: ex.notes,
-        done: false,
-      })));
-    }
+    if (allExercises.length > 0) setExs(allExercises);
 
     setLoading(false);
   };
@@ -1115,10 +1127,43 @@ function CustomMealForm({onLog}){
 
 /* ══ AI CHAT ══ */
 function AIChat({profile,onClose}){
-  const[msgs,setMsgs]=useState([{role:'bot',text:`היי ${profile.firstName}! אני תמר. מתמחה בתזונה וכושר, איך אוכל לעזור? 💜`}]);
+  const GREETING = {role:'bot',text:`היי ${profile.firstName}! אני תמר. מתמחה בתזונה וכושר, איך אוכל לעזור? 💜`};
+  const CHAT_KEY = 'sappir_tamar_chat';
+  const CHAT_TIME_KEY = 'sappir_tamar_chat_time';
+  const CHAT_EXPIRE_MS = 24 * 60 * 60 * 1000; // 24 שעות
+  
+  const[msgs,setMsgs]=useState(()=>{
+    try {
+      const savedTime = localStorage.getItem(CHAT_TIME_KEY);
+      if (savedTime && (Date.now() - parseInt(savedTime)) < CHAT_EXPIRE_MS) {
+        const saved = localStorage.getItem(CHAT_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } else {
+        // פג תוקף
+        localStorage.removeItem(CHAT_KEY);
+        localStorage.removeItem(CHAT_TIME_KEY);
+      }
+    } catch(e) {}
+    return [GREETING];
+  });
+  
   const[input,setInput]=useState('');
   const[loading,setLoading]=useState(false);
   const ref=useRef(null);
+  
+  // שמור שיחה ב-localStorage
+  useEffect(()=>{
+    if (msgs.length > 1) { // אל תשמור רק ברכה
+      try {
+        localStorage.setItem(CHAT_KEY, JSON.stringify(msgs));
+        localStorage.setItem(CHAT_TIME_KEY, Date.now().toString());
+      } catch(e) {}
+    }
+  },[msgs]);
+  
   useEffect(()=>{ref.current?.scrollTo(0,ref.current.scrollHeight);},[msgs,loading]);
   const SUGG=['כמה חלבון לאחר אימון?','מה לאכול לפני אימון?','מזונות עשירים באומגה 3'];
   // חיפוש אוטומטי של מזון אם השאלה מזכירה מאכל
@@ -1210,7 +1255,7 @@ function AIChat({profile,onClose}){
       <header style={{background:COLORS.primary,color:'white',padding:'12px 14px',borderRadius:'18px 18px 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
           <p style={{fontSize:14,fontWeight:600,margin:0}}>💜 תמר · AI</p>
-          <p style={{fontSize:11,opacity:0.85,margin:'2px 0 0'}}>תזונה וכושר · זמינה 24/7</p>
+          <p style={{fontSize:10,opacity:0.75,margin:'2px 0 0'}}>זמינה 24/7 · שיחות ימחקו אחרי 24 שעות</p>
         </div>
         <button onClick={onClose} style={{background:'rgba(255,255,255,0.25)',border:'none',color:'white',width:26,height:26,borderRadius:6,cursor:'pointer',fontSize:13,fontFamily:'inherit'}}>✕</button>
       </header>
