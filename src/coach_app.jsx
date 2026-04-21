@@ -667,10 +667,8 @@ function MealsTab({ showToast }) {
       {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
        : meals.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין ארוחות</p>
-          <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + צרי ארוחה ראשונה
-          </button>
+          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין ארוחות</p>
+          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ ארוחה חדשה" למעלה 👆</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -713,7 +711,30 @@ function MealEditor({ meal, onBack, showToast }) {
   const [searching, setSearching] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingSavedFood, setEditingSavedFood] = useState(null);
   const searchTimer = useRef(null);
+
+  const saveEditedFood = async () => {
+    if (!editingSavedFood) return;
+    const updated = {
+      name: editingSavedFood.name,
+      calories: parseFloat(editingSavedFood.calories) || 0,
+      protein_g: parseFloat(editingSavedFood.protein_g) || 0,
+      carbs_g: parseFloat(editingSavedFood.carbs_g) || 0,
+      fat_g: parseFloat(editingSavedFood.fat_g) || 0,
+    };
+    await supabase.from('coach_foods').update(updated).eq('id', editingSavedFood.id);
+    setSavedFoods(prev => prev.map(f => f.id === editingSavedFood.id ? {...f, ...updated} : f));
+    setEditingSavedFood(null);
+    showToast('💾 המאכל עודכן');
+  };
+
+  const deleteSavedFood = async (id) => {
+    if (!confirm('למחוק את המאכל מהמאגר? זה לא ישפיע על הארוחות שכבר נשמרו איתו.')) return;
+    await supabase.from('coach_foods').delete().eq('id', id);
+    setSavedFoods(prev => prev.filter(f => f.id !== id));
+    showToast('🗑️ נמחק');
+  };
 
   useEffect(() => { loadSavedFoods(); }, []);
 
@@ -926,16 +947,37 @@ function MealEditor({ meal, onBack, showToast }) {
           <div style={{ marginTop: 10 }}>
             <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>📚 מהמאגר שלך:</p>
             {savedMatches.slice(0, 8).map(f => (
-              <div key={f.id} onClick={() => addItemToMeal({
-                name: f.name, cal: f.calories, p: f.protein_g, c: f.carbs_g, f: f.fat_g, icon: f.icon
-              })} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
-                <span style={{ fontSize: 16 }}>{f.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
-                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{Math.round(f.calories)} קק״ל / 100g</p>
+              editingSavedFood?.id === f.id ? (
+                <div key={f.id} style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600 }}>עריכת "{f.name}"</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 4, marginBottom: 6 }}>
+                    <input value={editingSavedFood.name} onChange={e => setEditingSavedFood({...editingSavedFood, name: e.target.value})} style={inputStyle} />
+                    <input type="number" value={editingSavedFood.calories} onChange={e => setEditingSavedFood({...editingSavedFood, calories: e.target.value})} placeholder="קק״ל" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.protein_g} onChange={e => setEditingSavedFood({...editingSavedFood, protein_g: e.target.value})} placeholder="P" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.carbs_g} onChange={e => setEditingSavedFood({...editingSavedFood, carbs_g: e.target.value})} placeholder="C" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.fat_g} onChange={e => setEditingSavedFood({...editingSavedFood, fat_g: e.target.value})} placeholder="F" style={{ ...inputStyle, textAlign: 'center' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => saveEditedFood()} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 8, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💾 שמרי</button>
+                    <button onClick={() => setEditingSavedFood(null)} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
+                  </div>
                 </div>
-                <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
-              </div>
+              ) : (
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, marginBottom: 4 }}>
+                  <div onClick={() => addItemToMeal({
+                    name: f.name, cal: f.calories, p: f.protein_g, c: f.carbs_g, f: f.fat_g, icon: f.icon
+                  })} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 16 }}>{f.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                      <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{Math.round(f.calories)} קק״ל / 100g</p>
+                    </div>
+                    <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); setEditingSavedFood({...f}); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: COLORS.primary }} title="ערוך">✏️</button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteSavedFood(f.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#C88A8A' }} title="מחקי">🗑️</button>
+                </div>
+              )
             ))}
           </div>
         )}
@@ -1087,10 +1129,8 @@ function WorkoutsTab({ showToast }) {
       {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
        : workouts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: '0 0 12px' }}>עדיין אין אימונים</p>
-          <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 24px', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + צרי אימון ראשון
-          </button>
+          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין אימונים</p>
+          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ אימון חדש" למעלה 👆</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1363,9 +1403,10 @@ function ManualExerciseInput({ onAdd }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   WEEKLY SCHEDULE — שיוך לוח שבועי ללקוחה
+   WEEKLY SCHEDULE — שיוך לוח שבועי ללקוחה (תמיכה בבחירה מרובה)
 ═══════════════════════════════════════════════════════════ */
 function WeeklySchedule({ client, onBack, showToast }) {
+  // schedule = { 0: [{id, meal_id, workout_id}, ...], 1: [...], ... }
   const [schedule, setSchedule] = useState({});
   const [meals, setMeals] = useState([]);
   const [workouts, setWorkouts] = useState([]);
@@ -1381,32 +1422,60 @@ function WeeklySchedule({ client, onBack, showToast }) {
     if (!user) return;
 
     const [schedRes, mealsRes, workoutsRes] = await Promise.all([
-      supabase.from('client_schedule').select('*').eq('client_id', client.id),
+      supabase.from('client_schedule').select('*').eq('client_id', client.id).order('order_index'),
       supabase.from('meals').select('id, name, total_calories').eq('coach_id', user.id).order('name'),
       supabase.from('workouts').select('id, name').eq('coach_id', user.id).order('name'),
     ]);
 
+    // בנה מערך לכל יום
     const schedMap = {};
-    (schedRes.data || []).forEach(s => { schedMap[s.day_of_week] = s; });
+    (schedRes.data || []).forEach(s => {
+      if (!schedMap[s.day_of_week]) schedMap[s.day_of_week] = [];
+      schedMap[s.day_of_week].push(s);
+    });
     setSchedule(schedMap);
     setMeals(mealsRes.data || []);
     setWorkouts(workoutsRes.data || []);
     setLoading(false);
   };
 
-  const saveDay = async (day, mealId, workoutId) => {
-    const existing = schedule[day];
-    if (existing) {
-      await supabase.from('client_schedule').update({
-        meal_id: mealId, workout_id: workoutId,
-      }).eq('id', existing.id);
-      setSchedule(prev => ({ ...prev, [day]: { ...existing, meal_id: mealId, workout_id: workoutId }}));
+  // שמור את כל הבחירות של היום - מוחק את הישנות ומכניס חדשות
+  const saveDay = async (day, selectedMealIds, selectedWorkoutIds) => {
+    // מחק את כל הקיימים של היום
+    await supabase.from('client_schedule').delete().eq('client_id', client.id).eq('day_of_week', day);
+    
+    const inserts = [];
+    let orderIdx = 0;
+    
+    // כל שילוב של מנה ואימון הופך לשורה
+    // לפי הלוגיקה: כל מנה היא שורה בפני עצמה, כל אימון גם
+    selectedMealIds.forEach(mId => {
+      inserts.push({
+        client_id: client.id,
+        day_of_week: day,
+        meal_id: mId,
+        workout_id: null,
+        order_index: orderIdx++,
+      });
+    });
+    
+    selectedWorkoutIds.forEach(wId => {
+      inserts.push({
+        client_id: client.id,
+        day_of_week: day,
+        meal_id: null,
+        workout_id: wId,
+        order_index: orderIdx++,
+      });
+    });
+    
+    if (inserts.length > 0) {
+      const { data } = await supabase.from('client_schedule').insert(inserts).select();
+      if (data) setSchedule(prev => ({ ...prev, [day]: data }));
     } else {
-      const { data } = await supabase.from('client_schedule').insert({
-        client_id: client.id, day_of_week: day, meal_id: mealId, workout_id: workoutId,
-      }).select();
-      if (data?.[0]) setSchedule(prev => ({ ...prev, [day]: data[0] }));
+      setSchedule(prev => ({ ...prev, [day]: [] }));
     }
+    
     showToast('💾 נשמר');
     setEditDay(null);
   };
@@ -1417,16 +1486,19 @@ function WeeklySchedule({ client, onBack, showToast }) {
   const getWorkoutName = (id) => workouts.find(w => w.id === id)?.name || 'ללא';
 
   if (editDay !== null) {
-    const daySched = schedule[editDay] || {};
+    const daySched = schedule[editDay] || [];
+    const selectedMealIds = daySched.filter(s => s.meal_id).map(s => s.meal_id);
+    const selectedWorkoutIds = daySched.filter(s => s.workout_id).map(s => s.workout_id);
+    
     return (
       <DayPicker
         dayName={DAYS[editDay]}
         meals={meals}
         workouts={workouts}
-        currentMealId={daySched.meal_id}
-        currentWorkoutId={daySched.workout_id}
+        initialMealIds={selectedMealIds}
+        initialWorkoutIds={selectedWorkoutIds}
         onBack={() => setEditDay(null)}
-        onSave={(mId, wId) => saveDay(editDay, mId, wId)}
+        onSave={(mIds, wIds) => saveDay(editDay, mIds, wIds)}
       />
     );
   }
@@ -1442,8 +1514,11 @@ function WeeklySchedule({ client, onBack, showToast }) {
       )}
 
       {DAYS.map((dayName, idx) => {
-        const daySched = schedule[idx];
-        const hasContent = daySched?.meal_id || daySched?.workout_id;
+        const daySched = schedule[idx] || [];
+        const mealNames = daySched.filter(s => s.meal_id).map(s => getMealName(s.meal_id));
+        const workoutNames = daySched.filter(s => s.workout_id).map(s => getWorkoutName(s.workout_id));
+        const hasContent = mealNames.length > 0 || workoutNames.length > 0;
+        
         return (
           <div
             key={idx}
@@ -1462,8 +1537,8 @@ function WeeklySchedule({ client, onBack, showToast }) {
             </div>
             {hasContent && (
               <div>
-                {daySched.meal_id && <p style={{ margin: 0, fontSize: 11 }}>🍽️ <strong>תזונה:</strong> {getMealName(daySched.meal_id)}</p>}
-                {daySched.workout_id && <p style={{ margin: '4px 0 0', fontSize: 11 }}>💪 <strong>אימון:</strong> {getWorkoutName(daySched.workout_id)}</p>}
+                {mealNames.length > 0 && <p style={{ margin: 0, fontSize: 11 }}>🍽️ <strong>ארוחות:</strong> {mealNames.join(' · ')}</p>}
+                {workoutNames.length > 0 && <p style={{ margin: '4px 0 0', fontSize: 11 }}>💪 <strong>אימונים:</strong> {workoutNames.join(' · ')}</p>}
               </div>
             )}
           </div>
@@ -1474,56 +1549,99 @@ function WeeklySchedule({ client, onBack, showToast }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DAY PICKER
+   DAY PICKER — בחירה מרובה (checkboxes)
 ═══════════════════════════════════════════════════════════ */
-function DayPicker({ dayName, meals, workouts, currentMealId, currentWorkoutId, onBack, onSave }) {
-  const [mealId, setMealId] = useState(currentMealId || null);
-  const [workoutId, setWorkoutId] = useState(currentWorkoutId || null);
+function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds, onBack, onSave }) {
+  const [mealIds, setMealIds] = useState(initialMealIds || []);
+  const [workoutIds, setWorkoutIds] = useState(initialWorkoutIds || []);
+
+  const toggleMeal = (id) => {
+    setMealIds(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]);
+  };
+  const toggleWorkout = (id) => {
+    setWorkoutIds(prev => prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]);
+  };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <BackHeader onBack={onBack} title={`יום ${dayName}`} />
       
+      <div style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 10, fontSize: 11, color: COLORS.primaryDark }}>
+        💡 אפשר לבחור כמה ארוחות וכמה אימונים ליום אחד
+      </div>
+      
       <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>🍽️ תזונה</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button onClick={() => setMealId(null)} style={{
-            background: !mealId ? COLORS.primary : COLORS.bg, color: !mealId ? 'white' : COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-          }}>ללא תפריט</button>
-          {meals.map(m => (
-            <button key={m.id} onClick={() => setMealId(m.id)} style={{
-              background: mealId === m.id ? COLORS.primary : COLORS.bg, color: mealId === m.id ? 'white' : COLORS.text,
-              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-            }}>{m.name} · {Math.round(m.total_calories || 0)} קק״ל</button>
-          ))}
-        </div>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>
+          🍽️ ארוחות ({mealIds.length} נבחרו)
+        </h4>
+        {meals.length === 0 ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 8 }}>אין ארוחות. צרי בלשונית "תזונה" למטה.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {meals.map(m => {
+              const selected = mealIds.includes(m.id);
+              return (
+                <button key={m.id} onClick={() => toggleMeal(m.id)} style={{
+                  background: selected ? COLORS.primary : COLORS.bg,
+                  color: selected ? 'white' : COLORS.text,
+                  border: `1px solid ${selected ? COLORS.primary : COLORS.border}`,
+                  borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    border: `2px solid ${selected ? 'white' : COLORS.border}`,
+                    background: selected ? 'white' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, color: COLORS.primary, fontWeight: 700, flexShrink: 0,
+                  }}>{selected ? '✓' : ''}</span>
+                  <span style={{ flex: 1 }}>{m.name} · {Math.round(m.total_calories || 0)} קק״ל</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
       
       <section style={cardStyle}>
-        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>💪 אימון</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button onClick={() => setWorkoutId(null)} style={{
-            background: !workoutId ? COLORS.primary : COLORS.bg, color: !workoutId ? 'white' : COLORS.text,
-            border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-          }}>יום מנוחה</button>
-          {workouts.map(w => (
-            <button key={w.id} onClick={() => setWorkoutId(w.id)} style={{
-              background: workoutId === w.id ? COLORS.primary : COLORS.bg, color: workoutId === w.id ? 'white' : COLORS.text,
-              border: `1px solid ${COLORS.border}`, borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
-            }}>{w.name}</button>
-          ))}
-        </div>
+        <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: COLORS.primaryDark }}>
+          💪 אימונים ({workoutIds.length} נבחרו)
+        </h4>
+        {workouts.length === 0 ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 8 }}>אין אימונים. צרי בלשונית "אימונים" למטה.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {workouts.map(w => {
+              const selected = workoutIds.includes(w.id);
+              return (
+                <button key={w.id} onClick={() => toggleWorkout(w.id)} style={{
+                  background: selected ? COLORS.primary : COLORS.bg,
+                  color: selected ? 'white' : COLORS.text,
+                  border: `1px solid ${selected ? COLORS.primary : COLORS.border}`,
+                  borderRadius: 10, padding: 12, fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'right',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: 4,
+                    border: `2px solid ${selected ? 'white' : COLORS.border}`,
+                    background: selected ? 'white' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, color: COLORS.primary, fontWeight: 700, flexShrink: 0,
+                  }}>{selected ? '✓' : ''}</span>
+                  <span style={{ flex: 1 }}>{w.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
       
-      <button onClick={() => onSave(mealId, workoutId)} style={{
+      <button onClick={() => onSave(mealIds, workoutIds)} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: 14, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-      }}>💾 שמרי</button>
+      }}>💾 שמרי לוח</button>
     </main>
   );
 }
