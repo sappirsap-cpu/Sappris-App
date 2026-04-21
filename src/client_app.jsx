@@ -228,71 +228,46 @@ export default function App({onLogout}){
 
     if (clientData) setProfile(clientData);
 
-    // 🔥 טען תוכנית תזונה מה-DB (טבלאות חדשות)
+    // טען לוח שבועי של היום הנוכחי - תמיכה בכמה ארוחות
     const today = new Date();
     const dayOfWeek = today.getDay(); // 0=ראשון, 6=שבת
     
-    const { data: scheduleData } = await supabase
+    console.log('🔍 [DEBUG] Loading for client:', user.id);
+    console.log('🔍 [DEBUG] Day of week:', dayOfWeek);
+    
+    const { data: scheduleData, error: schedErr } = await supabase
       .from('client_schedule')
-      .select(`
-        *,
-        meal_templates (
-          *,
-          meal_template_sections (
-            *,
-            meal_template_items (
-              *,
-              coach_meals (*)
-            )
-          )
-        )
-      `)
+      .select('*, meals(*)')
       .eq('client_id', user.id)
       .eq('day_of_week', dayOfWeek)
-      .not('meal_template_id', 'is', null)
+      .not('meal_id', 'is', null)
       .order('order_index');
     
-    if (scheduleData && scheduleData.length > 0) {
-      const allSections = [];
-      
-      // עבור על כל תבניות הארוחות שהוקצו ליום
-      scheduleData.forEach(sched => {
-        if (sched.meal_templates?.meal_template_sections) {
-          allSections.push(...sched.meal_templates.meal_template_sections);
-        }
-      });
-      
-      if (allSections.length > 0) {
-        const sections = allSections.sort((a, b) => a.order_index - b.order_index);
-        
-        const newPlan = {
-          meals: sections.map(sec => ({
-            name: sec.section_name,
-            key: sec.id,
-            items: (sec.meal_template_items || [])
-              .sort((a, b) => a.order_index - b.order_index)
-              .map(i => i.coach_meals)
-              .filter(Boolean)
-              .map(m => ({
-                id: m.id,
-                name: m.meal_name,
-                cal: m.total_calories,
-                p: m.total_protein_g,
-                c: m.total_carbs_g,
-                f: m.total_fat_g,
-              })),
-            totalCal: (sec.meal_template_items || []).reduce((s, i) => s + (i.coach_meals?.total_calories || 0), 0),
-            totalP: (sec.meal_template_items || []).reduce((s, i) => s + (i.coach_meals?.total_protein_g || 0), 0),
-          }))
-        };
-        
-        setPlan(newPlan);
-      } else {
-        setPlan({ meals: [] });
-      }
+    console.log('🔍 [DEBUG] Meal schedule data:', scheduleData);
+    console.log('🔍 [DEBUG] Meal schedule error:', schedErr);
+    
+    const todayMeals = (scheduleData || [])
+      .map(s => s.meals)
+      .filter(Boolean);
+    
+    console.log('🔍 [DEBUG] Today meals extracted:', todayMeals);
+    
+    if (todayMeals.length > 0) {
+      const newPlan = { 
+        meals: todayMeals.map(m => ({
+          name: m.name,
+          key: m.id,
+          items: m.items || [],
+          totalCal: Math.round(m.total_calories || 0),
+          totalP: Math.round(m.total_protein_g || 0),
+          totalC: Math.round(m.total_carbs_g || 0),
+          totalF: Math.round(m.total_fat_g || 0),
+        }))
+      };
+      setPlan(newPlan);
+      console.log('✅ [DEBUG] Plan set with', todayMeals.length, 'meals');
     } else {
-      // אין תוכנית - תפריט ריק
-      setPlan({ meals: [] });
+      console.log('⚠️ [DEBUG] No meals found for today');
     }
 
     // טען ארוחות של היום
@@ -348,50 +323,44 @@ export default function App({onLogout}){
       setUnread(msgsData.filter(m => !m.read).length);
     }
 
-    // 🔥 טען אימונים של היום (טבלאות חדשות)
-    const { data: workoutSched } = await supabase
+    // טען אימון של היום - תמיכה בכמה אימונים
+    const { data: workoutSched, error: woErr } = await supabase
       .from('client_schedule')
-      .select(`
-        *,
-        workout_templates (
-          *,
-          workout_template_exercises (
-            *,
-            coach_exercises (*)
-          )
-        )
-      `)
+      .select('*, workouts(*)')
       .eq('client_id', user.id)
       .eq('day_of_week', dayOfWeek)
-      .not('workout_template_id', 'is', null)
+      .not('workout_id', 'is', null)
       .order('order_index');
+    
+    console.log('🔍 [DEBUG] Workout schedule data:', workoutSched);
+    console.log('🔍 [DEBUG] Workout schedule error:', woErr);
     
     // צרף את כל התרגילים מכל האימונים של היום
     const allExercises = [];
     let exIdx = 0;
-    (workoutSched || []).forEach(sched => {
-      const wt = sched.workout_templates;
-      if (wt?.workout_template_exercises?.length) {
-        const exercises = wt.workout_template_exercises
-          .sort((a, b) => a.order_index - b.order_index);
-        
-        exercises.forEach(wte => {
-          const ex = wte.coach_exercises;
+    (workoutSched || []).forEach(s => {
+      const w = s.workouts;
+      console.log('🔍 [DEBUG] Processing workout:', w);
+      if (w?.exercises?.length) {
+        w.exercises.forEach(ex => {
           allExercises.push({
             id: `ex-${exIdx++}`,
-            name: ex.exercise_name,
-            sets: wte.sets || 3,
-            reps: wte.reps || '10',
-            rest: wte.rest_seconds || 60,
-            icon: '💪',
+            name: ex.name,
+            sets: ex.sets || 3,
+            reps: ex.reps || '10',
+            rest: ex.rest || 60,
+            weight: ex.weight,
+            icon: ex.icon || '💪',
             videoUrl: ex.video_url,
             notes: ex.notes,
-            workoutName: wt.template_name,
+            workoutName: w.name,
             done: false,
           });
         });
       }
     });
+    
+    console.log('🔍 [DEBUG] All exercises to show:', allExercises);
     
     if (allExercises.length > 0) setExs(allExercises);
 
