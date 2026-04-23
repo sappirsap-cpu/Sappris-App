@@ -121,6 +121,302 @@ const WORKOUT_LIBRARY = [
   { id: 'w4', name: 'רגליים וישבן', desc: 'סקוואט, היפ תראסט, לאנג׳', days: 2, sessions: 2, exercises: 8 },
 ];
 
+/* פורמט זמן יחסי - "לפני שעה", "אתמול", "לפני 3 ימים" וכו' */
+function formatRelativeTime(isoDate) {
+  const now = new Date();
+  const then = new Date(isoDate);
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  
+  if (diffMin < 1) return 'עכשיו';
+  if (diffMin < 60) return `לפני ${diffMin} דק׳`;
+  
+  const timeStr = then.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+  
+  if (diffHr < 24 && now.getDate() === then.getDate()) return `היום ${timeStr}`;
+  if (diffDay === 1) return `אתמול ${timeStr}`;
+  if (diffDay < 7) return `לפני ${diffDay} ימים`;
+  
+  return then.toLocaleDateString('he-IL', {day:'numeric', month:'numeric'});
+}
+
+/* 📄 ייצוא דוח לקוחה ל-PDF - פותח חלון הדפסה של הדפדפן */
+function exportClientReport(client, weightSeries, recentLogs, progressPhotos) {
+  const c = client;
+  const today = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dropped = c.startWeight ? (c.startWeight - c.weight).toFixed(1) : '0';
+  const toGo = (c.weight - c.target).toFixed(1);
+  
+  // גרף SVG
+  const series = weightSeries && weightSeries.length > 0 ? weightSeries : [{date:'התחלה', w: c.startWeight || c.weight}, {date:'היום', w: c.weight}];
+  const minW = Math.min(...series.map(p => p.w), c.target) - 1;
+  const maxW = Math.max(...series.map(p => p.w)) + 1;
+  const range = maxW - minW || 1;
+  const W = 700, H = 250, pad = {t: 20, r: 30, b: 40, l: 50};
+  const pW = W - pad.l - pad.r, pH = H - pad.t - pad.b;
+  const xStep = series.length > 1 ? pW / (series.length - 1) : pW;
+  const yFor = w => pad.t + pH - ((w - minW) / range) * pH;
+  const pathD = series.map((p, i) => `${i === 0 ? 'M' : 'L'} ${pad.l + i * xStep} ${yFor(p.w)}`).join(' ');
+  
+  // יעדי תזונה
+  const goals = c.savedGoals || {};
+  
+  // סטטיסטיקה על הרישומים
+  const stats = { meals: 0, weights: 0, workouts: 0, water: 0 };
+  (recentLogs || []).forEach(l => {
+    if (l.type === '🥗') stats.meals++;
+    else if (l.type === '⚖️') stats.weights++;
+    else if (l.type === '🏋️') stats.workouts++;
+    else if (l.type === '💧') stats.water++;
+  });
+  
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>דוח התקדמות - ${c.name}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Rubik', 'Segoe UI', Tahoma, sans-serif;
+    margin: 0; padding: 20px; color: #2E2A3D;
+    direction: rtl; background: white;
+    line-height: 1.5;
+  }
+  h1 { color: #8B72B5; font-size: 28px; margin: 0 0 8px; font-weight: 700; }
+  h2 { color: #8B72B5; font-size: 18px; margin: 20px 0 10px; font-weight: 700;
+       border-bottom: 2px solid #E8DFF5; padding-bottom: 6px; }
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 3px solid #B19CD9; padding-bottom: 16px; margin-bottom: 20px;
+  }
+  .header-left { flex: 1; }
+  .header-right { text-align: left; font-size: 11px; color: #756B85; }
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin: 14px 0;
+  }
+  .stat-box {
+    background: #F5F2FA; border: 1px solid #DDD0EB;
+    border-radius: 8px; padding: 12px; text-align: center;
+  }
+  .stat-value { font-size: 22px; font-weight: 700; color: #8B72B5; margin: 0; }
+  .stat-label { font-size: 10px; color: #756B85; margin: 4px 0 0; }
+  .macro-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin: 10px 0;
+  }
+  .macro-box {
+    background: white; border: 1px solid #DDD0EB;
+    border-radius: 6px; padding: 10px; text-align: center;
+  }
+  .macro-value { font-size: 16px; font-weight: 700; color: #2E2A3D; margin: 0; }
+  .macro-label { font-size: 10px; color: #756B85; margin: 2px 0 0; }
+  .log-list {
+    list-style: none; padding: 0; margin: 0;
+  }
+  .log-item {
+    display: flex; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid #E8DFF5; font-size: 12px;
+  }
+  .log-icon { font-size: 16px; }
+  .log-text { flex: 1; }
+  .log-date { color: #756B85; font-size: 10px; }
+  .photos-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; margin: 10px 0;
+  }
+  .photo-box {
+    aspect-ratio: 3/4; border-radius: 8px; overflow: hidden;
+    border: 1px solid #DDD0EB; position: relative;
+    background: #F5F2FA;
+  }
+  .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-date {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.7); color: white;
+    font-size: 9px; padding: 2px; text-align: center;
+  }
+  .footer {
+    margin-top: 30px; padding-top: 16px; border-top: 1px solid #DDD0EB;
+    text-align: center; font-size: 10px; color: #756B85;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none; }
+    h2 { page-break-after: avoid; }
+    .photo-box, .stat-box { page-break-inside: avoid; }
+  }
+  .print-btn {
+    position: fixed; bottom: 20px; left: 20px;
+    background: #8B72B5; color: white; border: none;
+    padding: 14px 24px; border-radius: 12px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000;
+  }
+</style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">
+    📄 הדפס / שמור כ-PDF
+  </button>
+  
+  <div class="header">
+    <div class="header-left">
+      <h1>🌸 דוח התקדמות אישי</h1>
+      <p style="margin: 4px 0 0; font-size: 14px; color: #756B85;">${c.name}</p>
+    </div>
+    <div class="header-right">
+      <p style="margin: 0;">תאריך: ${today}</p>
+      <p style="margin: 4px 0 0;">מאמנת: ספיר ברק</p>
+    </div>
+  </div>
+  
+  <h2>📊 סיכום נתונים</h2>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <p class="stat-value">${c.weight}</p>
+      <p class="stat-label">משקל נוכחי (ק״ג)</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value">${c.startWeight || '-'}</p>
+      <p class="stat-label">משקל התחלתי (ק״ג)</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value" style="color: ${dropped > 0 ? '#4A7A5E' : '#2E2A3D'};">
+        ${dropped > 0 ? '↓' : ''} ${Math.abs(dropped)}
+      </p>
+      <p class="stat-label">ירידה (ק״ג)</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value">${c.target}</p>
+      <p class="stat-label">יעד (ק״ג)</p>
+    </div>
+  </div>
+  
+  ${goals.kcal ? `
+  <h2>🎯 יעדי תזונה יומיים</h2>
+  <div class="macro-grid">
+    <div class="macro-box">
+      <p class="macro-value">${goals.kcal}</p>
+      <p class="macro-label">קלוריות</p>
+    </div>
+    <div class="macro-box">
+      <p class="macro-value">${goals.proteinG}g</p>
+      <p class="macro-label">חלבונים</p>
+    </div>
+    <div class="macro-box">
+      <p class="macro-value">${goals.carbG}g</p>
+      <p class="macro-label">פחמימות</p>
+    </div>
+    <div class="macro-box">
+      <p class="macro-value">${goals.fatG}g</p>
+      <p class="macro-label">שומנים</p>
+    </div>
+  </div>
+  ` : ''}
+  
+  <h2>📉 גרף התקדמות משקל</h2>
+  <div style="background: #F5F2FA; border-radius: 10px; padding: 16px;">
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto;">
+      <line x1="${pad.l}" y1="${yFor(c.target)}" x2="${W - pad.r}" y2="${yFor(c.target)}" 
+            stroke="#4A7A5E" stroke-dasharray="5 5" stroke-width="1.5"/>
+      <text x="${W - pad.r - 4}" y="${yFor(c.target) - 6}" font-size="11" fill="#4A7A5E" text-anchor="end">
+        יעד ${c.target} ק״ג
+      </text>
+      <path d="${pathD}" stroke="#8B72B5" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      ${series.map((p, i) => `
+        <g>
+          <circle cx="${pad.l + i * xStep}" cy="${yFor(p.w)}" r="5" fill="white" stroke="#8B72B5" stroke-width="2.5"/>
+          <text x="${pad.l + i * xStep}" y="${yFor(p.w) - 10}" font-size="11" fill="#2E2A3D" text-anchor="middle" font-weight="700">
+            ${p.w}
+          </text>
+          <text x="${pad.l + i * xStep}" y="${H - 12}" font-size="10" fill="#756B85" text-anchor="middle">
+            ${p.date}
+          </text>
+        </g>
+      `).join('')}
+    </svg>
+  </div>
+  
+  <h2>📋 סטטיסטיקת פעילות</h2>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <p class="stat-value">${stats.meals}</p>
+      <p class="stat-label">ארוחות שנרשמו</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value">${stats.workouts}</p>
+      <p class="stat-label">אימונים שהושלמו</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value">${stats.weights}</p>
+      <p class="stat-label">עדכוני משקל</p>
+    </div>
+    <div class="stat-box">
+      <p class="stat-value">${stats.water}</p>
+      <p class="stat-label">רישומי שתייה</p>
+    </div>
+  </div>
+  
+  ${recentLogs && recentLogs.length > 0 ? `
+  <h2>📝 רישומים אחרונים</h2>
+  <ul class="log-list">
+    ${recentLogs.slice(0, 15).map(l => `
+      <li class="log-item">
+        <span class="log-icon">${l.type}</span>
+        <div class="log-text">
+          <div>${l.text}</div>
+          <div class="log-date">${l.date}</div>
+        </div>
+      </li>
+    `).join('')}
+  </ul>
+  ` : ''}
+  
+  ${progressPhotos && progressPhotos.length > 0 ? `
+  <h2>📸 תמונות התקדמות</h2>
+  <div class="photos-grid">
+    ${progressPhotos.slice(0, 8).map(p => `
+      <div class="photo-box">
+        <img src="${p.photo_url}" alt="${p.label || 'התקדמות'}" />
+        <div class="photo-date">
+          ${new Date(p.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', year:'2-digit'})}
+          ${p.label ? ' · ' + p.label : ''}
+        </div>
+      </div>
+    `).join('')}
+  </div>
+  ` : ''}
+  
+  <div class="footer">
+    <p style="margin: 0;">💜 דוח זה נוצר אוטומטית על ידי אפליקציית המעקב של ספיר ברק</p>
+    <p style="margin: 4px 0 0;">${today}</p>
+  </div>
+  
+  <script>
+    // הצעה אוטומטית להדפסה אחרי שהדף נטען
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        // רק מציג את הכפתור - המשתמש יוכל להדפיס בכל רגע
+      }, 500);
+    });
+  </script>
+</body>
+</html>`;
+  
+  // פתח בחלון חדש
+  const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  
+  // ניקוי זיכרון אחרי דקה
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 /* ========== MAIN APP ========== */
 
 export default function App({ onLogout }) {
@@ -139,14 +435,69 @@ export default function App({ onLogout }) {
   // טען נתונים מ-Supabase
   useEffect(() => {
     loadAll();
-    // רענן הודעות כל 10 שניות
-    const interval = setInterval(() => loadMessages(), 10000);
-    
-    // מאזינים לפתיחת מסכי תבניות
-    return () => {
-      clearInterval(interval);
-    };
   }, []);
+
+  // 🔔 Realtime - הודעות חדשות מלקוחות בזמן אמת
+  useEffect(() => {
+    let channel = null;
+    
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('coach-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `to_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const newMsg = payload.new;
+            console.log('🔔 [Realtime] הודעה חדשה מלקוחה:', newMsg);
+            
+            // הוסף להתראות
+            setNotifications(prev => [newMsg, ...prev]);
+            
+            // מצא את שם הלקוחה
+            const client = clients.find(c => c.id === newMsg.from_id);
+            const clientName = client?.firstName || client?.name || 'לקוחה';
+            
+            // הוסף לשיחה של הלקוחה
+            setChatMessages(prev => ({
+              ...prev,
+              [newMsg.from_id]: [
+                ...(prev[newMsg.from_id] || []),
+                {
+                  id: newMsg.id,
+                  from: 'client',
+                  text: newMsg.content,
+                  time: new Date(newMsg.sent_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'}),
+                  read: false,
+                }
+              ]
+            }));
+            
+            // הצג Toast
+            setToast(`💬 ${clientName}: ${(newMsg.content || '').slice(0, 40)}${newMsg.content?.length > 40 ? '...' : ''}`);
+            setTimeout(() => setToast(null), 4000);
+            
+            // רטט
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          }
+        )
+        .subscribe();
+    };
+    
+    setupRealtime();
+    
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [clients]);
 
   const loadMessages = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -481,6 +832,9 @@ function DashboardTab({ clients, loggedToday, activeCount, needsAttention, onOpe
         <StatCard value={needsAttention.length} label="ממתינים" color={needsAttention.length > 0 ? COLORS.red : COLORS.textMuted} />
       </div>
 
+      {/* 🔔 פיד פעילות אחרונה */}
+      <ActivityFeed clients={clients} onOpenClient={onOpenClient} />
+
       {/* Attention banner */}
       {needsAttention.length > 0 && (
         <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -526,6 +880,171 @@ function ClientFilterChips({ clients }) {
         }}>{f.label}</button>
       ))}
     </div>
+  );
+}
+
+/* ===================== 🔔 ACTIVITY FEED ===================== */
+function ActivityFeed({ clients, onOpenClient }) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    loadActivity();
+
+    // 🔄 עדכון אוטומטי בזמן אמת
+    let channels = [];
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const clientIds = clients.map(c => c.id);
+      if (clientIds.length === 0) return;
+
+      // האזנה לטבלאות שונות
+      const tables = ['meal_logs', 'weight_logs', 'workout_logs', 'water_logs'];
+      tables.forEach(table => {
+        const ch = supabase
+          .channel(`activity-${table}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: table,
+          }, (payload) => {
+            const data = payload.new;
+            if (!clientIds.includes(data.client_id)) return;
+            loadActivity(); // רענן את כל הפיד
+          })
+          .subscribe();
+        channels.push(ch);
+      });
+    };
+
+    setupRealtime();
+
+    // רענון כל דקה למקרה שמשהו פספסנו
+    const interval = setInterval(loadActivity, 60000);
+
+    return () => {
+      channels.forEach(ch => supabase.removeChannel(ch));
+      clearInterval(interval);
+    };
+  }, [clients.length]);
+
+  const loadActivity = async () => {
+    if (clients.length === 0) { setLoading(false); return; }
+    const clientIds = clients.map(c => c.id);
+
+    const [meals, weights, workouts, water] = await Promise.all([
+      supabase.from('meal_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(20),
+      supabase.from('weight_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+      supabase.from('workout_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+      supabase.from('water_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+    ]);
+
+    const all = [];
+    const byClient = {};
+    clients.forEach(c => { byClient[c.id] = c; });
+
+    (meals.data || []).forEach(m => {
+      const c = byClient[m.client_id];
+      if (!c) return;
+      all.push({
+        id: 'meal-' + m.id,
+        time: new Date(m.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '🥗',
+        text: `${c.firstName || c.name} רשמה ${m.name} (${m.calories || 0} קק״ל)`,
+        date: formatRelativeTime(m.logged_at),
+      });
+    });
+
+    (weights.data || []).forEach(w => {
+      const c = byClient[w.client_id];
+      if (!c) return;
+      all.push({
+        id: 'weight-' + w.id,
+        time: new Date(w.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '⚖️',
+        text: `${c.firstName || c.name} עדכנה משקל: ${w.weight} ק״ג`,
+        date: formatRelativeTime(w.logged_at),
+      });
+    });
+
+    (workouts.data || []).forEach(w => {
+      const c = byClient[w.client_id];
+      if (!c) return;
+      all.push({
+        id: 'workout-' + w.id,
+        time: new Date(w.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '🏋️',
+        text: `${c.firstName || c.name} סיימה אימון`,
+        date: formatRelativeTime(w.logged_at),
+      });
+    });
+
+    all.sort((a, b) => b.time - a.time);
+    setActivities(all.slice(0, 15));
+    setLoading(false);
+  };
+
+  const shown = expanded ? activities : activities.slice(0, 4);
+
+  return (
+    <section style={cardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>🔔 פעילות אחרונה</h4>
+        {activities.length > 0 && <span style={{ fontSize: 10, color: COLORS.textMuted }}>🔄 בזמן אמת</span>}
+      </div>
+      
+      {loading ? (
+        <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 10, margin: 0 }}>טוענת...</p>
+      ) : activities.length === 0 ? (
+        <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 16, margin: 0 }}>
+          אין עדיין פעילות. הלקוחות שלך טרם רשמו מידע באפליקציה.
+        </p>
+      ) : (
+        <>
+          {shown.map((a, i) => {
+            const client = clients.find(c => c.id === a.clientId);
+            return (
+              <div
+                key={a.id}
+                onClick={() => client && onOpenClient(client)}
+                style={{
+                  display: 'flex', gap: 10, padding: '10px 4px',
+                  borderBottom: i < shown.length - 1 ? `1px solid ${COLORS.border}` : 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{a.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: COLORS.text, lineHeight: 1.4 }}>{a.text}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>{a.date}</p>
+                </div>
+              </div>
+            );
+          })}
+          {activities.length > 4 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              style={{
+                width: '100%', background: 'transparent', color: COLORS.primary,
+                border: 'none', padding: '8px 0 0', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {expanded ? '▲ הצג פחות' : `▼ הצג עוד ${activities.length - 4}`}
+            </button>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -1332,8 +1851,47 @@ function ManualExerciseInput({ onAdd }) {
   const [icon, setIcon] = useState('💪');
   const [videoUrl, setVideoUrl] = useState('');
   const [notes, setNotes] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const ICONS = ['💪', '🏋️‍♀️', '🏋️', '🦵', '🍑', '🚶‍♀️', '🧘‍♀️', '🤸‍♀️', '🚣', '📦', '🔥', '⚡'];
+
+  // העלאת וידאו מהגלריה
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // בדיקת גודל - מקסימום 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      alert('הסרטון גדול מדי (מקסימום 50MB). נסי סרטון קצר יותר או העלי ליוטיוב.');
+      return;
+    }
+
+    setUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setUploading(false); return; }
+
+    // שם ייחודי
+    const ext = file.name.split('.').pop() || 'mp4';
+    const fileName = `${user.id}/exercise_${Date.now()}.${ext}`;
+
+    const { error: upErr } = await supabase.storage
+      .from('exercise-videos')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+    if (upErr) {
+      console.error('Upload error:', upErr);
+      alert('שגיאה בהעלאה: ' + upErr.message);
+      setUploading(false);
+      return;
+    }
+
+    // קבל URL ציבורי
+    const { data: urlData } = supabase.storage.from('exercise-videos').getPublicUrl(fileName);
+    setVideoUrl(urlData.publicUrl);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
 
   const submit = () => {
     if (!name.trim()) return;
@@ -1387,14 +1945,57 @@ function ManualExerciseInput({ onAdd }) {
         </div>
       </div>
       
-      <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="קישור לסרטון (אופציונלי)" style={{ ...inputStyle, marginBottom: 6, direction: 'ltr' }} />
+      {/* 📹 העלאת סרטון */}
+      <div style={{ marginBottom: 6 }}>
+        <label style={{ fontSize: 10, color: COLORS.textMuted, display: 'block', marginBottom: 4 }}>📹 סרטון הדגמה (אופציונלי)</label>
+        
+        {videoUrl ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: 8, background: 'white', borderRadius: 8, border: `1px solid ${COLORS.border}` }}>
+            <span style={{ fontSize: 14 }}>✅</span>
+            <span style={{ flex: 1, fontSize: 11, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {videoUrl.includes('youtube') || videoUrl.includes('youtu.be') ? '📺 סרטון יוטיוב' : '📹 סרטון שהועלה'}
+            </span>
+            <button onClick={() => setVideoUrl('')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, color: COLORS.accentDark }}>✕</button>
+          </div>
+        ) : (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="video/*"
+              onChange={handleVideoUpload}
+              style={{ display: 'none' }}
+            />
+            <button 
+              onClick={() => fileRef.current?.click()} 
+              disabled={uploading}
+              style={{
+                width: '100%', background: uploading ? COLORS.primarySoft : 'white',
+                color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`,
+                padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600,
+                cursor: uploading ? 'default' : 'pointer', fontFamily: 'inherit',
+                marginBottom: 4
+              }}
+            >
+              {uploading ? '⏳ מעלה סרטון...' : '📹 העלי סרטון מהגלריה'}
+            </button>
+            <input 
+              value={videoUrl} 
+              onChange={e => setVideoUrl(e.target.value)} 
+              placeholder="או הדביקי קישור ל-YouTube" 
+              style={{ ...inputStyle, direction: 'ltr', fontSize: 11 }} 
+            />
+          </>
+        )}
+      </div>
+      
       <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="הערות (אופציונלי)" style={{ ...inputStyle, marginBottom: 8 }} />
       
-      <button onClick={submit} disabled={!name.trim()} style={{
+      <button onClick={submit} disabled={!name.trim() || uploading} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600,
-        cursor: name.trim() ? 'pointer' : 'default',
-        opacity: name.trim() ? 1 : 0.5, fontFamily: 'inherit',
+        cursor: (name.trim() && !uploading) ? 'pointer' : 'default',
+        opacity: (name.trim() && !uploading) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
         + הוסיפי
       </button>
@@ -1649,9 +2250,97 @@ function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds
 
 /* ===================== SETTINGS TAB ===================== */
 function SettingsTab({ showToast, onLogout }) {
+  const [pushStatus, setPushStatus] = useState('default');
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPushStatus(Notification.permission);
+    } else {
+      setPushStatus('not_supported');
+    }
+  }, []);
+
+  const togglePush = async () => {
+    setPushLoading(true);
+    try {
+      if (pushStatus === 'granted') {
+        const mod = await import('./push.js');
+        await mod.unregisterFromPush();
+        setPushStatus('denied');
+        showToast('התראות בוטלו');
+      } else {
+        const mod = await import('./push.js');
+        const result = await mod.registerForPush();
+        if (result.success) {
+          setPushStatus('granted');
+          showToast('✅ התראות הופעלו!');
+        } else if (result.reason === 'denied') {
+          showToast('❌ אישור נדחה');
+          setPushStatus('denied');
+        } else {
+          showToast('שגיאה: ' + (result.reason || 'לא ידועה'));
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('שגיאה');
+    }
+    setPushLoading(false);
+  };
+
+  const pushEnabled = pushStatus === 'granted';
+  const pushBlocked = pushStatus === 'denied';
+  const pushUnsupported = pushStatus === 'not_supported';
+
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
+
+      {/* 🔔 התראות Push */}
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.text }}>🔔 התראות</h3>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+          <div style={{ flex: 1, paddingLeft: 10 }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>
+              {pushEnabled ? '✅ התראות פעילות' : pushBlocked ? '❌ חסום' : pushUnsupported ? '⚠️ לא נתמך' : '🔔 הפעילי התראות'}
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted, lineHeight: 1.5 }}>
+              {pushEnabled ? 'תקבלי התראה על הודעות חדשות מלקוחות' :
+               pushBlocked ? 'התראות חסומות. פתחי את הגדרות הדפדפן ואפשרי' :
+               pushUnsupported ? 'הדפדפן לא תומך' :
+               'קבלי התראה על הודעות חדשות גם כשהאפליקציה סגורה'}
+            </p>
+          </div>
+          {!pushUnsupported && !pushBlocked && (
+            <button 
+              onClick={togglePush} 
+              disabled={pushLoading}
+              style={{
+                width: 48, height: 28, borderRadius: 14, border: 'none',
+                cursor: pushLoading ? 'default' : 'pointer',
+                background: pushEnabled ? COLORS.primary : COLORS.border,
+                position: 'relative', transition: 'background 0.2s',
+                opacity: pushLoading ? 0.5 : 1,
+              }}
+            >
+              <div style={{
+                width: 22, height: 22, borderRadius: '50%', background: 'white',
+                position: 'absolute', top: 3, transition: 'all 0.2s',
+                ...(pushEnabled ? { left: 3, right: 'auto' } : { right: 3, left: 'auto' })
+              }}/>
+            </button>
+          )}
+        </div>
+
+        {/iPhone|iPad|iPod/.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches && (
+          <div style={{ marginTop: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 10, fontSize: 11, color: COLORS.primaryDark, lineHeight: 1.6 }}>
+            💡 <b>חשוב באייפון:</b> להתראות תצטרכי להתקין את האפליקציה במסך הבית קודם.
+            שתפי → הוסיפי למסך הבית
+          </div>
+        )}
+      </section>
 
       <section style={cardStyle}>
         <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>מיתוג</h3>
@@ -1668,24 +2357,6 @@ function SettingsTab({ showToast, onLogout }) {
           </div>
         </Field>
         <button onClick={() => showToast('💾 הגדרות נשמרו')} style={primaryBtnStyle}>שמרי שינויים</button>
-      </section>
-
-      <section style={cardStyle}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>קודי לקוח</h3>
-        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>3 מתוך 5 בשימוש</p>
-        <div style={{ height: '6px', background: COLORS.primarySoft, borderRadius: '999px', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: '60%', background: COLORS.primary }} />
-        </div>
-        <p style={{ fontSize: '11px', color: COLORS.textMuted, margin: '8px 0 0 0' }}>הגעת למגבלת הקודים. צריכים עוד? צרו קשר →</p>
-      </section>
-
-      <section style={cardStyle}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 8px 0', color: COLORS.text }}>כיוון האפליקציה</h3>
-        <p style={{ fontSize: '12px', color: COLORS.textMuted, margin: '0 0 10px 0' }}>קובע את כיוון האפליקציה (RTL לעברית) ושפת הממשק</p>
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <button style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>עברית (RTL)</button>
-          <button style={{ flex: 1, background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>English</button>
-        </div>
       </section>
 
       <section style={cardStyle}>
@@ -1754,14 +2425,93 @@ function MiniStat({ label, value, color }) {
 /* ===================== CLIENT PROFILE ===================== */
 function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSchedule, onProgress }) {
   const [tab, setTab] = useState('overview');
+  const [realWeights, setRealWeights] = useState([]);
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [progressPhotos, setProgressPhotos] = useState([]);
   const c = client;
-  const weightSeries = [
-    { date: '1.2', w: c.startWeight },
-    { date: '15.2', w: c.startWeight - 1 },
-    { date: '1.3', w: c.startWeight - 2 },
-    { date: '15.3', w: c.startWeight - 3.5 },
-    { date: '1.4', w: c.startWeight - 5 },
-    { date: '15.4', w: c.weight },
+  
+  // טען משקלים אמיתיים מה-DB
+  useEffect(() => {
+    const loadWeights = async () => {
+      const { data } = await supabase
+        .from('weight_logs')
+        .select('*')
+        .eq('client_id', c.id)
+        .order('logged_at', { ascending: true })
+        .limit(20);
+      
+      if (data && data.length > 0) {
+        setRealWeights(data.map(w => ({
+          date: new Date(w.logged_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric'}),
+          w: parseFloat(w.weight),
+        })));
+      }
+    };
+    
+    // טען פעילות אחרונה מכל הטבלאות
+    const loadRecentActivity = async () => {
+      const [mealsRes, weightsRes, waterRes, workoutsRes] = await Promise.all([
+        supabase.from('meal_logs').select('*').eq('client_id', c.id).order('logged_at', {ascending:false}).limit(10),
+        supabase.from('weight_logs').select('*').eq('client_id', c.id).order('logged_at', {ascending:false}).limit(5),
+        supabase.from('water_logs').select('amount_ml, logged_at').eq('client_id', c.id).order('logged_at', {ascending:false}).limit(5),
+        supabase.from('workout_logs').select('*').eq('client_id', c.id).order('logged_at', {ascending:false}).limit(5),
+      ]);
+      
+      const allLogs = [];
+      
+      (mealsRes.data || []).forEach(m => allLogs.push({
+        time: new Date(m.logged_at).getTime(),
+        date: formatRelativeTime(m.logged_at),
+        type: '🥗',
+        text: `${m.name} — ${m.calories || 0} קק״ל`,
+      }));
+      
+      (weightsRes.data || []).forEach(w => allLogs.push({
+        time: new Date(w.logged_at).getTime(),
+        date: formatRelativeTime(w.logged_at),
+        type: '⚖️',
+        text: `משקל: ${w.weight} ק״ג`,
+      }));
+      
+      (waterRes.data || []).forEach(w => allLogs.push({
+        time: new Date(w.logged_at).getTime(),
+        date: formatRelativeTime(w.logged_at),
+        type: '💧',
+        text: `שתייה: ${w.amount_ml} מ״ל`,
+      }));
+      
+      (workoutsRes.data || []).forEach(w => allLogs.push({
+        time: new Date(w.logged_at).getTime(),
+        date: formatRelativeTime(w.logged_at),
+        type: '🏋️',
+        text: `אימון הושלם`,
+      }));
+      
+      allLogs.sort((a,b) => b.time - a.time);
+      setRecentLogs(allLogs.slice(0, 10));
+    };
+    
+    // טען תמונות התקדמות
+    const loadPhotos = async () => {
+      const { data } = await supabase
+        .from('progress_photos')
+        .select('*')
+        .eq('client_id', c.id)
+        .order('created_at', {ascending:false})
+        .limit(12);
+      
+      if (data) setProgressPhotos(data);
+    };
+    
+    loadWeights();
+    loadRecentActivity();
+    loadPhotos();
+  }, [c.id]);
+  
+  // אם יש משקלים אמיתיים - השתמש בהם, אחרת הצג רק את הנוכחי
+  const weightSeries = realWeights.length > 0 ? realWeights : [
+    { date: 'התחלה', w: c.startWeight || c.weight },
+    { date: 'היום', w: c.weight },
   ];
   const minW = Math.min(...weightSeries.map(p => p.w), c.target) - 1;
   const maxW = Math.max(...weightSeries.map(p => p.w)) + 1;
@@ -1769,7 +2519,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const chartW = 380, chartH = 140;
   const pad = { top: 20, right: 12, bottom: 24, left: 32 };
   const plotW = chartW - pad.left - pad.right, plotH = chartH - pad.top - pad.bottom;
-  const xStep = plotW / (weightSeries.length - 1);
+  const xStep = weightSeries.length > 1 ? plotW / (weightSeries.length - 1) : plotW;
   const yFor = (w) => pad.top + plotH - ((w - minW) / range) * plotH;
   const pathD = weightSeries.map((p, i) => `${i === 0 ? 'M' : 'L'} ${pad.left + i * xStep} ${yFor(p.w)}`).join(' ');
   const targetY = yFor(c.target);
@@ -1796,6 +2546,18 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           התקדמות
         </button>
       </div>
+
+      {/* 📄 כפתור ייצוא דוח */}
+      <button onClick={() => exportClientReport(c, weightSeries, recentLogs, progressPhotos)} style={{
+        width: '100%', background: 'white', color: COLORS.primaryDark,
+        border: `1px solid ${COLORS.border}`, padding: '10px',
+        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 16 }}>📄</span>
+        ייצא דוח התקדמות
+      </button>
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
@@ -1870,14 +2632,12 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
       {tab === 'logs' && (
         <section style={cardStyle}>
           <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📝 רישומים אחרונים</h4>
-          {[
-            { date: 'היום 8:30', type: '🥗', text: 'שייק חלבון — 320 קק״ל' },
-            { date: 'היום 13:00', type: '🥗', text: 'סלט קינואה עם טונה — 450 קק״ל' },
-            { date: 'אתמול 18:00', type: '🏋️', text: 'אימון רגליים · 4/4 תרגילים' },
-            { date: 'אתמול 7:00', type: '⚖️', text: 'משקל: 68.2 ק״ג' },
-            { date: 'לפני יומיים', type: '💧', text: 'שתייה: 2,400 מ״ל' },
-          ].map((l, i) => (
-            <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 0', borderBottom: i < 4 ? `1px solid ${COLORS.border}` : 'none' }}>
+          {recentLogs.length === 0 ? (
+            <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 20 }}>
+              עדיין אין רישומים
+            </p>
+          ) : recentLogs.map((l, i) => (
+            <div key={i} style={{ display: 'flex', gap: '10px', padding: '10px 0', borderBottom: i < recentLogs.length - 1 ? `1px solid ${COLORS.border}` : 'none' }}>
               <span style={{ fontSize: '18px' }}>{l.type}</span>
               <div>
                 <p style={{ margin: 0, fontSize: '12px', color: COLORS.text }}>{l.text}</p>
@@ -1891,15 +2651,34 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
       {tab === 'photos' && (
         <section style={cardStyle}>
           <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📸 תמונות התקדמות</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            {[{ date: '1.2', label: 'לפני' }, { date: '15.4', label: 'אחרי' }, { date: '1.3', label: 'חודש 1' }, { date: '15.3', label: 'חודש 2' }].map((p, i) => (
-              <div key={i} style={{ background: COLORS.primarySoft, aspectRatio: '3/4', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', border: `1px solid ${COLORS.border}` }}>
-                <span style={{ fontSize: '32px', opacity: 0.5 }}>👤</span>
-                <span style={{ fontSize: '10px', color: COLORS.textMuted, marginTop: '4px' }}>{p.date}</span>
-                <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'white', fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', color: COLORS.primaryDark }}>{p.label}</span>
-              </div>
-            ))}
-          </div>
+          {progressPhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 16px', color: COLORS.textMuted }}>
+              <span style={{ fontSize: 36, opacity: 0.5 }}>📸</span>
+              <p style={{ fontSize: 12, margin: '8px 0 4px' }}>עדיין אין תמונות התקדמות</p>
+              <p style={{ fontSize: 11, margin: 0 }}>הלקוחה יכולה להעלות תמונות מהאפליקציה שלה</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {progressPhotos.map((p, i) => (
+                <div key={p.id} style={{ aspectRatio: '3/4', borderRadius: '10px', overflow: 'hidden', position: 'relative', border: `1px solid ${COLORS.border}`, background: COLORS.primarySoft }}>
+                  <img 
+                    src={p.photo_url} 
+                    alt={p.label || 'תמונת התקדמות'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    onClick={() => window.open(p.photo_url, '_blank')}
+                  />
+                  <span style={{ position: 'absolute', bottom: '4px', left: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '10px', padding: '3px 6px', borderRadius: '4px', textAlign: 'center' }}>
+                    {new Date(p.created_at).toLocaleDateString('he-IL', {day:'numeric', month:'numeric', year:'2-digit'})}
+                  </span>
+                  {p.label && (
+                    <span style={{ position: 'absolute', top: '4px', right: '4px', background: 'white', fontSize: '9px', fontWeight: 600, padding: '2px 6px', borderRadius: '4px', color: COLORS.primaryDark }}>
+                      {p.label}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
     </main>
