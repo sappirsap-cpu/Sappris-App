@@ -3475,21 +3475,53 @@ function AddClientModal({ onBack, showToast, onCreated }) {
         return;
       }
 
-      // צור משתמש חדש ב-Supabase
-      // שים לב: זה לא ייצור user ב-auth בלי admin API
-      // במקום זאת, נציג הוראות לספיר ליצור אותו ידנית
+      // קרא ל-Edge Function ליצירת הלקוחה
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData?.session?.access_token;
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/create-client`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phone,
+            birthDate: null,
+            startWeight: parseFloat(startWeight) || null,
+            target: parseFloat(targetWeight) || null,
+            height: parseFloat(height) || null,
+            coachId: coach.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        setError(data.error || 'שגיאה ביצירת הלקוחה');
+        setCreating(false);
+        return;
+      }
+
+      // הצלחה! שמור את הפרטים להצגה
       setResult({
-        fullName,
-        phone,
-        email,
-        password,
-        height,
-        age,
-        startWeight,
-        targetWeight,
-        coachId: coach.id,
+        fullName: data.client.fullName,
+        email: data.client.email,
+        tempPassword: data.tempPassword,
       });
       setStep(3);
+      
+      // רענן את רשימת הלקוחות
+      setTimeout(() => {
+        onCreated();
+      }, 2000);
+
     } catch (e) {
       setError('שגיאה: ' + e.message);
     } finally {
@@ -3502,68 +3534,35 @@ function AddClientModal({ onBack, showToast, onCreated }) {
       <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <BackHeader onBack={onBack} title="יצירת לקוחה חדשה" />
         
-        <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `2px dashed ${COLORS.primary}` }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 12px', color: COLORS.primaryDark, textAlign: 'center' }}>
-            📋 פרטי הלקוחה החדשה
+        <section style={{ ...cardStyle, background: '#E8F5E8', border: `2px solid #4CAF50`, textAlign: 'center', padding: '24px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: '0 0 8px', color: '#2E7D32' }}>
+            הלקוחה נוצרה בהצלחה!
           </h3>
-          <p style={{ fontSize: '12px', color: COLORS.text, margin: '0 0 12px', lineHeight: 1.6 }}>
-            כדי להשלים את יצירת הלקוחה, בצעי את השלבים הבאים ב-Supabase:
+          <p style={{ fontSize: '13px', color: COLORS.text, margin: '0 0 20px', lineHeight: 1.5 }}>
+            {result.fullName} יכולה עכשיו להתחבר לאפליקציה
           </p>
 
-          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>🔐 שלב 1: Authentication → Users → Add user</p>
-            <div style={{ fontSize: '12px', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}>
-              <p style={{ margin: '2px 0' }}>Email: <strong>{result.email}</strong></p>
-              <p style={{ margin: '2px 0' }}>Password: <strong>{result.password}</strong></p>
-              <p style={{ margin: '2px 0', fontSize: '10px', color: COLORS.textMuted }}>✓ Auto Confirm User</p>
+          <div style={{ background: 'white', borderRadius: '12px', padding: '16px', marginBottom: '16px', textAlign: 'right' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 10px' }}>
+              📧 פרטי התחברות ללקוחה:
+            </p>
+            <div style={{ fontSize: '13px', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}>
+              <p style={{ margin: '6px 0' }}><strong>אימייל:</strong> {result.email}</p>
+              <p style={{ margin: '6px 0' }}><strong>סיסמה זמנית:</strong> {result.tempPassword}</p>
             </div>
-          </div>
-
-          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '8px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>📝 שלב 2: העתיקי את ה-UUID שנוצר</p>
-          </div>
-
-          <div style={{ background: 'white', borderRadius: '8px', padding: '12px', marginBottom: '10px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 6px' }}>💾 שלב 3: SQL Editor — הדביקי:</p>
-            <pre style={{ 
-              fontSize: '10px', 
-              background: COLORS.bg, 
-              padding: '8px', 
-              borderRadius: '6px', 
-              direction: 'ltr', 
-              textAlign: 'left',
-              overflowX: 'auto',
-              margin: 0,
-              whiteSpace: 'pre-wrap'
-            }}>
-{`insert into clients (
-  id, coach_id, full_name, email, phone,
-  height_cm, age, start_weight, 
-  current_weight, target_weight,
-  goal, activity_level,
-  daily_calorie_goal, daily_protein_goal, 
-  daily_carb_goal, daily_fat_goal,
-  daily_water_goal_ml
-) values (
-  'UUID_HERE',
-  '${result.coachId}',
-  '${result.fullName}',
-  '${result.email}',
-  '${result.phone || ''}',
-  ${result.height || 'null'}, ${result.age || 'null'},
-  ${result.startWeight}, ${result.startWeight}, ${result.targetWeight},
-  'lose', 'moderate',
-  1800, 113, 225, 50, 2500
-);`}
-            </pre>
+            <p style={{ fontSize: '10px', color: COLORS.textMuted, margin: '10px 0 0', lineHeight: 1.5 }}>
+              💡 שלחי ללקוחה את פרטי ההתחברות במייל או ב-WhatsApp. 
+              מומלץ שהיא תשנה את הסיסמה בכניסה הראשונה.
+            </p>
           </div>
 
           <button 
             onClick={() => {
-              const text = `אימייל: ${result.email}\nסיסמה: ${result.password}\nשם: ${result.fullName}`;
+              const text = `שלום ${result.fullName}! 👋\n\nפרטי ההתחברות לאפליקציה:\n\n📧 אימייל: ${result.email}\n🔐 סיסמה: ${result.tempPassword}\n\nקישור: https://your-app.netlify.app\n\nמומלץ לשנות את הסיסמה בכניסה הראשונה 💜`;
               if (navigator.clipboard) {
                 navigator.clipboard.writeText(text);
-                showToast('📋 הועתק!');
+                showToast('📋 פרטים הועתקו ללוח!');
               }
             }}
             style={{ 
@@ -3571,17 +3570,18 @@ function AddClientModal({ onBack, showToast, onCreated }) {
               background: 'white', 
               color: COLORS.primaryDark, 
               border: `1px solid ${COLORS.border}`, 
-              padding: '10px', 
+              padding: '12px', 
               borderRadius: '10px', 
               fontSize: '13px', 
               fontWeight: 600, 
               cursor: 'pointer', 
               fontFamily: 'inherit',
-              marginBottom: '6px'
+              marginBottom: '8px'
             }}
           >
-            📋 העתיקי פרטים
+            📋 העתיקי הודעה לשליחה
           </button>
+          
           <button 
             onClick={onBack}
             style={{ 
@@ -3597,7 +3597,7 @@ function AddClientModal({ onBack, showToast, onCreated }) {
               fontFamily: 'inherit' 
             }}
           >
-            סיימתי ✓
+            סגור ✓
           </button>
         </section>
       </main>
