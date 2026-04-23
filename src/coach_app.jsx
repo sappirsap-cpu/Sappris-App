@@ -2340,6 +2340,8 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const [realWeights, setRealWeights] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
   const [progressPhotos, setProgressPhotos] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const c = client;
   
   // טען משקלים אמיתיים מה-DB
@@ -2420,6 +2422,28 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
     loadPhotos();
   }, [c.id]);
   
+  // מחיקת לקוחה
+  const handleDeleteClient = async () => {
+    setDeleting(true);
+    try {
+      // מחק את הלקוחה מ-clients table
+      // הטריגר ב-DB ימחק אוטומטית את כל הנתונים הקשורים
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', c.id);
+      
+      if (error) throw error;
+      
+      // חזור למסך הקודם
+      onBack();
+    } catch (err) {
+      alert('שגיאה במחיקה: ' + err.message);
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+  
   // אם יש משקלים אמיתיים - השתמש בהם, אחרת הצג רק את הנוכחי
   const weightSeries = realWeights.length > 0 ? realWeights : [
     { date: 'התחלה', w: c.startWeight || c.weight },
@@ -2464,12 +2488,82 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         width: '100%', background: 'white', color: COLORS.primaryDark,
         border: `1px solid ${COLORS.border}`, padding: '10px',
         borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       }}>
         <span style={{ fontSize: 16 }}>📄</span>
         ייצא דוח התקדמות
       </button>
+
+      {/* 🗑️ כפתור מחיקת לקוחה */}
+      <button onClick={() => setShowDeleteConfirm(true)} style={{
+        width: '100%', background: 'white', color: '#C62828',
+        border: '1px solid #FFCDD2', padding: '10px',
+        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 16 }}>🗑️</span>
+        מחק לקוחה
+      </button>
+
+      {/* Dialog אישור מחיקה */}
+      {showDeleteConfirm && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px',
+        }} onClick={() => !deleting && setShowDeleteConfirm(false)}>
+          <div style={{
+            background: 'white', borderRadius: '16px', padding: '24px',
+            maxWidth: '400px', width: '100%',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚠️</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: 700, color: '#C62828' }}>
+                מחיקת לקוחה
+              </h3>
+              <p style={{ margin: 0, fontSize: '14px', color: COLORS.text, lineHeight: 1.6 }}>
+                האם את בטוחה שברצונך למחוק את <strong>{c.name}</strong>?
+              </p>
+              <p style={{ margin: '12px 0 0', fontSize: '12px', color: COLORS.textMuted, lineHeight: 1.5 }}>
+                פעולה זו תמחק לצמיתות את כל הנתונים שלה: משקל, ארוחות, אימונים, תמונות והודעות.
+                <br/><strong>לא ניתן לשחזר את המידע!</strong>
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                style={{
+                  background: 'white', color: COLORS.text,
+                  border: `1px solid ${COLORS.border}`, padding: '12px',
+                  borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+                  cursor: deleting ? 'default' : 'pointer',
+                  fontFamily: 'inherit', opacity: deleting ? 0.5 : 1,
+                }}
+              >
+                ביטול
+              </button>
+              <button 
+                onClick={handleDeleteClient}
+                disabled={deleting}
+                style={{
+                  background: '#C62828', color: 'white',
+                  border: 'none', padding: '12px',
+                  borderRadius: '10px', fontSize: '14px', fontWeight: 600,
+                  cursor: deleting ? 'default' : 'pointer',
+                  fontFamily: 'inherit', opacity: deleting ? 0.5 : 1,
+                }}
+              >
+                {deleting ? 'מוחק...' : 'מחק לצמיתות'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
