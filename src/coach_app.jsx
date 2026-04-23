@@ -2426,14 +2426,27 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const handleDeleteClient = async () => {
     setDeleting(true);
     try {
-      // מחק את הלקוחה מ-clients table
-      // הטריגר ב-DB ימחק אוטומטית את כל הנתונים הקשורים
-      const { error } = await supabase
-        .from('clients')
-        .delete()
-        .eq('id', c.id);
-      
-      if (error) throw error;
+      // קרא ל-Edge Function שמוחקת גם מ-auth
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData?.session?.access_token;
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/delete-client`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ clientId: c.id }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to delete');
+      }
       
       // חזור למסך הקודם
       onBack();
