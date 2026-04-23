@@ -26,20 +26,10 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
-    let initialized = false;
-    let timeoutId;
 
     const init = async () => {
       try {
         setDebugInfo('בודק session...');
-        
-        // Timeout safety — אם לא מסיים תוך 8 שניות, תציג כניסה
-        timeoutId = setTimeout(() => {
-          if (!mounted || initialized) return;
-          console.warn('Init timeout - forcing login screen');
-          setSession(null);
-          setUserRole(null);
-        }, 8000);
         
         const { data: { session }, error } = await supabase.auth.getSession();
         
@@ -48,9 +38,6 @@ export default function App() {
         }
         
         if (!mounted) return;
-        
-        initialized = true;
-        clearTimeout(timeoutId);
         
         setSession(session);
         
@@ -72,23 +59,38 @@ export default function App() {
     
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
-      // רק אחרי ש-init סיים, נעדכן
-      if (!initialized) return;
       
-      setSession(newSession);
-      if (newSession) {
+      console.log('Auth event:', event);
+      
+      // התעלם מ-INITIAL_SESSION כי init כבר טיפל בזה
+      if (event === 'INITIAL_SESSION') return;
+      
+      // TOKEN_REFRESHED - רק עדכן session, אל תעשה detectRole שוב
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(newSession);
+        return;
+      }
+      
+      // SIGNED_IN - משתמש חדש נכנס
+      if (event === 'SIGNED_IN' && newSession) {
+        setSession(newSession);
         setUserRole(undefined);
         await detectRole(newSession.user.id);
-      } else {
+        return;
+      }
+      
+      // SIGNED_OUT - משתמש יצא
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
         setUserRole(null);
+        return;
       }
     });
 
     return () => { 
       mounted = false; 
-      if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe(); 
     };
   }, []);
@@ -97,18 +99,10 @@ export default function App() {
     try {
       setDebugInfo('בודק תפקיד...');
       
-      // Timeout safety — אם לא מסיים תוך 5 שניות, מחשיב כלא נמצא
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 5000)
-      );
-      
-      // בדוק את שניהם במקביל
-      const [coachRes, clientRes] = await Promise.race([
-        Promise.all([
-          supabase.from('coaches').select('id').eq('id', userId).limit(1),
-          supabase.from('clients').select('id').eq('id', userId).limit(1),
-        ]),
-        timeoutPromise
+      // בדוק את שניהם במקביל - ללא Timeout!
+      const [coachRes, clientRes] = await Promise.all([
+        supabase.from('coaches').select('id').eq('id', userId).limit(1),
+        supabase.from('clients').select('id').eq('id', userId).limit(1),
       ]);
       
       const coaches = coachRes?.data || [];
