@@ -2250,97 +2250,9 @@ function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds
 
 /* ===================== SETTINGS TAB ===================== */
 function SettingsTab({ showToast, onLogout }) {
-  const [pushStatus, setPushStatus] = useState('default');
-  const [pushLoading, setPushLoading] = useState(false);
-
-  useEffect(() => {
-    if ('Notification' in window) {
-      setPushStatus(Notification.permission);
-    } else {
-      setPushStatus('not_supported');
-    }
-  }, []);
-
-  const togglePush = async () => {
-    setPushLoading(true);
-    try {
-      if (pushStatus === 'granted') {
-        const mod = await import('./push.js');
-        await mod.unregisterFromPush();
-        setPushStatus('denied');
-        showToast('התראות בוטלו');
-      } else {
-        const mod = await import('./push.js');
-        const result = await mod.registerForPush();
-        if (result.success) {
-          setPushStatus('granted');
-          showToast('✅ התראות הופעלו!');
-        } else if (result.reason === 'denied') {
-          showToast('❌ אישור נדחה');
-          setPushStatus('denied');
-        } else {
-          showToast('שגיאה: ' + (result.reason || 'לא ידועה'));
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      showToast('שגיאה');
-    }
-    setPushLoading(false);
-  };
-
-  const pushEnabled = pushStatus === 'granted';
-  const pushBlocked = pushStatus === 'denied';
-  const pushUnsupported = pushStatus === 'not_supported';
-
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
-
-      {/* 🔔 התראות Push */}
-      <section style={cardStyle}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.text }}>🔔 התראות</h3>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-          <div style={{ flex: 1, paddingLeft: 10 }}>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 700 }}>
-              {pushEnabled ? '✅ התראות פעילות' : pushBlocked ? '❌ חסום' : pushUnsupported ? '⚠️ לא נתמך' : '🔔 הפעילי התראות'}
-            </p>
-            <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted, lineHeight: 1.5 }}>
-              {pushEnabled ? 'תקבלי התראה על הודעות חדשות מלקוחות' :
-               pushBlocked ? 'התראות חסומות. פתחי את הגדרות הדפדפן ואפשרי' :
-               pushUnsupported ? 'הדפדפן לא תומך' :
-               'קבלי התראה על הודעות חדשות גם כשהאפליקציה סגורה'}
-            </p>
-          </div>
-          {!pushUnsupported && !pushBlocked && (
-            <button 
-              onClick={togglePush} 
-              disabled={pushLoading}
-              style={{
-                width: 48, height: 28, borderRadius: 14, border: 'none',
-                cursor: pushLoading ? 'default' : 'pointer',
-                background: pushEnabled ? COLORS.primary : COLORS.border,
-                position: 'relative', transition: 'background 0.2s',
-                opacity: pushLoading ? 0.5 : 1,
-              }}
-            >
-              <div style={{
-                width: 22, height: 22, borderRadius: '50%', background: 'white',
-                position: 'absolute', top: 3, transition: 'all 0.2s',
-                ...(pushEnabled ? { left: 3, right: 'auto' } : { right: 3, left: 'auto' })
-              }}/>
-            </button>
-          )}
-        </div>
-
-        {/iPhone|iPad|iPod/.test(navigator.userAgent) && !window.matchMedia('(display-mode: standalone)').matches && (
-          <div style={{ marginTop: 8, padding: 10, background: COLORS.primarySoft, borderRadius: 10, fontSize: 11, color: COLORS.primaryDark, lineHeight: 1.6 }}>
-            💡 <b>חשוב באייפון:</b> להתראות תצטרכי להתקין את האפליקציה במסך הבית קודם.
-            שתפי → הוסיפי למסך הבית
-          </div>
-        )}
-      </section>
 
       <section style={cardStyle}>
         <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>מיתוג</h3>
