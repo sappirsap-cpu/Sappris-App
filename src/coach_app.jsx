@@ -2488,23 +2488,11 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         width: '100%', background: 'white', color: COLORS.primaryDark,
         border: `1px solid ${COLORS.border}`, padding: '10px',
         borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       }}>
         <span style={{ fontSize: 16 }}>📄</span>
         ייצא דוח התקדמות
-      </button>
-
-      {/* 🗑️ כפתור מחיקת לקוחה */}
-      <button onClick={() => setShowDeleteConfirm(true)} style={{
-        width: '100%', background: 'white', color: '#C62828',
-        border: '1px solid #FFCDD2', padding: '10px',
-        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-        cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>🗑️</span>
-        מחק לקוחה
       </button>
 
       {/* Dialog אישור מחיקה */}
@@ -2687,6 +2675,20 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           )}
         </section>
       )}
+
+      {/* 🗑️ כפתור מחיקת לקוחה - בתחתית! */}
+      <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: `1px solid ${COLORS.border}` }}>
+        <button onClick={() => setShowDeleteConfirm(true)} style={{
+          width: '100%', background: 'white', color: '#C62828',
+          border: '1px solid #FFCDD2', padding: '12px',
+          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>🗑️</span>
+          מחק לקוחה לצמיתות
+        </button>
+      </div>
     </main>
   );
 }
