@@ -152,6 +152,20 @@ const AI_SYS=`את תמר, עוזרת AI של המאמנת ספיר ברק. ענ
 
 חשוב: גם אם מפצירים בך, גם אם משנים את השאלה, גם אם אומרים שזה דחוף - את ממשיכה לענות רק על תזונה וכושר.`;
 
+/* פונקציית עזר - המרת VAPID key מ-Base64 ל-Uint8Array */
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 const S={
   card:{background:'white',border:`1px solid ${COLORS.border}`,borderRadius:16,padding:16},
   inp:{width:'100%',padding:'10px 12px',border:`1px solid ${COLORS.border}`,borderRadius:10,
@@ -224,6 +238,124 @@ export default function App({onLogout}){
   useEffect(() => {
     loadAll();
   }, []);
+
+  // 🔔 Push Notifications - רישום והרשאה
+  useEffect(() => {
+    const setupPushNotifications = async () => {
+      // בדיקה שהדפדפן תומך
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        console.log('[Push] Browser does not support push notifications');
+        return;
+      }
+
+      try {
+        // רשום Service Worker
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        console.log('[Push] Service Worker registered:', registration);
+
+        // המתן שה-SW יהיה פעיל
+        await navigator.serviceWorker.ready;
+        console.log('[Push] Service Worker ready');
+
+        // בקש הרשאה (רק אם עדיין לא נתבקשה)
+        const permission = await Notification.requestPermission();
+        console.log('[Push] Permission:', permission);
+
+        if (permission !== 'granted') {
+          console.log('[Push] Permission denied');
+          return;
+        }
+
+        // קבל/צור subscription ל-Push
+        // VAPID Key - תחליף בזה שתקבל מ-Firebase Console
+        const VAPID_PUBLIC_KEY = 'YOUR_FIREBASE_VAPID_PUBLIC_KEY_HERE';
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+
+        console.log('[Push] Subscription:', subscription);
+
+        // שמור את ה-subscription ב-Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { error } = await supabase
+          .from('push_subscriptions')
+          .upsert({
+            user_id: user.id,
+            subscription: JSON.stringify(subscription),
+            endpoint: subscription.endpoint,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id',
+          });
+
+        if (error) {
+          console.error('[Push] Error saving subscription:', error);
+        } else {
+          console.log('[Push] Subscription saved to DB ✅');
+        }
+
+      } catch (error) {
+        console.error('[Push] Setup error:', error);
+      }
+    };
+
+    // המתן קצת אחרי טעינת העמוד
+    const timer = setTimeout(setupPushNotifications, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 🔔 Realtime - קבלת הודעות חדשות מהמאמנת בזמן אמת
+  useEffect(() => {
+    let channel = null;
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('client-notifications')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `to_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const newMsg = payload.new;
+            console.log('🔔 [Realtime] הודעה חדשה:', newMsg);
+            
+            // הוסף להודעות
+            setMessages(prev => [...prev, {
+              id: newMsg.id,
+              from: 'coach',
+              text: newMsg.content,
+              time: new Date(newMsg.sent_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'}),
+            }]);
+            
+            // עדכן מונה לא נקראו (רק אם לא נמצא במסך ההודעות)
+            setUnread(prev => tab === 'messages' ? 0 : prev + 1);
+            
+            // הצג Toast עם תצוגה מקדימה
+            showToast(`💬 הודעה חדשה: ${(newMsg.content || '').slice(0, 50)}${newMsg.content?.length > 50 ? '...' : ''}`);
+            
+            // רטט (אם הטלפון תומך)
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          }
+        )
+        .subscribe();
+    };
+    
+    setupRealtime();
+    
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [tab]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -560,46 +692,18 @@ export default function App({onLogout}){
         </button>
       </header>
 
-      {/* 🔍 באנר דיבוג - זמני */}
-      <div style={{
-        background: debugInfo.scheduleRows > 0 ? '#D4EDDA' : '#FFF3CD',
-        border: `1px solid ${debugInfo.scheduleRows > 0 ? '#155724' : '#856404'}`,
-        color: debugInfo.scheduleRows > 0 ? '#155724' : '#856404',
-        padding: '10px 14px',
-        fontSize: 12,
-        margin: '8px 14px',
-        borderRadius: 8,
-        lineHeight: 1.6,
-      }}>
-        <div style={{fontWeight: 700, marginBottom: 4, fontSize: 13}}>
-          🔍 מידע דיבוג - חיבור למאמנת
-        </div>
-        <div>👤 <b>User ID:</b> {debugInfo.userId || 'טוען...'}</div>
-        <div>📅 <b>היום:</b> יום {debugInfo.dayOfWeek}</div>
-        <div>📋 <b>שורות בלוח שבועי:</b> {debugInfo.scheduleRows}</div>
-        <div>🍽️ <b>ארוחות מצורפות:</b> {debugInfo.mealsFound}</div>
-        <div>💪 <b>אימונים מצורפים:</b> {debugInfo.workoutsFound}</div>
-        <div>🏋️ <b>תרגילים להציג:</b> {debugInfo.exercisesFound}</div>
-        {debugInfo.mealError && (
-          <div style={{color: '#721C24', marginTop: 4, fontWeight: 600}}>
-            ❌ שגיאת ארוחות: {debugInfo.mealError}
-          </div>
-        )}
-        {debugInfo.workoutError && (
-          <div style={{color: '#721C24', marginTop: 4, fontWeight: 600}}>
-            ❌ שגיאת אימונים: {debugInfo.workoutError}
-          </div>
-        )}
-        {debugInfo.scheduleRows === 0 && !debugInfo.mealError && !debugInfo.workoutError && (
-          <div style={{marginTop: 6, fontStyle: 'italic'}}>
-            💡 לא נמצא לוח שבועי ליום הזה - בדוק שהמאמנת הקצתה תוכנית ליום הנכון
-          </div>
-        )}
-      </div>
-
       {/* HOME */}
       {tab==='home'&&(
         <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
+          {/* 🔔 באנר תזכורות חכם */}
+          <ReminderBanner 
+            meals={meals} 
+            water={water} 
+            weights={weights} 
+            plan={plan} 
+            onTabChange={setTab} 
+          />
+          
           {/* calorie ring */}
           <section style={{...S.card,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:24,paddingBottom:24}}>
             <div style={{position:'relative',width:180,height:180,marginBottom:16}}>
@@ -753,6 +857,136 @@ export default function App({onLogout}){
           </button>
         ))}
       </nav>
+    </div>
+  );
+}
+
+/* ══ 🔔 REMINDER BANNER - התראות חכמות ══ */
+function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
+  const [dismissed, setDismissed] = useState([]);
+  const now = new Date();
+  const hour = now.getHours();
+  
+  const reminders = [];
+  
+  // 🍳 שכחת לרשום ארוחת בוקר (אחרי 10:00)
+  if (hour >= 10 && hour < 14) {
+    const hasBreakfast = meals.some(m => {
+      if (!m.time) return false;
+      const [h] = m.time.split(':').map(Number);
+      return h >= 5 && h < 11;
+    });
+    if (!hasBreakfast && !dismissed.includes('breakfast')) {
+      reminders.push({
+        id: 'breakfast',
+        icon: '🍳',
+        text: 'שכחת לרשום ארוחת בוקר?',
+        action: 'רשמי עכשיו',
+        color: '#FFF3CD',
+        textColor: '#856404',
+        onClick: () => onTabChange('log'),
+      });
+    }
+  }
+  
+  // 🥗 שכחת לרשום ארוחת צהריים (אחרי 15:00)
+  if (hour >= 15 && hour < 18) {
+    const hasLunch = meals.some(m => {
+      if (!m.time) return false;
+      const [h] = m.time.split(':').map(Number);
+      return h >= 11 && h < 16;
+    });
+    if (!hasLunch && !dismissed.includes('lunch')) {
+      reminders.push({
+        id: 'lunch',
+        icon: '🥗',
+        text: 'שכחת לרשום ארוחת צהריים?',
+        action: 'רשמי',
+        color: '#FFF3CD',
+        textColor: '#856404',
+        onClick: () => onTabChange('log'),
+      });
+    }
+  }
+  
+  // 💧 שתייה נמוכה
+  if (hour >= 14 && water < 1000 && !dismissed.includes('water')) {
+    reminders.push({
+      id: 'water',
+      icon: '💧',
+      text: `שתית רק ${water} מ״ל היום. זמן למים!`,
+      action: '+ 250 מ״ל',
+      color: '#D1ECF1',
+      textColor: '#0C5460',
+      onClick: () => onTabChange('log'),
+    });
+  }
+  
+  // ⚖️ לא עדכנת משקל השבוע
+  const lastWeight = weights[weights.length - 1];
+  if (lastWeight) {
+    // משקל אחרון - בדוק אם יותר משבוע (אם יש תאריך עם שנה זה אמין יותר)
+    const weekInMs = 7 * 24 * 60 * 60 * 1000;
+    const lastWeightTime = new Date(lastWeight.date + '/' + now.getFullYear()).getTime();
+    if (!isNaN(lastWeightTime) && (now.getTime() - lastWeightTime) > weekInMs && !dismissed.includes('weight')) {
+      reminders.push({
+        id: 'weight',
+        icon: '⚖️',
+        text: 'לא עדכנת משקל השבוע',
+        action: 'עדכני',
+        color: '#E8DFF5',
+        textColor: '#5D4B85',
+        onClick: () => onTabChange('stats'),
+      });
+    }
+  }
+  
+  // 🎉 עידוד חיובי - שמרה על כל הארוחות
+  if (plan?.meals?.length > 0 && meals.length >= plan.meals.length && !dismissed.includes('great')) {
+    reminders.push({
+      id: 'great',
+      icon: '🎉',
+      text: 'כל הכבוד! סימנת את כל הארוחות היום!',
+      action: null,
+      color: '#D4EDDA',
+      textColor: '#155724',
+    });
+  }
+  
+  if (reminders.length === 0) return null;
+  
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {reminders.map(r => (
+        <div
+          key={r.id}
+          onClick={r.onClick}
+          style={{
+            background: r.color,
+            border: `1px solid ${r.textColor}33`,
+            borderRadius: 12,
+            padding: '10px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            cursor: r.onClick ? 'pointer' : 'default',
+          }}
+        >
+          <span style={{ fontSize: 20 }}>{r.icon}</span>
+          <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: r.textColor }}>
+            {r.text}
+          </p>
+          {r.action && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: r.textColor }}>
+              {r.action} ←
+            </span>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); setDismissed(prev => [...prev, r.id]); }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: r.textColor, opacity: 0.6, padding: 2 }}
+          >✕</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1023,13 +1257,36 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
             <button onClick={()=>setExs(p=>p.filter(e=>e.id!==ex.id))} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:14,color:COLORS.accentDark}}>🗑️</button>
           </div>
           <div style={{display:'flex',gap:6,marginTop:10}}>
-            <button onClick={()=>setActiveEx(activeEx===ex.id?null:ex.id)} style={{flex:1,background:COLORS.primarySoft,color:COLORS.primaryDark,border:`1px solid ${COLORS.border}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>📺 סרטון</button>
+            {ex.videoUrl && <button onClick={()=>setActiveEx(activeEx===ex.id?null:ex.id)} style={{flex:1,background:COLORS.primarySoft,color:COLORS.primaryDark,border:`1px solid ${COLORS.border}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>📺 {activeEx===ex.id?'סגור':'סרטון'}</button>}
             <button onClick={()=>{setTimer(ex.rest);setTimerOn(true);}} style={{flex:1,background:COLORS.amberSoft,color:'#8B6914',border:`1px solid ${COLORS.amber}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>⏱️ טיימר</button>
           </div>
-          {activeEx===ex.id&&(
-            <div style={{marginTop:10,background:COLORS.text,borderRadius:10,height:120,display:'flex',alignItems:'center',justifyContent:'center',color:'white',flexDirection:'column',gap:4}}>
-              <span style={{fontSize:32}}>▶️</span>
-              <span style={{fontSize:11,opacity:0.7}}>סרטון הדגמה — {ex.name}</span>
+          {ex.notes && <p style={{margin:'8px 0 0',padding:8,background:COLORS.primarySoft,borderRadius:8,fontSize:11,color:COLORS.text,fontStyle:'italic'}}>💡 {ex.notes}</p>}
+          {activeEx===ex.id&&ex.videoUrl&&(
+            <div style={{marginTop:10,background:'black',borderRadius:10,overflow:'hidden',position:'relative'}}>
+              {(()=>{
+                const url = ex.videoUrl;
+                // YouTube
+                let videoId = '';
+                if (url.includes('youtube.com/watch?v=')) videoId = url.split('v=')[1]?.split('&')[0];
+                else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1]?.split('?')[0];
+                else if (url.includes('youtube.com/shorts/')) videoId = url.split('shorts/')[1]?.split('?')[0];
+                
+                if (videoId) {
+                  return <iframe width="100%" height="220" src={`https://www.youtube.com/embed/${videoId}`} title={ex.name} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{display:'block'}}></iframe>;
+                }
+                // Direct video (mp4)
+                if (url.match(/\.(mp4|webm|mov)$/i)) {
+                  return <video controls width="100%" style={{display:'block',maxHeight:240}}><source src={url} /></video>;
+                }
+                // Fallback - open in new tab
+                return (
+                  <div style={{padding:20,textAlign:'center',color:'white'}}>
+                    <a href={url} target="_blank" rel="noopener noreferrer" style={{color:'white',textDecoration:'underline',fontSize:13}}>
+                      ▶️ פתחי את הסרטון בכרטיסייה חדשה
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </section>
@@ -1045,6 +1302,10 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
 /* ══ STATS SCREEN ══ */
 function StatsScreen({weights,profile,onLog,onDel}){
   const[nw,setNw]=useState('');
+  const[photos,setPhotos]=useState([]);
+  const[uploading,setUploading]=useState(false);
+  const[photoLabel,setPhotoLabel]=useState('');
+  const fileInputRef=useRef(null);
   const sorted=[...weights].sort((a,b)=>a.id-b.id);
   const minW=sorted.length?Math.min(...sorted.map(w=>w.w),profile.target)-1:60;
   const maxW=sorted.length?Math.max(...sorted.map(w=>w.w))+1:80;
@@ -1054,6 +1315,85 @@ function StatsScreen({weights,profile,onLog,onDel}){
   const xS=sorted.length>1?pW/(sorted.length-1):pW;
   const yF=w=>pad.t+pH-((w-minW)/range)*pH;
   const pathD=sorted.map((p,i)=>`${i===0?'M':'L'} ${pad.l+i*xS} ${yF(p.w)}`).join(' ');
+
+  // טען תמונות קיימות
+  useEffect(()=>{
+    loadPhotos();
+  },[]);
+
+  const loadPhotos=async()=>{
+    const{data:{user}}=await supabase.auth.getUser();
+    if(!user)return;
+    const{data}=await supabase.from('progress_photos').select('*').eq('client_id',user.id).order('created_at',{ascending:false});
+    if(data)setPhotos(data);
+  };
+
+  // העלאת תמונה ל-Supabase Storage
+  const handleFileUpload=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    
+    // בדוק גודל - מקסימום 5MB
+    if(file.size>5*1024*1024){
+      alert('התמונה גדולה מדי (מקסימום 5MB)');
+      return;
+    }
+
+    setUploading(true);
+    const{data:{user}}=await supabase.auth.getUser();
+    if(!user){setUploading(false);return;}
+
+    // שם ייחודי לקובץ
+    const ext=file.name.split('.').pop();
+    const fileName=`${user.id}/${Date.now()}.${ext}`;
+
+    // העלה ל-storage
+    const{error:upErr}=await supabase.storage
+      .from('progress-photos')
+      .upload(fileName,file,{cacheControl:'3600',upsert:false});
+
+    if(upErr){
+      console.error('Upload error:',upErr);
+      alert('שגיאה בהעלאה: '+upErr.message);
+      setUploading(false);
+      return;
+    }
+
+    // קבל URL ציבורי
+    const{data:urlData}=supabase.storage.from('progress-photos').getPublicUrl(fileName);
+
+    // שמור רשומה ב-DB
+    const{data:newPhoto,error:dbErr}=await supabase.from('progress_photos').insert({
+      client_id:user.id,
+      photo_url:urlData.publicUrl,
+      storage_path:fileName,
+      label:photoLabel.trim()||null,
+    }).select();
+
+    if(dbErr){
+      console.error('DB error:',dbErr);
+      alert('שגיאה בשמירה: '+dbErr.message);
+    }else if(newPhoto?.[0]){
+      setPhotos(prev=>[newPhoto[0],...prev]);
+      setPhotoLabel('');
+    }
+
+    setUploading(false);
+    if(fileInputRef.current)fileInputRef.current.value='';
+  };
+
+  // מחיקת תמונה
+  const deletePhoto=async(photo)=>{
+    if(!confirm('למחוק את התמונה?'))return;
+    
+    // מחק מ-storage
+    if(photo.storage_path){
+      await supabase.storage.from('progress-photos').remove([photo.storage_path]);
+    }
+    // מחק מ-DB
+    await supabase.from('progress_photos').delete().eq('id',photo.id);
+    setPhotos(prev=>prev.filter(p=>p.id!==photo.id));
+  };
 
   return(
     <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
@@ -1101,6 +1441,71 @@ function StatsScreen({weights,profile,onLog,onDel}){
           );
         })}
       </section>
+
+      {/* 📸 תמונות התקדמות */}
+      <section style={S.card}>
+        <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700}}>📸 תמונות התקדמות</h4>
+        
+        <input 
+          value={photoLabel} 
+          onChange={e=>setPhotoLabel(e.target.value)} 
+          placeholder="תווית (אופציונלי) - למשל: לפני, אחרי, חודש 1" 
+          style={{...S.inp,marginBottom:8,fontSize:12}}
+        />
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="user"
+          onChange={handleFileUpload}
+          style={{display:'none'}}
+        />
+        <button 
+          onClick={()=>fileInputRef.current?.click()}
+          disabled={uploading}
+          style={{
+            width:'100%',
+            background:uploading?COLORS.primarySoft:COLORS.primary,
+            color:uploading?COLORS.primaryDark:'white',
+            border:'none',padding:12,borderRadius:10,fontSize:13,fontWeight:700,
+            cursor:uploading?'default':'pointer',fontFamily:'inherit',marginBottom:12
+          }}
+        >
+          {uploading?'מעלה...':'📸 הוסיפי תמונה'}
+        </button>
+
+        {photos.length===0?(
+          <p style={{textAlign:'center',color:COLORS.textMuted,fontSize:12,padding:'20px 0'}}>
+            עדיין אין תמונות. הוסיפי תמונה ראשונה למעקב 💜
+          </p>
+        ):(
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            {photos.map(p=>(
+              <div key={p.id} style={{position:'relative',aspectRatio:'3/4',borderRadius:10,overflow:'hidden',border:`1px solid ${COLORS.border}`}}>
+                <img 
+                  src={p.photo_url} 
+                  alt={p.label||'תמונה'}
+                  style={{width:'100%',height:'100%',objectFit:'cover',display:'block',cursor:'pointer'}}
+                  onClick={()=>window.open(p.photo_url,'_blank')}
+                />
+                <button 
+                  onClick={()=>deletePhoto(p)}
+                  style={{position:'absolute',top:4,left:4,background:'rgba(0,0,0,0.5)',color:'white',border:'none',width:26,height:26,borderRadius:'50%',cursor:'pointer',fontSize:12}}
+                >🗑️</button>
+                {p.label&&(
+                  <span style={{position:'absolute',top:4,right:4,background:'white',fontSize:10,fontWeight:600,padding:'2px 6px',borderRadius:4,color:COLORS.primaryDark}}>
+                    {p.label}
+                  </span>
+                )}
+                <span style={{position:'absolute',bottom:4,left:4,right:4,background:'rgba(0,0,0,0.6)',color:'white',fontSize:10,padding:'2px 4px',borderRadius:4,textAlign:'center'}}>
+                  {new Date(p.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'numeric',year:'2-digit'})}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
@@ -1133,30 +1538,128 @@ function MessagesScreen({messages,onSend}){
 
 /* ══ SETTINGS SCREEN ══ */
 function SettingsScreen({profile,showToast,onLogout}){
-  const[notifs,setNotifs]=useState(true);
   const[kosher,setKosher]=useState(false);
+  const[pushStatus,setPushStatus]=useState('default');
+  const[pushLoading,setPushLoading]=useState(false);
+
+  useEffect(()=>{
+    // בדוק סטטוס נוכחי של התראות
+    if('Notification' in window){
+      setPushStatus(Notification.permission);
+    }else{
+      setPushStatus('not_supported');
+    }
+  },[]);
+
+  const togglePush=async()=>{
+    setPushLoading(true);
+    try{
+      if(pushStatus==='granted'){
+        // ביטול התראות - הסר את הטוקנים
+        const mod=await import('./push.js');
+        await mod.unregisterFromPush();
+        setPushStatus('denied');
+        showToast('התראות בוטלו');
+      }else{
+        // הפעל התראות
+        const mod=await import('./push.js');
+        const result=await mod.registerForPush();
+        if(result.success){
+          setPushStatus('granted');
+          showToast('✅ התראות הופעלו!');
+        }else if(result.reason==='denied'){
+          showToast('❌ אישור נדחה - שני את הגדרות הדפדפן');
+          setPushStatus('denied');
+        }else if(result.reason==='not_supported'){
+          showToast('הדפדפן לא תומך בהתראות');
+          setPushStatus('not_supported');
+        }else{
+          showToast('שגיאה: '+(result.reason||'לא ידועה'));
+        }
+      }
+    }catch(e){
+      console.error(e);
+      showToast('שגיאה בהפעלת התראות');
+    }
+    setPushLoading(false);
+  };
+
+  const pushEnabled=pushStatus==='granted';
+  const pushBlocked=pushStatus==='denied';
+  const pushUnsupported=pushStatus==='not_supported';
+
   return(
     <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
       <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>⚙️ הגדרות</h2>
+      
       <section style={S.card}>
         <h4 style={{margin:'0 0 14px',fontSize:14,fontWeight:700}}>פרטים אישיים</h4>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
           <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>שם</p><input defaultValue={profile.full_name} style={S.inp}/></div>
           <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>אימייל</p><input defaultValue={profile.email} style={{...S.inp,direction:'ltr',textAlign:'right'}}/></div>
         </div>
-        {[['התראות',notifs,setNotifs,'תזכורות יומיות'],['כשר',kosher,setKosher,'מתכונים כשרים בלבד']].map(([l,v,s,d])=>(
-          <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
-            <div>
-              <p style={{margin:0,fontSize:14,fontWeight:700}}>{l}</p>
-              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{d}</p>
-            </div>
-            <button onClick={()=>s(x=>!x)} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:v?COLORS.primary:COLORS.border,position:'relative',transition:'background 0.2s'}}>
-              <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(v?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
-            </button>
-          </div>
-        ))}
-        <button onClick={()=>showToast('💾 שינויים נשמרו')} style={{...S.btn,marginTop:14}}>שמור שינויים</button>
       </section>
+
+      {/* 🔔 התראות Push */}
+      <section style={S.card}>
+        <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700}}>🔔 התראות</h4>
+        
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0'}}>
+          <div style={{flex:1}}>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>
+              {pushEnabled?'✅ התראות פעילות':pushBlocked?'❌ התראות חסומות':pushUnsupported?'⚠️ לא נתמך':'🔔 הפעילי התראות'}
+            </p>
+            <p style={{margin:'4px 0 0',fontSize:11,color:COLORS.textMuted,lineHeight:1.5}}>
+              {pushEnabled?'תקבלי התראה על הודעות חדשות מהמאמנת':
+               pushBlocked?'ההתראות חסומות בדפדפן. פתחי את הגדרות האתר ואפשרי התראות':
+               pushUnsupported?'הדפדפן שלך לא תומך בהתראות':
+               'קבלי התראה על הודעות חדשות גם כשהאפליקציה סגורה'}
+            </p>
+          </div>
+          {!pushUnsupported&&!pushBlocked&&(
+            <button 
+              onClick={togglePush} 
+              disabled={pushLoading}
+              style={{
+                width:48,height:28,borderRadius:14,border:'none',
+                cursor:pushLoading?'default':'pointer',
+                background:pushEnabled?COLORS.primary:COLORS.border,
+                position:'relative',transition:'background 0.2s',
+                opacity:pushLoading?0.5:1,
+              }}
+            >
+              <div style={{
+                width:22,height:22,borderRadius:'50%',background:'white',
+                position:'absolute',top:3,transition:'all 0.2s',
+                ...(pushEnabled?{left:3,right:'auto'}:{right:3,left:'auto'})
+              }}/>
+            </button>
+          )}
+        </div>
+
+        {/* הוראות התקנה ל-iOS */}
+        {/iPhone|iPad|iPod/.test(navigator.userAgent)&&!window.matchMedia('(display-mode: standalone)').matches&&(
+          <div style={{marginTop:8,padding:10,background:COLORS.primarySoft,borderRadius:10,fontSize:11,color:COLORS.primaryDark,lineHeight:1.6}}>
+            💡 <b>חשוב באייפון:</b> להתראות תצטרכי להתקין את האפליקציה במסך הבית קודם.
+            <br/>שתפי → הוסיפי למסך הבית → פתחי משם
+          </div>
+        )}
+      </section>
+
+      <section style={S.card}>
+        <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700}}>העדפות</h4>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0'}}>
+          <div>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>כשר</p>
+            <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>מתכונים כשרים בלבד</p>
+          </div>
+          <button onClick={()=>setKosher(x=>!x)} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:kosher?COLORS.primary:COLORS.border,position:'relative',transition:'background 0.2s'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(kosher?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
+          </button>
+        </div>
+        <button onClick={()=>showToast('💾 שינויים נשמרו')} style={{...S.btn,marginTop:10}}>שמור שינויים</button>
+      </section>
+
       <section style={S.card}>
         <button onClick={onLogout} style={{width:'100%',background:'white',color:'#C88A8A',border:'1px solid #E8A5A5',padding:12,borderRadius:12,fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>🚪 התנתקי</button>
       </section>
