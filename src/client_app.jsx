@@ -12,6 +12,8 @@ import {
   isTodayRestDay,
   updateStreak,
 } from './wellness';
+import { NotificationSettings, startReminders, getReminderPrefs } from './notifications';
+import { BadgeCelebration } from './celebration';
 
 const COLORS = {
   bg:'#F5F2FA',primary:'#B19CD9',primaryDark:'#8B72B5',primarySoft:'#E8DFF5',
@@ -237,6 +239,9 @@ export default function App({onLogout}){
   const [dailyBreakdown, setDailyBreakdown] = useState(null);
   const [isRestDay, setIsRestDay] = useState(false);
 
+  // 🎉 חגיגת תגים חדשים
+  const [celebrationBadges, setCelebrationBadges] = useState([]);
+
   // טעינה ראשונית
   useEffect(() => {
     loadAll();
@@ -272,7 +277,8 @@ export default function App({onLogout}){
         await saveDailyScore(user.id, breakdown);
         const earned = await checkAndAwardBadges(user.id, breakdown, sleepHours, isRestDay);
         if (earned.length > 0) {
-          showToast(`🎉 זכית בתג חדש!`);
+          // 🎉 הצג מסך חגיגי עם קונפטי
+          setCelebrationBadges(earned);
         }
         // עדכן streak
         const newStreak = await updateStreak(user.id);
@@ -282,6 +288,15 @@ export default function App({onLogout}){
       })();
     }
   }, [meals, water, exs, sleepHours, isRestDay, profile, loading]);
+
+  // 🔔 הפעל תזכורות מתוזמנות בעלייה ראשונית
+  useEffect(() => {
+    if (loading) return;
+    const prefs = getReminderPrefs();
+    if (prefs.enabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      startReminders();
+    }
+  }, [loading]);
 
   // 🔔 Realtime - קבלת הודעות חדשות מהמאמנת בזמן אמת
   useEffect(() => {
@@ -810,6 +825,14 @@ export default function App({onLogout}){
       {tab==='settings'&&<SettingsScreen profile={profile} showToast={showToast} onLogout={onLogout}/>}
 
       {toast&&<div style={{position:'fixed',bottom:84,left:'50%',transform:'translateX(-50%)',background:COLORS.text,color:'white',padding:'10px 18px',borderRadius:999,fontSize:13,fontWeight:500,zIndex:60,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',whiteSpace:'nowrap'}}>{toast}</div>}
+
+      {/* 🎉 חגיגת תגים חדשים */}
+      {celebrationBadges.length > 0 && (
+        <BadgeCelebration
+          badgeCodes={celebrationBadges}
+          onClose={() => setCelebrationBadges([])}
+        />
+      )}
 
       {!chat&&tab==='home'&&(
         <>
@@ -1539,7 +1562,6 @@ function MessagesScreen({messages,onSend}){
 
 /* ══ SETTINGS SCREEN ══ */
 function SettingsScreen({profile,showToast,onLogout}){
-  const[notifs,setNotifs]=useState(true);
   const[kosher,setKosher]=useState(false);
   return(
     <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
@@ -1550,7 +1572,7 @@ function SettingsScreen({profile,showToast,onLogout}){
           <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>שם</p><input defaultValue={profile.full_name} style={S.inp}/></div>
           <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>אימייל</p><input defaultValue={profile.email} style={{...S.inp,direction:'ltr',textAlign:'right'}}/></div>
         </div>
-        {[['התראות',notifs,setNotifs,'תזכורות יומיות'],['כשר',kosher,setKosher,'מתכונים כשרים בלבד']].map(([l,v,s,d])=>(
+        {[['כשר',kosher,setKosher,'מתכונים כשרים בלבד']].map(([l,v,s,d])=>(
           <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
             <div>
               <p style={{margin:0,fontSize:14,fontWeight:700}}>{l}</p>
@@ -1563,6 +1585,10 @@ function SettingsScreen({profile,showToast,onLogout}){
         ))}
         <button onClick={()=>showToast('💾 שינויים נשמרו')} style={{...S.btn,marginTop:14}}>שמור שינויים</button>
       </section>
+
+      {/* 🔔 הגדרות תזכורות */}
+      <NotificationSettings />
+
       <section style={S.card}>
         <button onClick={onLogout} style={{width:'100%',background:'white',color:'#C88A8A',border:'1px solid #E8A5A5',padding:12,borderRadius:12,fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>🚪 התנתקי</button>
       </section>
