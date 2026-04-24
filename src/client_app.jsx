@@ -9,6 +9,8 @@ import {
   saveDailyScore,
   checkAndAwardBadges,
   getTodaySleep,
+  isTodayRestDay,
+  updateStreak,
 } from './wellness';
 
 const COLORS = {
@@ -233,6 +235,7 @@ export default function App({onLogout}){
   // 💜 Wellness — שינה וציון יומי
   const [sleepHours, setSleepHours] = useState(0);
   const [dailyBreakdown, setDailyBreakdown] = useState(null);
+  const [isRestDay, setIsRestDay] = useState(false);
 
   // טעינה ראשונית
   useEffect(() => {
@@ -249,7 +252,7 @@ export default function App({onLogout}){
 
     const breakdown = computeDailyScore({
       workoutDone,
-      isRestDay: false,
+      isRestDay,
       calories: totalCal,
       calorieGoal: profile.daily_calorie_goal || 1800,
       protein: totalProt,
@@ -267,13 +270,18 @@ export default function App({onLogout}){
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
         await saveDailyScore(user.id, breakdown);
-        const earned = await checkAndAwardBadges(user.id, breakdown, sleepHours);
+        const earned = await checkAndAwardBadges(user.id, breakdown, sleepHours, isRestDay);
         if (earned.length > 0) {
           showToast(`🎉 זכית בתג חדש!`);
         }
+        // עדכן streak
+        const newStreak = await updateStreak(user.id);
+        if (newStreak !== profile.streak) {
+          setProfile(prev => ({ ...prev, streak: newStreak }));
+        }
       })();
     }
-  }, [meals, water, exs, sleepHours, profile, loading]);
+  }, [meals, water, exs, sleepHours, isRestDay, profile, loading]);
 
   // 🔔 Realtime - קבלת הודעות חדשות מהמאמנת בזמן אמת
   useEffect(() => {
@@ -429,9 +437,13 @@ export default function App({onLogout}){
 
     if (waterData) setWater(waterData.reduce((s,w)=>s+w.amount_ml, 0));
 
-    // טען שעות שינה של היום
-    const sleep = await getTodaySleep(user.id);
+    // טען שעות שינה של היום ובדוק אם היום הוא יום מנוחה
+    const [sleep, restDay] = await Promise.all([
+      getTodaySleep(user.id),
+      isTodayRestDay(user.id),
+    ]);
     setSleepHours(sleep);
+    setIsRestDay(restDay);
 
     // טען הודעות
     const { data: msgsData } = await supabase
@@ -739,6 +751,15 @@ export default function App({onLogout}){
               </div>
             </div>
           </div>
+
+          {/* 🧘 אינדיקטור יום מנוחה */}
+          {isRestDay && (
+            <section style={{...S.card, background: 'linear-gradient(135deg, #E8DFF5 0%, #F4C2C2 100%)', border: 'none', padding: 14, textAlign: 'center'}}>
+              <div style={{fontSize: 28, marginBottom: 4}}>🧘‍♀️</div>
+              <p style={{margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.primaryDark}}>היום יום מנוחה</p>
+              <p style={{margin: '2px 0 0', fontSize: 11, color: COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון 💜</p>
+            </section>
+          )}
 
           {/* 💜 Wellness — ציון יומי, שינה, תגים */}
           <DailyScoreCard breakdown={dailyBreakdown} />
