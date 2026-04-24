@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
+import { CoachClientWellness, CoachWeeklyOverview } from './wellness';
 
 
 /**
@@ -730,6 +731,7 @@ export default function App({ onLogout }) {
       {!subView && tab === 'dashboard' && (
         <DashboardTab
           clients={clients}
+          coachProfile={coachProfile}
           loggedToday={loggedToday}
           activeCount={activeCount}
           needsAttention={needsAttention}
@@ -817,7 +819,7 @@ function CoachNavIcon({ name, active }) {
 }
 
 /* ===================== DASHBOARD TAB ===================== */
-function DashboardTab({ clients, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
+function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
   const today = new Date();
   const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -831,6 +833,9 @@ function DashboardTab({ clients, loggedToday, activeCount, needsAttention, onOpe
         <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
         <StatCard value={needsAttention.length} label="ממתינים" color={needsAttention.length > 0 ? COLORS.red : COLORS.textMuted} />
       </div>
+
+      {/* 💜 סקירה שבועית של כל הלקוחות */}
+      {coachProfile?.id && <CoachWeeklyOverview coachId={coachProfile.id} />}
 
       {/* 🔔 פיד פעילות אחרונה */}
       <ActivityFeed clients={clients} onOpenClient={onOpenClient} />
@@ -2596,6 +2601,9 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
 
       {tab === 'overview' && (
         <>
+          {/* 💜 דוח שבועי ותגי הישג */}
+          <CoachClientWellness client={client} />
+
           <section style={cardStyle}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📉 התקדמות משקל</h4>
             <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }}>
