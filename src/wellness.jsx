@@ -154,31 +154,59 @@ export const BADGES = {
   good_sleep:    { icon: '😴', label: 'שינה טובה',    desc: '7-9 שעות שינה' },
   week_streak:   { icon: '🔥', label: 'שבוע רצוף',    desc: '7 ימים עם ציון 60+' },
   early_bird:    { icon: '🌅', label: 'ציפור בוקר',   desc: 'דיווח לפני 10:00' },
+  month_streak:  { icon: '🏆', label: 'חודש של ברזל', desc: '30 ימים רצופים 60+' },
+  target_reached:{ icon: '🎯', label: 'יעד הושג!',    desc: 'הגעת למשקל היעד' },
+  consistency:   { icon: '💎', label: 'עקביות',       desc: '14 ימים רצופים 75+' },
+  all_macros:    { icon: '🥇', label: 'שילוש מאקרו', desc: 'קלוריות+חלבון+מים מלא' },
+  rest_master:   { icon: '🧘', label: 'מנוחה חכמה',   desc: 'כיבדת יום מנוחה' },
 };
 
-export async function checkAndAwardBadges(clientId, breakdown, sleepHours) {
+export async function checkAndAwardBadges(clientId, breakdown, sleepHours, isRestDay = false) {
   const earned = [];
-  const today = new Date().toISOString().slice(0, 10);
   const now = new Date();
 
   const toAward = [];
   if (breakdown.total_score >= 95) toAward.push('perfect_day');
-  if (breakdown.workout_pts === 20) toAward.push('workout_done');
+  if (breakdown.workout_pts === 20 && !isRestDay) toAward.push('workout_done');
+  if (isRestDay && breakdown.workout_pts === 20) toAward.push('rest_master');
   if (breakdown.protein_pts === 20) toAward.push('protein_hero');
   if (breakdown.water_pts === 20) toAward.push('hydration');
   if (sleepHours >= 7 && sleepHours <= 9) toAward.push('good_sleep');
   if (now.getHours() < 10) toAward.push('early_bird');
+  if (breakdown.calories_pts === 20 && breakdown.protein_pts === 20 && breakdown.water_pts === 20) {
+    toAward.push('all_macros');
+  }
 
-  // בדוק streak שבועי
-  const { data: lastWeek } = await supabase
+  // בדוק streaks שונים
+  const { data: history } = await supabase
     .from('daily_scores')
     .select('score_date, total_score')
     .eq('client_id', clientId)
-    .gte('score_date', new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10))
+    .gte('score_date', new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
     .order('score_date', { ascending: false });
 
-  if (lastWeek && lastWeek.length >= 7 && lastWeek.every(d => d.total_score >= 60)) {
+  if (history && history.length >= 7 && history.slice(0, 7).every(d => d.total_score >= 60)) {
     toAward.push('week_streak');
+  }
+  if (history && history.length >= 14 && history.slice(0, 14).every(d => d.total_score >= 75)) {
+    toAward.push('consistency');
+  }
+  if (history && history.length >= 30 && history.slice(0, 30).every(d => d.total_score >= 60)) {
+    toAward.push('month_streak');
+  }
+
+  // בדוק אם הגיעה ליעד משקל
+  const { data: client } = await supabase
+    .from('clients')
+    .select('current_weight, target_weight')
+    .eq('id', clientId)
+    .maybeSingle();
+
+  if (client?.current_weight && client?.target_weight) {
+    // יעד הושג אם המשקל הנוכחי בטווח של 0.5 ק״ג מהיעד
+    if (Math.abs(client.current_weight - client.target_weight) <= 0.5) {
+      toAward.push('target_reached');
+    }
   }
 
   // הוסף לדטאבייס (UNIQUE מונע כפילויות)
@@ -192,6 +220,65 @@ export async function checkAndAwardBadges(clientId, breakdown, sleepHours) {
   }
 
   return earned;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   עדכון streak אוטומטי לפי ציון יומי
+═══════════════════════════════════════════════════════════ */
+export async function updateStreak(clientId) {
+  // טען את 60 הימים האחרונים
+  const since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+  const { data: scores } = await supabase
+    .from('daily_scores')
+    .select('score_date, total_score')
+    .eq('client_id', clientId)
+    .gte('score_date', since)
+    .order('score_date', { ascending: false });
+
+  if (!scores || scores.length === 0) return 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // ספור ימים רצופים לאחור מהיום (או מאתמול אם היום עדיין לא נרשם)
+  let streak = 0;
+  const cursor = new Date();
+
+  for (let i = 0; i < 60; i++) {
+    const dateStr = cursor.toISOString().slice(0, 10);
+    const match = scores.find(s => s.score_date === dateStr);
+
+    if (match && match.total_score >= 60) {
+      streak++;
+    } else if (dateStr === today) {
+      // היום עדיין לא נספר בציון משמעותי - דלג, אל תשבור
+    } else {
+      break;
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  // עדכן בפרופיל
+  await supabase.from('clients').update({ streak }).eq('id', clientId);
+  return streak;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   בדיקה אם היום הוא יום מנוחה לפי הלוח השבועי
+═══════════════════════════════════════════════════════════ */
+export async function isTodayRestDay(clientId) {
+  const dayOfWeek = new Date().getDay(); // 0=ראשון
+
+  const { data } = await supabase
+    .from('client_schedule')
+    .select('workout_id')
+    .eq('client_id', clientId)
+    .eq('day_of_week', dayOfWeek)
+    .maybeSingle();
+
+  // יום מנוחה = יש רשומה ללוח אבל אין אימון מוגדר
+  // או אין רשומה בכלל (שבדרך כלל אומר שלא מתוכנן כלום)
+  if (!data) return false;  // אין לוח — לא נחשב יום מנוחה
+  return !data.workout_id;  // יש לוח אבל בלי אימון = יום מנוחה מכוון
 }
 
 export async function getRecentBadges(clientId, days = 7) {
@@ -385,37 +472,36 @@ export function BadgesCard({ clientId }) {
   // קבץ לפי badge_code (רק אחד מכל סוג)
   const unique = {};
   badges.forEach(b => { if (!unique[b.badge_code]) unique[b.badge_code] = b; });
-  const recent = Object.values(unique).slice(0, 6);
+  const earnedCount = Object.keys(unique).length;
+  const totalBadges = Object.keys(BADGES).length;
 
   return (
     <section style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.text }}>🏆 הישגים אחרונים</p>
-        <span style={{ fontSize: 11, color: COLORS.textMuted }}>{recent.length}/7</span>
+        <span style={{ fontSize: 11, color: COLORS.textMuted }}>{earnedCount}/{totalBadges}</span>
       </div>
 
-      {recent.length === 0 ? (
+      {earnedCount === 0 ? (
         <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted, textAlign: 'center', padding: '12px 0' }}>
           עוד לא זכית בתגים — דווחי היום ותקבלי הראשון! 💜
         </p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          {Object.entries(BADGES).slice(0, 6).map(([code, meta]) => {
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+          {Object.entries(BADGES).map(([code, meta]) => {
             const earned = unique[code];
             return (
               <div key={code} style={{
                 background: earned ? COLORS.primarySoft : '#F8F6FB',
                 border: `1px solid ${earned ? COLORS.primary : COLORS.border}`,
-                borderRadius: 12,
-                padding: 10,
+                borderRadius: 10,
+                padding: 8,
                 textAlign: 'center',
-                opacity: earned ? 1 : 0.4,
+                opacity: earned ? 1 : 0.35,
+                transition: 'all 0.3s',
               }}>
-                <div style={{ fontSize: 24, marginBottom: 4 }}>{meta.icon}</div>
-                <p style={{ margin: 0, fontSize: 10, fontWeight: 700, color: COLORS.text }}>{meta.label}</p>
-                <p style={{ margin: '2px 0 0', fontSize: 9, color: COLORS.textMuted, lineHeight: 1.3 }}>
-                  {meta.desc}
-                </p>
+                <div style={{ fontSize: 22, marginBottom: 3 }}>{meta.icon}</div>
+                <p style={{ margin: 0, fontSize: 9, fontWeight: 700, color: COLORS.text, lineHeight: 1.2 }}>{meta.label}</p>
               </div>
             );
           })}
