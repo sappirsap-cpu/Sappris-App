@@ -1,5 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabase';
+import {
+  SleepCard,
+  DailyScoreCard,
+  BadgesCard,
+  WeeklyReportCard,
+  computeDailyScore,
+  saveDailyScore,
+  checkAndAwardBadges,
+  getTodaySleep,
+} from './wellness';
 
 const COLORS = {
   bg:'#F5F2FA',primary:'#B19CD9',primaryDark:'#8B72B5',primarySoft:'#E8DFF5',
@@ -220,10 +230,50 @@ export default function App({onLogout}){
   const [unread, setUnread]   = useState(0);
   const [chat, setChat]       = useState(false);
 
+  // 💜 Wellness — שינה וציון יומי
+  const [sleepHours, setSleepHours] = useState(0);
+  const [dailyBreakdown, setDailyBreakdown] = useState(null);
+
   // טעינה ראשונית
   useEffect(() => {
     loadAll();
   }, []);
+
+  // 💜 חישוב ושמירת ציון יומי בכל שינוי במדדים
+  useEffect(() => {
+    if (!profile || loading) return;
+
+    const totalCal = meals.reduce((s, m) => s + (m.cal || 0), 0);
+    const totalProt = meals.reduce((s, m) => s + (m.p || 0), 0);
+    const workoutDone = exs.length > 0 && exs.every(e => e.done);
+
+    const breakdown = computeDailyScore({
+      workoutDone,
+      isRestDay: false,
+      calories: totalCal,
+      calorieGoal: profile.daily_calorie_goal || 1800,
+      protein: totalProt,
+      proteinGoal: profile.daily_protein_goal || 113,
+      waterMl: water,
+      waterGoalMl: profile.daily_water_goal_ml || 2500,
+      sleepHours,
+    });
+
+    setDailyBreakdown(breakdown);
+
+    // שמור ב-DB ובדוק תגים (רק אם יש פעילות כלשהי)
+    if (breakdown.total_score > 0) {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        await saveDailyScore(user.id, breakdown);
+        const earned = await checkAndAwardBadges(user.id, breakdown, sleepHours);
+        if (earned.length > 0) {
+          showToast(`🎉 זכית בתג חדש!`);
+        }
+      })();
+    }
+  }, [meals, water, exs, sleepHours, profile, loading]);
 
   // 🔔 Realtime - קבלת הודעות חדשות מהמאמנת בזמן אמת
   useEffect(() => {
@@ -378,6 +428,10 @@ export default function App({onLogout}){
       .gte('logged_at', todayStr);
 
     if (waterData) setWater(waterData.reduce((s,w)=>s+w.amount_ml, 0));
+
+    // טען שעות שינה של היום
+    const sleep = await getTodaySleep(user.id);
+    setSleepHours(sleep);
 
     // טען הודעות
     const { data: msgsData } = await supabase
@@ -543,6 +597,7 @@ export default function App({onLogout}){
   }
 
   const p = {
+    id: profile.id,
     firstName: profile.full_name?.split(' ')[0] || 'שלום',
     weight: profile.current_weight || profile.start_weight || 70,
     startWeight: profile.start_weight || 75,
@@ -684,6 +739,11 @@ export default function App({onLogout}){
               </div>
             </div>
           </div>
+
+          {/* 💜 Wellness — ציון יומי, שינה, תגים */}
+          <DailyScoreCard breakdown={dailyBreakdown} />
+          <SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} />
+          <BadgesCard clientId={profile.id} />
 
           {/* today's meals */}
           <section style={S.card}>
@@ -1323,6 +1383,9 @@ function StatsScreen({weights,profile,onLog,onDel}){
         </div>
         <p style={{margin:'6px 0 0',fontSize:11,color:COLORS.textMuted}}>נוכחי: {profile.weight} ק״ג · יעד: {profile.target} ק״ג</p>
       </section>
+
+      {/* 📊 דוח שבועי */}
+      <WeeklyReportCard clientId={profile.id} />
 
       {sorted.length>=2&&(
         <section style={S.card}>
