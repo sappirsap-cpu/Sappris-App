@@ -112,30 +112,32 @@ export const REMINDER_TYPES = {
     desc: 'בבוקר — "כמה שעות ישנת הלילה?"',
     defaultTime: '09:00',
     body: 'בוקר טוב! 💜 כמה שעות ישנת הלילה?',
+    type: 'time',  // תזכורת בשעה קבועה
   },
   meal: {
     id: 'meal',
     icon: '🥗',
     label: 'תזכורת ארוחות',
-    desc: 'צהריים — "לא שכחת לרשום את הארוחות?"',
-    defaultTime: '14:00',
-    body: 'שעת צהריים 🥗 רשמת את הארוחות של היום?',
+    desc: 'לפני כל ארוחה לפי הזמנים שתבחרי',
+    body: 'הגיע הזמן ל{meal_name} 🥗',
+    type: 'meal_based',  // תזכורת לפי שעות ארוחות
   },
   water: {
     id: 'water',
     icon: '💧',
     label: 'תזכורת שתייה',
-    desc: 'אחר הצהריים — רק אם לא הגעת ליעד',
-    defaultTime: '16:00',
-    body: 'רגע של הידרציה 💧 בואי נסגור את יעד השתייה!',
+    desc: 'תזכורת חכמה — אם עברו שעתיים בלי לשתות',
+    body: 'מתי שתית בפעם האחרונה? 💧 קצת מים יעשו לך טוב',
+    type: 'smart',  // תזכורת חכמה ללא שעה
   },
   evening: {
     id: 'evening',
     icon: '🌙',
     label: 'סיכום יומי',
-    desc: 'ערב — "איך היה היום? עדכני את הציון"',
+    desc: 'בערב — "איך היה היום?"',
     defaultTime: '20:00',
     body: 'איך היה היום? 🌙 בואי נראה את הציון היומי',
+    type: 'time_evening',  // תזכורת בשעה — מוגבלת לערב
   },
 };
 
@@ -159,8 +161,19 @@ function getDefaultPrefs() {
   return {
     enabled: false,
     sleep:   { on: false, time: '09:00' },
-    meal:    { on: false, time: '14:00' },
-    water:   { on: false, time: '16:00' },
+    meal:    {
+      on: false,
+      meals: [
+        { name: 'ארוחת בוקר', time: '08:00', minutesBefore: 15 },
+        { name: 'ארוחת צהריים', time: '13:00', minutesBefore: 15 },
+        { name: 'ארוחת ערב', time: '19:00', minutesBefore: 15 },
+      ],
+    },
+    water:   {
+      on: false,
+      gapHours: 2,                   // עברו X שעות מאז שתייה אחרונה
+      reminderAfterHour: '14:00',    // אחרי השעה הזו מזכירים גם אם לא הגיעה ליעד
+    },
     evening: { on: false, time: '20:00' },
   };
 }
@@ -196,7 +209,10 @@ export async function requestNotificationPermission() {
 let scheduledTimers = [];
 
 function clearScheduled() {
-  scheduledTimers.forEach(t => clearTimeout(t));
+  scheduledTimers.forEach(t => {
+    clearTimeout(t);
+    clearInterval(t);  // אם זה interval, clearInterval יעבוד; אם timeout, יתעלם
+  });
   scheduledTimers = [];
 }
 
@@ -284,17 +300,167 @@ export function startReminders() {
   const prefs = getReminderPrefs();
   if (!prefs.enabled || Notification.permission !== 'granted') return;
 
-  Object.keys(REMINDER_TYPES).forEach(type => {
+  // 1. תזכורות לפי שעה (sleep, evening)
+  ['sleep', 'evening'].forEach(type => {
     const pref = prefs[type];
-    if (!pref?.on) return;
+    if (!pref?.on || !pref.time) return;
     const ms = msUntilTime(pref.time);
     const timer = setTimeout(async () => {
       await showNotification(type);
-      // תזמן שוב בעוד 24 שעות
-      startReminders();
+      startReminders(); // תזמון מחדש למחר
     }, ms);
     scheduledTimers.push(timer);
   });
+
+  // 2. תזכורות ארוחות — לפי כל ארוחה ב-meals[]
+  const mealPref = prefs.meal;
+  if (mealPref?.on && Array.isArray(mealPref.meals)) {
+    mealPref.meals.forEach((meal, idx) => {
+      if (!meal.time) return;
+      const reminderTime = subtractMinutes(meal.time, meal.minutesBefore || 15);
+      const ms = msUntilTime(reminderTime);
+      const timer = setTimeout(async () => {
+        await showMealNotification(meal);
+        startReminders();
+      }, ms);
+      scheduledTimers.push(timer);
+    });
+  }
+
+  // 3. תזכורת שתייה חכמה — בודקים כל 30 דקות
+  const waterPref = prefs.water;
+  if (waterPref?.on) {
+    const checkInterval = setInterval(async () => {
+      await checkSmartWaterReminder(waterPref);
+    }, 30 * 60 * 1000);
+    // נשתמש ב-clearInterval כשנעצור (clearScheduled תומך גם ב-intervals)
+    scheduledTimers.push(checkInterval);
+    // בדיקה ראשונית מיידית
+    checkSmartWaterReminder(waterPref);
+  }
+}
+
+// עוזר: מחסר X דקות משעה בפורמט HH:MM
+function subtractMinutes(hhmm, minutes) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = h * 60 + m - minutes;
+  const newH = Math.floor((total + 1440) / 60) % 24;
+  const newM = ((total % 60) + 60) % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+async function showMealNotification(meal) {
+  if (Notification.permission !== 'granted') return;
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `sappir_last_meal_${meal.name}`;
+  if (localStorage.getItem(key) === today) return;
+
+  const body = `הגיע הזמן ל${meal.name} 🥗`;
+  try {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const reg = await navigator.serviceWorker.ready;
+      reg.showNotification('Sappir Fit', {
+        body, icon: '/icon-192.png', tag: `sappir-meal-${meal.name}`,
+        lang: 'he', dir: 'rtl',
+      });
+    } else {
+      new Notification('Sappir Fit', { body, icon: '/icon-192.png', lang: 'he', dir: 'rtl' });
+    }
+    localStorage.setItem(key, today);
+  } catch (e) { /* silent */ }
+}
+
+// בדיקה חכמה לתזכורת מים
+async function checkSmartWaterReminder(waterPref) {
+  if (Notification.permission !== 'granted') return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const todayStart = `${today}T00:00:00`;
+
+    // בדוק אם כבר נשלחה תזכורת מים בשעה האחרונה (להימנע מספאם)
+    const lastSentKey = 'sappir_last_water_check';
+    const lastSent = localStorage.getItem(lastSentKey);
+    if (lastSent) {
+      const lastSentTime = new Date(lastSent).getTime();
+      if (Date.now() - lastSentTime < 90 * 60 * 1000) return; // לא יותר מאחת ל-90 דקות
+    }
+
+    // טען את כל דיווחי המים של היום
+    const { data: waterLogs } = await supabase
+      .from('water_logs')
+      .select('amount_ml, logged_at')
+      .eq('client_id', user.id)
+      .gte('logged_at', todayStart)
+      .order('logged_at', { ascending: false });
+
+    if (!waterLogs) return;
+
+    // טען יעד מהפרופיל
+    const { data: profile } = await supabase
+      .from('clients').select('daily_water_goal_ml').eq('id', user.id).maybeSingle();
+    const goal = profile?.daily_water_goal_ml || 2500;
+
+    const totalToday = waterLogs.reduce((s, w) => s + (w.amount_ml || 0), 0);
+    const reachedGoal = totalToday >= goal;
+
+    // אם הגיעה ליעד — אין צורך
+    if (reachedGoal) return;
+
+    const now = new Date();
+
+    // תנאי 1: עברו X שעות מהדיווח האחרון
+    const gapHours = waterPref.gapHours || 2;
+    const lastDrink = waterLogs[0];
+    let needsReminder = false;
+    let reminderBody = '';
+
+    if (!lastDrink) {
+      // אם השעה כבר אחרי 10:00 ועוד לא שתתה כלום
+      if (now.getHours() >= 10) {
+        needsReminder = true;
+        reminderBody = 'בוקר טוב! 💧 שכחת לרשום שתייה היום? בואי נתחיל';
+      }
+    } else {
+      const lastDrinkTime = new Date(lastDrink.logged_at);
+      const hoursSince = (now - lastDrinkTime) / (1000 * 60 * 60);
+      if (hoursSince >= gapHours) {
+        needsReminder = true;
+        const hrs = Math.floor(hoursSince);
+        reminderBody = `עברו ${hrs} שעות מאז המים האחרונים 💧 כוס מים תעזור!`;
+      }
+    }
+
+    // תנאי 2: שעת היום אחרי X ועוד לא הגיעה ליעד
+    const [reminderH] = (waterPref.reminderAfterHour || '14:00').split(':').map(Number);
+    if (!needsReminder && now.getHours() >= reminderH) {
+      const remaining = goal - totalToday;
+      if (remaining > 500) {
+        needsReminder = true;
+        reminderBody = `נשארו ${remaining}מ"ל ליעד היומי 💧 בואי נסגור את זה ביחד`;
+      }
+    }
+
+    if (!needsReminder) return;
+
+    // שלח את התזכורת
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const reg = await navigator.serviceWorker.ready;
+      reg.showNotification('Sappir Fit', {
+        body: reminderBody, icon: '/icon-192.png', tag: 'sappir-water',
+        lang: 'he', dir: 'rtl',
+      });
+    } else {
+      new Notification('Sappir Fit', {
+        body: reminderBody, icon: '/icon-192.png', lang: 'he', dir: 'rtl',
+      });
+    }
+    localStorage.setItem(lastSentKey, now.toISOString());
+  } catch (e) {
+    console.warn('Smart water check failed:', e);
+  }
 }
 
 export function stopReminders() {
@@ -359,10 +525,42 @@ export function NotificationSettings() {
   };
 
   const setTime = (type, time) => {
+    // שעה לתזכורות time / time_evening
     const newPrefs = {
       ...prefs,
       [type]: { ...prefs[type], time },
     };
+    setPrefs(newPrefs);
+    saveReminderPrefs(newPrefs);
+    if (newPrefs.enabled) startReminders();
+  };
+
+  const updateMeal = (idx, patch) => {
+    const newMeals = [...prefs.meal.meals];
+    newMeals[idx] = { ...newMeals[idx], ...patch };
+    const newPrefs = { ...prefs, meal: { ...prefs.meal, meals: newMeals } };
+    setPrefs(newPrefs);
+    saveReminderPrefs(newPrefs);
+    if (newPrefs.enabled) startReminders();
+  };
+
+  const addMeal = () => {
+    const newMeals = [...prefs.meal.meals, { name: 'ארוחה', time: '12:00', minutesBefore: 15 }];
+    const newPrefs = { ...prefs, meal: { ...prefs.meal, meals: newMeals } };
+    setPrefs(newPrefs);
+    saveReminderPrefs(newPrefs);
+  };
+
+  const removeMeal = (idx) => {
+    const newMeals = prefs.meal.meals.filter((_, i) => i !== idx);
+    const newPrefs = { ...prefs, meal: { ...prefs.meal, meals: newMeals } };
+    setPrefs(newPrefs);
+    saveReminderPrefs(newPrefs);
+    if (newPrefs.enabled) startReminders();
+  };
+
+  const updateWaterPref = (patch) => {
+    const newPrefs = { ...prefs, water: { ...prefs.water, ...patch } };
     setPrefs(newPrefs);
     saveReminderPrefs(newPrefs);
     if (newPrefs.enabled) startReminders();
@@ -477,59 +675,225 @@ export function NotificationSettings() {
             בחרי אילו תזכורות לקבל
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {Object.values(REMINDER_TYPES).map(meta => {
               const p = prefs[meta.id];
+              const active = p.on;
+
+              // כרטיס בסיסי לכל תזכורת
               return (
                 <div key={meta.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: 10,
-                  background: p.on ? COLORS.primarySoft : '#F8F6FB',
-                  borderRadius: 10,
-                  border: `1px solid ${p.on ? COLORS.primary : COLORS.border}`,
+                  padding: 12,
+                  background: active ? COLORS.primarySoft : '#F8F6FB',
+                  borderRadius: 12,
+                  border: `1px solid ${active ? COLORS.primary : COLORS.border}`,
                   transition: 'all 0.2s',
                 }}>
-                  <span style={{ fontSize: 24 }}>{meta.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: COLORS.text }}>
-                      {meta.label}
-                    </p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
-                      {meta.desc}
-                    </p>
+                  {/* שורה ראשית: אייקון + שם + toggle */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 24 }}>{meta.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.text }}>
+                        {meta.label}
+                      </p>
+                      <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted, lineHeight: 1.4 }}>
+                        {meta.desc}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => toggleReminder(meta.id)}
+                      style={{
+                        width: 44, height: 26, borderRadius: 13,
+                        background: active ? COLORS.primary : COLORS.border,
+                        border: 'none', cursor: 'pointer',
+                        position: 'relative', transition: 'background 0.2s',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <div style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: 'white', position: 'absolute', top: 3,
+                        right: active ? 3 : 21,
+                        transition: 'right 0.2s',
+                      }} />
+                    </button>
                   </div>
 
-                  <input
-                    type="time"
-                    value={p.time}
-                    onChange={(e) => setTime(meta.id, e.target.value)}
-                    disabled={!p.on}
-                    style={{
-                      background: 'white', border: `1px solid ${COLORS.border}`,
-                      borderRadius: 6, padding: '4px 6px',
-                      fontSize: 11, fontFamily: 'inherit',
-                      direction: 'ltr', width: 80,
-                      opacity: p.on ? 1 : 0.5,
-                    }}
-                  />
+                  {/* תוכן ספציפי לכל סוג — מופיע רק כשפעיל */}
+                  {active && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${COLORS.border}` }}>
 
-                  <button
-                    onClick={() => toggleReminder(meta.id)}
-                    style={{
-                      width: 40, height: 24, borderRadius: 12,
-                      background: p.on ? COLORS.primary : COLORS.border,
-                      border: 'none', cursor: 'pointer',
-                      position: 'relative', transition: 'background 0.2s',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: '50%',
-                      background: 'white', position: 'absolute', top: 3,
-                      right: p.on ? 3 : 19,
-                      transition: 'right 0.2s',
-                    }} />
-                  </button>
+                      {/* תזכורת לפי שעה (sleep) */}
+                      {meta.type === 'time' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 11, color: COLORS.textMuted }}>בשעה:</span>
+                          <input
+                            type="time"
+                            value={p.time}
+                            onChange={(e) => setTime(meta.id, e.target.value)}
+                            style={{
+                              flex: 1, background: 'white',
+                              border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                              padding: '6px 10px', fontSize: 13, fontFamily: 'inherit',
+                              direction: 'ltr', outline: 'none',
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* תזכורת לפי שעה — מוגבלת לערב (evening) */}
+                      {meta.type === 'time_evening' && (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: COLORS.textMuted }}>בשעה:</span>
+                            <input
+                              type="time"
+                              value={p.time}
+                              min="18:00" max="23:00"
+                              onChange={(e) => {
+                                // אכיפת טווח 18-23
+                                const [h] = e.target.value.split(':').map(Number);
+                                if (h < 18 || h > 23) return;
+                                setTime(meta.id, e.target.value);
+                              }}
+                              style={{
+                                flex: 1, background: 'white',
+                                border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                                padding: '6px 10px', fontSize: 13, fontFamily: 'inherit',
+                                direction: 'ltr', outline: 'none',
+                              }}
+                            />
+                          </div>
+                          <p style={{ margin: '6px 0 0', fontSize: 9, color: COLORS.textMuted, textAlign: 'center' }}>
+                            💡 ניתן לבחור רק בין 18:00 ל-23:00
+                          </p>
+                        </div>
+                      )}
+
+                      {/* תזכורת ארוחות מובנית */}
+                      {meta.type === 'meal_based' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {p.meals.map((m, idx) => (
+                            <div key={idx} style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr auto auto auto',
+                              gap: 6, alignItems: 'center',
+                              background: 'white', padding: 8, borderRadius: 8,
+                            }}>
+                              <input
+                                type="text"
+                                value={m.name}
+                                onChange={(e) => updateMeal(idx, { name: e.target.value })}
+                                placeholder="שם הארוחה"
+                                style={{
+                                  border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                                  padding: '4px 8px', fontSize: 11, fontFamily: 'inherit',
+                                  outline: 'none', minWidth: 0,
+                                }}
+                              />
+                              <input
+                                type="time"
+                                value={m.time}
+                                onChange={(e) => updateMeal(idx, { time: e.target.value })}
+                                style={{
+                                  border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                                  padding: '4px 6px', fontSize: 11, fontFamily: 'inherit',
+                                  direction: 'ltr', outline: 'none',
+                                }}
+                              />
+                              <select
+                                value={m.minutesBefore || 15}
+                                onChange={(e) => updateMeal(idx, { minutesBefore: parseInt(e.target.value) })}
+                                style={{
+                                  border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                                  padding: '4px 6px', fontSize: 11, fontFamily: 'inherit',
+                                  background: 'white', outline: 'none',
+                                }}
+                              >
+                                <option value="0">בזמן</option>
+                                <option value="15">15 דק׳ לפני</option>
+                                <option value="30">30 דק׳ לפני</option>
+                                <option value="60">שעה לפני</option>
+                              </select>
+                              <button
+                                onClick={() => removeMeal(idx)}
+                                style={{
+                                  background: 'transparent', border: 'none',
+                                  fontSize: 14, color: COLORS.textMuted,
+                                  cursor: 'pointer', padding: 4,
+                                }}
+                              >🗑</button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={addMeal}
+                            style={{
+                              background: 'white', color: COLORS.primaryDark,
+                              border: `1px dashed ${COLORS.primary}`,
+                              padding: 8, borderRadius: 8,
+                              fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', fontFamily: 'inherit',
+                            }}
+                          >
+                            + הוסיפי ארוחה
+                          </button>
+                        </div>
+                      )}
+
+                      {/* תזכורת מים חכמה */}
+                      {meta.type === 'smart' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            background: 'white', padding: 8, borderRadius: 8,
+                          }}>
+                            <span style={{ fontSize: 11, color: COLORS.textMuted, flex: 1 }}>
+                              תזכירי לי אם עברו
+                            </span>
+                            <select
+                              value={p.gapHours || 2}
+                              onChange={(e) => updateWaterPref({ gapHours: parseInt(e.target.value) })}
+                              style={{
+                                border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                                padding: '4px 6px', fontSize: 11, fontFamily: 'inherit',
+                                background: 'white', outline: 'none',
+                              }}
+                            >
+                              <option value="1">שעה</option>
+                              <option value="2">שעתיים</option>
+                              <option value="3">3 שעות</option>
+                              <option value="4">4 שעות</option>
+                            </select>
+                            <span style={{ fontSize: 11, color: COLORS.textMuted }}>
+                              ללא מים
+                            </span>
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            background: 'white', padding: 8, borderRadius: 8,
+                          }}>
+                            <span style={{ fontSize: 11, color: COLORS.textMuted, flex: 1 }}>
+                              + תזכירי אחרי השעה
+                            </span>
+                            <input
+                              type="time"
+                              value={p.reminderAfterHour || '14:00'}
+                              onChange={(e) => updateWaterPref({ reminderAfterHour: e.target.value })}
+                              style={{
+                                border: `1px solid ${COLORS.border}`, borderRadius: 6,
+                                padding: '4px 6px', fontSize: 11, fontFamily: 'inherit',
+                                direction: 'ltr', outline: 'none', width: 80,
+                              }}
+                            />
+                            <span style={{ fontSize: 11, color: COLORS.textMuted }}>
+                              אם לא ביעד
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -539,7 +903,7 @@ export function NotificationSettings() {
             margin: '12px 0 0', fontSize: 10, color: COLORS.textMuted,
             lineHeight: 1.5, textAlign: 'center',
           }}>
-            💡 תזכורות שינה ומים לא יישלחו אם כבר דיווחת/שתית מספיק היום
+            💡 התזכורת של מים תופעל רק אם עוד לא הגעת ליעד
           </p>
         </div>
       )}
