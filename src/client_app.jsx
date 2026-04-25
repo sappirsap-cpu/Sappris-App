@@ -14,6 +14,16 @@ import {
 } from './wellness';
 import { NotificationSettings, startReminders, getReminderPrefs } from './notifications';
 import { BadgeCelebration } from './celebration';
+import { StepsCard } from './steps';
+import { AIMealLogger } from './ai_meal_logger';
+import { ClientChallengesList } from './challenges';
+import { PhotoReminderBanner, ProgressPhotosGallery } from './progress_photos';
+import { VoiceRecorderButton, VoiceMessagePlayer } from './voice_messages';
+import { BroadcastPlayer } from './voice_broadcasts';
+import { NextWorkoutCard, startSmartReminders } from './smart_reminders';
+import { FeedbackBanner, FeedbackForm } from './feedback';
+import { PatternInsights } from './pattern_reminders';
+import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
 const COLORS = {
   bg:'#F5F2FA',primary:'#B19CD9',primaryDark:'#8B72B5',primarySoft:'#E8DFF5',
@@ -242,6 +252,23 @@ export default function App({onLogout}){
   // 🎉 חגיגת תגים חדשים
   const [celebrationBadges, setCelebrationBadges] = useState([]);
 
+  // 🔥 אנימציית streak כשעולה
+  const [streakPulse, setStreakPulse] = useState(false);
+  const prevStreakRef = useRef(0);
+
+  // ✨ AI meal logger
+  const [showAILogger, setShowAILogger] = useState(false);
+
+  // 📸 גלריית תמונות
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+
+  // 📝 טופס משוב
+  const [activeFeedback, setActiveFeedback] = useState(null);
+
+  // 🏋️ אימון פעיל
+  const [activeWorkout, setActiveWorkout] = useState(null);
+  const [completedStats, setCompletedStats] = useState(null);
+
   // טעינה ראשונית
   useEffect(() => {
     loadAll();
@@ -283,6 +310,12 @@ export default function App({onLogout}){
         // עדכן streak
         const newStreak = await updateStreak(user.id);
         if (newStreak !== profile.streak) {
+          if (newStreak > (prevStreakRef.current || 0)) {
+            setStreakPulse(true);
+            setTimeout(() => setStreakPulse(false), 2000);
+            showToast(`🔥 streak עלה ל-${newStreak} ימים!`);
+          }
+          prevStreakRef.current = newStreak;
           setProfile(prev => ({ ...prev, streak: newStreak }));
         }
       })();
@@ -295,8 +328,10 @@ export default function App({onLogout}){
     const prefs = getReminderPrefs();
     if (prefs.enabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       startReminders();
+      // תזכורות חכמות לפי לוח האימונים
+      if (profile?.id) startSmartReminders(profile.id);
     }
-  }, [loading]);
+  }, [loading, profile?.id]);
 
   // 🔔 Realtime - קבלת הודעות חדשות מהמאמנת בזמן אמת
   useEffect(() => {
@@ -589,9 +624,11 @@ export default function App({onLogout}){
     showToast('🗑️ נמחק');
   };
 
-  const sendMessage = async (text) => {
+  const sendMessage = async (text, voice = null) => {
     const { data: { user } } = await supabase.auth.getUser();
-    const newMsg = { id: Date.now(), from: 'client', text, time: 'עכשיו' };
+    const newMsg = voice
+      ? { id: Date.now(), from: 'client', audio_url: voice.audio_url, audio_duration_sec: voice.audio_duration_sec, message_type: 'voice', time: 'עכשיו' }
+      : { id: Date.now(), from: 'client', text, time: 'עכשיו' };
     setMessages(prev => [...prev, newMsg]);
 
     // שמור ב-Supabase (to = המאמנת)
@@ -599,7 +636,10 @@ export default function App({onLogout}){
       await supabase.from('messages').insert({
         from_id: user.id,
         to_id: profile.coach_id,
-        content: text,
+        content: voice ? '🎙️ הודעה קולית' : text,
+        message_type: voice ? 'voice' : 'text',
+        audio_url: voice?.audio_url || null,
+        audio_duration_sec: voice?.audio_duration_sec || null,
       });
     }
   };
@@ -743,8 +783,18 @@ export default function App({onLogout}){
 
           {/* streak + water */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <div style={{...S.card,borderColor:COLORS.peach,padding:14,display:'flex',alignItems:'center',gap:10}}>
-              <div style={{background:COLORS.peachSoft,borderRadius:'50%',width:42,height:42,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>🔥</div>
+            <div style={{
+              ...S.card, borderColor: COLORS.peach, padding: 14,
+              display: 'flex', alignItems: 'center', gap: 10,
+              transform: streakPulse ? 'scale(1.05)' : 'scale(1)',
+              boxShadow: streakPulse ? '0 0 0 4px rgba(245, 208, 181, 0.4)' : 'none',
+              transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}>
+              <div style={{
+                background: COLORS.peachSoft, borderRadius: '50%', width: 42, height: 42,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                animation: streakPulse ? 'streakBounce 0.6s ease-out' : 'none',
+              }}>🔥</div>
               <div>
                 <p style={{fontSize:22,fontWeight:700,color:'#B88968',margin:0,lineHeight:1}}>{p.streak}</p>
                 <p style={{fontSize:11,color:COLORS.textMuted,margin:'2px 0 0'}}>ימים רצופים</p>
@@ -776,16 +826,35 @@ export default function App({onLogout}){
             </section>
           )}
 
+          {/* 💪 כרטיס האימון הבא */}
+          {!isRestDay && <NextWorkoutCard clientId={profile.id} />}
+
           {/* 💜 Wellness — ציון יומי, שינה, תגים */}
           <DailyScoreCard breakdown={dailyBreakdown} />
           <SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} />
+          <StepsCard clientId={profile.id} />
           <BadgesCard clientId={profile.id} />
+
+          {/* 📸 תזכורת תמונת התקדמות (כל שבועיים) */}
+          <PhotoReminderBanner clientId={profile.id} onTakePhoto={() => setShowPhotoGallery(true)} />
+
+          {/* 📝 טופס משוב ממתין */}
+          <FeedbackBanner clientId={profile.id} onOpen={(form) => setActiveFeedback(form)} />
+
+          {/* ✨ תובנות מבוססות דפוסים */}
+          <PatternInsights clientId={profile.id} />
+
+          {/* 🏆 אתגרים פעילים */}
+          <ClientChallengesList clientId={profile.id} />
 
           {/* today's meals */}
           <section style={S.card}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
               <h3 style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>🍽️ מה אכלתי היום</h3>
-              <button onClick={()=>setTab('eat')} style={{width:28,height:28,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit',lineHeight:1}}>+</button>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={()=>setShowAILogger(true)} title="רישום מהיר עם AI" style={{height:28,padding:'0 10px',borderRadius:14,background:'linear-gradient(135deg,#B19CD9 0%,#F4C2C2 100%)',color:'white',border:'none',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>✨ AI</button>
+                <button onClick={()=>setTab('eat')} style={{width:28,height:28,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit',lineHeight:1}}>+</button>
+              </div>
             </div>
             {meals.length===0
               ?<div style={{textAlign:'center',padding:'20px 0',color:COLORS.textMuted,fontSize:13}}>🍽️ עדיין לא רשמת אוכל<br/><span style={{fontSize:11}}>לחצי + להתחיל</span></div>
@@ -819,12 +888,46 @@ export default function App({onLogout}){
       )}
 
       {tab==='eat'&&<LogScreen profile={p} meals={meals} cal={cal} prot={prot} carb={carb} fat={fat} todayPlan={todayPlan} onPlan={(key,meal)=>addMeal({...meal,planKey:key})} onCustom={addMeal} onRemove={removeMeal}/>}
-      {tab==='workout'&&<WorkoutScreen exs={exs} setExs={setExs} onToggle={id=>setExs(prev=>prev.map(e=>e.id===id?{...e,done:!e.done}:e))} onFinish={()=>{if(done===exs.length)showToast('🎉 אימון הושלם!');else{setExs(p=>p.map(e=>({...e,done:true})));showToast('🎉 מעולה!');} }} done={done} showToast={showToast}/>}
-      {tab==='stats'&&<StatsScreen weights={weights} profile={p} onLog={logWeight} onDel={deleteWeight}/>}
-      {tab==='messages'&&<MessagesScreen messages={messages} onSend={sendMessage}/>}
+      {tab==='workout'&&<WorkoutScreen exs={exs} setExs={setExs} onToggle={id=>setExs(prev=>prev.map(e=>e.id===id?{...e,done:!e.done}:e))} onFinish={()=>{if(done===exs.length)showToast('🎉 אימון הושלם!');else{setExs(p=>p.map(e=>({...e,done:true})));showToast('🎉 מעולה!');} }} done={done} showToast={showToast} onStartGuided={()=>setActiveWorkout({workout:{name:'האימון של היום'},exercises:exs})}/>}
+      {tab==='stats'&&<StatsScreen weights={weights} profile={p} onLog={logWeight} onDel={deleteWeight} onOpenPhotos={()=>setShowPhotoGallery(true)}/>}
+      {tab==='messages'&&<MessagesScreen messages={messages} onSend={sendMessage} userId={profile.id}/>}
       {tab==='settings'&&<SettingsScreen profile={profile} showToast={showToast} onLogout={onLogout}/>}
 
       {toast&&<div style={{position:'fixed',bottom:84,left:'50%',transform:'translateX(-50%)',background:COLORS.text,color:'white',padding:'10px 18px',borderRadius:999,fontSize:13,fontWeight:500,zIndex:60,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',whiteSpace:'nowrap'}}>{toast}</div>}
+
+      {/* 🎙️ הקלטות חיזוק מהמאמנת */}
+      {profile?.id && <BroadcastPlayer clientId={profile.id} />}
+
+      {/* 📝 טופס משוב */}
+      {activeFeedback && (
+        <FeedbackForm
+          form={activeFeedback}
+          onClose={() => setActiveFeedback(null)}
+          onSubmit={() => showToast('💜 תודה על המשוב!')}
+        />
+      )}
+
+      {/* 🏋️ אימון פעיל */}
+      {activeWorkout && (
+        <ActiveWorkout
+          workout={activeWorkout.workout}
+          exercises={activeWorkout.exercises}
+          clientId={profile.id}
+          onClose={() => setActiveWorkout(null)}
+          onComplete={(stats) => {
+            setActiveWorkout(null);
+            setCompletedStats(stats);
+          }}
+        />
+      )}
+
+      {/* 🎉 סיום אימון */}
+      {completedStats && (
+        <WorkoutCompleteModal
+          stats={completedStats}
+          onClose={() => setCompletedStats(null)}
+        />
+      )}
 
       {/* 🎉 חגיגת תגים חדשים */}
       {celebrationBadges.length > 0 && (
@@ -832,6 +935,35 @@ export default function App({onLogout}){
           badgeCodes={celebrationBadges}
           onClose={() => setCelebrationBadges([])}
         />
+      )}
+
+      {/* ✨ AI Meal Logger */}
+      {showAILogger && (
+        <AIMealLogger
+          clientId={profile.id}
+          onSave={() => { loadAll(); }}
+          onClose={() => setShowAILogger(false)}
+        />
+      )}
+
+      {/* 📸 גלריית תמונות התקדמות */}
+      {showPhotoGallery && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'white',
+          zIndex: 200, overflowY: 'auto', padding: 14,
+          direction: 'rtl', fontFamily: 'system-ui, sans-serif',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+              📸 תמונות התקדמות
+            </h2>
+            <button onClick={() => setShowPhotoGallery(false)} style={{
+              background: 'transparent', border: 'none', fontSize: 22,
+              cursor: 'pointer', color: COLORS.textMuted,
+            }}>✕</button>
+          </div>
+          <ProgressPhotosGallery clientId={profile.id} />
+        </div>
       )}
 
       {!chat&&tab==='home'&&(
@@ -1157,7 +1289,7 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
 }
 
 /* ══ WORKOUT SCREEN ══ */
-function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
+function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuided}){
   const[timer,setTimer]=useState(0);
   const[timerOn,setTimerOn]=useState(false);
   const[activeEx,setActiveEx]=useState(null);
@@ -1211,6 +1343,22 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
           {showLib?'✕ סגור':'+ תרגיל'}
         </button>
       </div>
+
+      {/* 🏋️ כפתור אימון מובנה עם טיימר */}
+      {exs.length > 0 && onStartGuided && (
+        <button onClick={onStartGuided} style={{
+          width: '100%',
+          background: 'linear-gradient(135deg, #B19CD9 0%, #8B72B5 100%)',
+          color: 'white', border: 'none', padding: '14px',
+          borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+          boxShadow: '0 4px 12px rgba(139, 114, 181, 0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>🏋️</span>
+          התחילי אימון מובנה (עם טיימר מנוחה)
+        </button>
+      )}
 
       <section style={S.card}>
         <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
@@ -1321,7 +1469,7 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast}){
 }
 
 /* ══ STATS SCREEN ══ */
-function StatsScreen({weights,profile,onLog,onDel}){
+function StatsScreen({weights,profile,onLog,onDel,onOpenPhotos}){
   const[nw,setNw]=useState('');
   const[photos,setPhotos]=useState([]);
   const[uploading,setUploading]=useState(false);
@@ -1431,6 +1579,17 @@ function StatsScreen({weights,profile,onLog,onDel}){
       {/* 📊 דוח שבועי */}
       <WeeklyReportCard clientId={profile.id} />
 
+      {/* 📸 כפתור גלריית תמונות */}
+      <button onClick={onOpenPhotos} style={{
+        width: '100%', background: 'linear-gradient(135deg, #B19CD9 0%, #F4C2C2 100%)',
+        color: 'white', border: 'none', padding: 14, borderRadius: 12,
+        fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        boxShadow: '0 4px 12px rgba(139, 114, 181, 0.3)',
+      }}>
+        📸 תמונות התקדמות
+      </button>
+
       {sorted.length>=2&&(
         <section style={S.card}>
           <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
@@ -1535,25 +1694,34 @@ function StatsScreen({weights,profile,onLog,onDel}){
 }
 
 /* ══ MESSAGES SCREEN ══ */
-function MessagesScreen({messages,onSend}){
+function MessagesScreen({messages,onSend,userId}){
   const[txt,setTxt]=useState('');
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollTo(0,ref.current.scrollHeight);},[messages]);
   const send=()=>{if(!txt.trim())return;onSend(txt.trim());setTxt('');};
+  const sendVoice = (voice) => onSend(null, voice);
   return(
     <main style={{padding:14,display:'flex',flexDirection:'column',height:'calc(100vh - 160px)',gap:12}}>
       <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>💬 שיחה עם ספיר</h2>
       <section ref={ref} style={{...S.card,flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:8}}>
         {messages.length===0&&<p style={{textAlign:'center',color:COLORS.textMuted,fontSize:13,margin:'auto 0'}}>עדיין אין הודעות</p>}
-        {messages.map(m=>(
-          <div key={m.id} style={{maxWidth:'82%',padding:'9px 12px',borderRadius:14,fontSize:13,lineHeight:1.5,alignSelf:m.from==='client'?'flex-end':'flex-start',background:m.from==='client'?COLORS.primary:COLORS.primarySoft,color:m.from==='client'?'white':COLORS.text}}>
-            <p style={{margin:0}}>{m.text}</p>
-            <p style={{margin:'3px 0 0',fontSize:10,opacity:0.7}}>{m.time}</p>
-          </div>
-        ))}
+        {messages.map(m=>{
+          const isMe = m.from === 'client';
+          const isVoice = m.message_type === 'voice' || m.audio_url;
+          return (
+            <div key={m.id} style={{maxWidth:'82%',padding:'9px 12px',borderRadius:14,fontSize:13,lineHeight:1.5,alignSelf:isMe?'flex-end':'flex-start',background:isMe?COLORS.primary:COLORS.primarySoft,color:isMe?'white':COLORS.text}}>
+              {isVoice
+                ? <VoiceMessagePlayer url={m.audio_url} duration={m.audio_duration_sec} isFromMe={isMe}/>
+                : <p style={{margin:0}}>{m.text}</p>
+              }
+              <p style={{margin:'3px 0 0',fontSize:10,opacity:0.7}}>{m.time}</p>
+            </div>
+          );
+        })}
       </section>
-      <div style={{display:'flex',gap:8}}>
-        <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="כתבי הודעה..." style={S.inp}/>
+      <div style={{display:'flex',gap:6}}>
+        <VoiceRecorderButton userId={userId} onSend={sendVoice} />
+        <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="כתבי הודעה..." style={{...S.inp,flex:1}}/>
         <button onClick={send} disabled={!txt.trim()} style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 18px',borderRadius:10,fontSize:13,fontWeight:600,cursor:txt.trim()?'pointer':'default',opacity:txt.trim()?1:0.4,fontFamily:'inherit'}}>שלחי</button>
       </div>
     </main>
@@ -1562,28 +1730,58 @@ function MessagesScreen({messages,onSend}){
 
 /* ══ SETTINGS SCREEN ══ */
 function SettingsScreen({profile,showToast,onLogout}){
-  const[kosher,setKosher]=useState(false);
+  const [name, setName] = useState(profile.full_name || '');
+  const [kosher, setKosher] = useState(profile.kosher || false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('clients')
+      .update({ full_name: name, kosher })
+      .eq('id', profile.id);
+    setSaving(false);
+    if (error) {
+      showToast('❌ שגיאה בשמירה');
+    } else {
+      showToast('💾 שינויים נשמרו');
+    }
+  };
+
+  const handleKosherToggle = async () => {
+    const newVal = !kosher;
+    setKosher(newVal);
+    // שמור מיידי כי toggle הוא פעולה אטומית
+    await supabase.from('clients').update({ kosher: newVal }).eq('id', profile.id);
+  };
+
   return(
     <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
       <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>⚙️ הגדרות</h2>
       <section style={S.card}>
         <h4 style={{margin:'0 0 14px',fontSize:14,fontWeight:700}}>פרטים אישיים</h4>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
-          <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>שם</p><input defaultValue={profile.full_name} style={S.inp}/></div>
-          <div><p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>אימייל</p><input defaultValue={profile.email} style={{...S.inp,direction:'ltr',textAlign:'right'}}/></div>
-        </div>
-        {[['כשר',kosher,setKosher,'מתכונים כשרים בלבד']].map(([l,v,s,d])=>(
-          <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
-            <div>
-              <p style={{margin:0,fontSize:14,fontWeight:700}}>{l}</p>
-              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{d}</p>
-            </div>
-            <button onClick={()=>s(x=>!x)} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:v?COLORS.primary:COLORS.border,position:'relative',transition:'background 0.2s'}}>
-              <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(v?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
-            </button>
+          <div>
+            <p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>שם</p>
+            <input value={name} onChange={(e)=>setName(e.target.value)} style={S.inp}/>
           </div>
-        ))}
-        <button onClick={()=>showToast('💾 שינויים נשמרו')} style={{...S.btn,marginTop:14}}>שמור שינויים</button>
+          <div>
+            <p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>אימייל</p>
+            <input value={profile.email||''} disabled style={{...S.inp,direction:'ltr',textAlign:'right',background:'#F8F6FB',color:COLORS.textMuted}}/>
+          </div>
+        </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
+          <div>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>כשר</p>
+            <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>מתכונים כשרים בלבד</p>
+          </div>
+          <button onClick={handleKosherToggle} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:kosher?COLORS.primary:COLORS.border,position:'relative',transition:'background 0.2s'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(kosher?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
+          </button>
+        </div>
+        <button onClick={handleSave} disabled={saving} style={{...S.btn,marginTop:14,opacity:saving?0.6:1}}>
+          {saving?'שומרת...':'שמור שינויים'}
+        </button>
       </section>
 
       {/* 🔔 הגדרות תזכורות */}

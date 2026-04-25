@@ -16,6 +16,91 @@ const COLORS = {
 };
 
 /* ═══════════════════════════════════════════════════════════
+   Push Subscription — רישום למערכת push אמיתית
+═══════════════════════════════════════════════════════════ */
+
+// המפתח הציבורי VAPID — יש להגדיר ב-env. ברירת מחדל ריקה אם לא מוגדר.
+const VAPID_PUBLIC_KEY = import.meta.env?.VITE_VAPID_PUBLIC_KEY || '';
+
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+export async function subscribeToPush() {
+  if (!VAPID_PUBLIC_KEY) {
+    return { ok: false, reason: 'Push לא מוגדר עדיין במערכת' };
+  }
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return { ok: false, reason: 'הדפדפן שלך לא תומך ב-Push' };
+  }
+
+  try {
+    // רשום את ה-SW של ה-push
+    let reg;
+    try {
+      reg = await navigator.serviceWorker.register('/sw-push.js');
+      await navigator.serviceWorker.ready;
+    } catch {
+      reg = await navigator.serviceWorker.ready;
+    }
+
+    // בקש הרשאה
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return { ok: false, reason: 'לא התקבלה הרשאה' };
+
+    // צור subscription
+    let subscription = await reg.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    // שמור ב-Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { ok: false, reason: 'לא מחוברת' };
+
+    const subJson = subscription.toJSON();
+    await supabase.from('push_subscriptions').upsert(
+      {
+        user_id: user.id,
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth,
+        user_agent: navigator.userAgent,
+        last_used: new Date().toISOString(),
+      },
+      { onConflict: 'endpoint' }
+    );
+
+    return { ok: true };
+  } catch (e) {
+    console.error('Push subscription failed:', e);
+    return { ok: false, reason: e.message };
+  }
+}
+
+export async function unsubscribeFromPush() {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const subscription = await reg.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+      await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+    }
+  } catch (e) {
+    console.warn('Unsubscribe failed:', e);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
    הגדרות התזכורות — אילו מופעלות ובאיזה שעה
 ═══════════════════════════════════════════════════════════ */
 
@@ -239,18 +324,27 @@ export function NotificationSettings() {
       return;
     }
     setPermission('granted');
+
+    // נסה גם להירשם ל-Push (אם מוגדר)
+    const pushResult = await subscribeToPush();
+    if (pushResult.ok) {
+      showToast('✅ התראות הופעלו (כולל push ברקע)');
+    } else {
+      showToast('✅ התראות הופעלו (רק כשהאפליקציה פתוחה)');
+    }
+
     const newPrefs = { ...prefs, enabled: true };
     setPrefs(newPrefs);
     saveReminderPrefs(newPrefs);
     startReminders();
-    showToast('✅ התראות הופעלו');
   };
 
-  const handleDisable = () => {
+  const handleDisable = async () => {
     const newPrefs = { ...prefs, enabled: false };
     setPrefs(newPrefs);
     saveReminderPrefs(newPrefs);
     stopReminders();
+    await unsubscribeFromPush();
     showToast('❌ התראות בוטלו');
   };
 

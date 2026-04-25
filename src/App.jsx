@@ -26,8 +26,37 @@ export default function App() {
   const [screen, setScreen]     = useState('client');
   const [debugInfo, setDebugInfo] = useState('');
 
+  // 🔧 Cache role בlocalStorage כדי לא להיכנס למצב "loading" בכל reload
+  const cachedRoleKey = 'sappir-cached-role';
+  const cachedUserIdKey = 'sappir-cached-user-id';
+
+  const getCachedRole = (userId) => {
+    try {
+      const cachedId = localStorage.getItem(cachedUserIdKey);
+      if (cachedId === userId) {
+        return localStorage.getItem(cachedRoleKey);
+      }
+    } catch { /* silent */ }
+    return null;
+  };
+
+  const setCachedRole = (userId, role) => {
+    try {
+      localStorage.setItem(cachedUserIdKey, userId);
+      localStorage.setItem(cachedRoleKey, role || '');
+    } catch { /* silent */ }
+  };
+
+  const clearCachedRole = () => {
+    try {
+      localStorage.removeItem(cachedUserIdKey);
+      localStorage.removeItem(cachedRoleKey);
+    } catch { /* silent */ }
+  };
+
   useEffect(() => {
     let mounted = true;
+    let initDone = false;
 
     const init = async () => {
       try {
@@ -38,14 +67,32 @@ export default function App() {
         setSession(session);
         if (session) {
           setDebugInfo(`נמצא משתמש: ${session.user.email}`);
-          await detectRole(session.user.id);
+          // 🚀 השתמש ב-cache קודם — חוויית טעינה מיידית
+          const cached = getCachedRole(session.user.id);
+          if (cached === 'coach' || cached === 'client') {
+            setUserRole(cached);
+            // טען רענון ברקע כדי לוודא שהוא עדיין נכון
+            detectRole(session.user.id, true);
+          } else {
+            await detectRole(session.user.id);
+          }
         } else {
           setDebugInfo('אין session');
           setUserRole(null);
+          clearCachedRole();
         }
+        initDone = true;
       } catch (e) {
         console.error('Init error:', e);
-        if (mounted) { setSession(null); setUserRole(null); }
+        if (mounted) {
+          // 🛡️ אם init נכשל אבל יש cache — אל תוציא את המשתמש
+          const cached = localStorage.getItem(cachedRoleKey);
+          if (!cached) {
+            setSession(null);
+            setUserRole(null);
+          }
+        }
+        initDone = true;
       }
     };
 
@@ -53,41 +100,83 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
+      // התעלם מ-INITIAL_SESSION — init כבר טיפל
       if (event === 'INITIAL_SESSION') return;
+      // TOKEN_REFRESHED — רק עדכון session, לא לטעון תפקיד מחדש
       if (event === 'TOKEN_REFRESHED') { setSession(newSession); return; }
+      if (event === 'USER_UPDATED') { setSession(newSession); return; }
       if (event === 'SIGNED_IN' && newSession) {
+        // אם זה אותו user שכבר זוהה, אל תעשה כלום (מונע race condition)
+        if (initDone && session?.user?.id === newSession.user.id && userRole) {
+          setSession(newSession);
+          return;
+        }
         setSession(newSession);
-        setUserRole(undefined);
-        await detectRole(newSession.user.id);
+        const cached = getCachedRole(newSession.user.id);
+        if (cached === 'coach' || cached === 'client') {
+          setUserRole(cached);
+          detectRole(newSession.user.id, true);
+        } else {
+          setUserRole(undefined);
+          await detectRole(newSession.user.id);
+        }
         return;
       }
-      if (event === 'SIGNED_OUT') { setSession(null); setUserRole(null); return; }
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUserRole(null);
+        clearCachedRole();
+        return;
+      }
     });
 
     return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  const detectRole = async (userId) => {
+  // backgroundOnly=true → רץ ברקע, לא משנה state אם המידע עדיין תואם
+  const detectRole = async (userId, backgroundOnly = false) => {
     try {
-      setDebugInfo('בודק תפקיד...');
+      if (!backgroundOnly) setDebugInfo('בודק תפקיד...');
       const [coachRes, clientRes] = await Promise.all([
         supabase.from('coaches').select('id').eq('id', userId).limit(1),
         supabase.from('clients').select('id').eq('id', userId).limit(1),
       ]);
       const coaches = coachRes?.data || [];
       const clients = clientRes?.data || [];
-      if (coaches.length > 0) { setDebugInfo('נמצאה מאמנת ✓'); setUserRole('coach'); return; }
-      if (clients.length > 0) { setDebugInfo('נמצאה לקוחה ✓'); setUserRole('client'); return; }
-      setDebugInfo('משתמש לא נמצא בטבלאות');
-      setUserRole(null);
+      let role = null;
+      if (coaches.length > 0) role = 'coach';
+      else if (clients.length > 0) role = 'client';
+
+      if (role) {
+        if (!backgroundOnly) setDebugInfo(role === 'coach' ? 'נמצאה מאמנת ✓' : 'נמצאה לקוחה ✓');
+        setUserRole(role);
+        setCachedRole(userId, role);
+      } else {
+        // 🛡️ אם יש cache תקף, אל תתנתק רק כי השרת לא החזיר תוצאה
+        if (backgroundOnly) {
+          // לא מצאנו — אבל אנחנו ברקע, זה יכול להיות זמני
+          return;
+        }
+        if (!backgroundOnly) setDebugInfo('משתמש לא נמצא בטבלאות');
+        setUserRole(null);
+      }
     } catch (e) {
       console.error('detectRole failed:', e);
+      // 🛡️ שגיאה ברשת — אל תוציא את המשתמש אם יש cache
+      if (backgroundOnly) return;
+      const cached = getCachedRole(userId);
+      if (cached === 'coach' || cached === 'client') {
+        setUserRole(cached);
+        setDebugInfo('עובדת במצב לא מקוון');
+        return;
+      }
       setDebugInfo('שגיאה: ' + e.message);
       setUserRole(null);
     }
   };
 
   const handleLogout = async () => {
+    clearCachedRole();
     await supabase.auth.signOut();
     setSession(null);
     setUserRole(null);

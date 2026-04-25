@@ -1,6 +1,30 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { CoachClientWellness, CoachWeeklyOverview } from './wellness';
+import { MealTemplateLibrary, WorkoutTemplateLibrary, saveMealTemplate, saveWorkoutTemplate, applyMealTemplate, applyWorkoutTemplate } from './templates';
+import { InsightsScreen, generateWeeklyInsights } from './insights';
+import { MessageTemplatePicker, exportClientCSV, archiveClient, ArchivedClientsList } from './coach_tools';
+import { CoachChallengesManager } from './challenges';
+import { ProgressPhotosGallery } from './progress_photos';
+import { VoiceRecorderButton, VoiceMessagePlayer } from './voice_messages';
+import { BroadcastsManager } from './voice_broadcasts';
+import { ScheduleEditor } from './smart_reminders';
+import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
+
+// 📊 רישום אירועי פעילות לתובנות AI
+async function logEvent(type, durationMs, metadata) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from('activity_events').insert({
+      user_id: user.id,
+      user_role: 'coach',
+      event_type: type,
+      duration_ms: durationMs || null,
+      metadata: metadata || null,
+    });
+  } catch (e) { /* fail silently */ }
+}
 
 
 /**
@@ -525,6 +549,9 @@ export default function App({ onLogout }) {
           text: m.content,
           time: new Date(m.sent_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
           read: m.read,
+          message_type: m.message_type || 'text',
+          audio_url: m.audio_url,
+          audio_duration_sec: m.audio_duration_sec,
         });
       });
 
@@ -544,6 +571,9 @@ export default function App({ onLogout }) {
             text: m.content,
             time: new Date(m.sent_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
             read: true,
+            message_type: m.message_type || 'text',
+            audio_url: m.audio_url,
+            audio_duration_sec: m.audio_duration_sec,
           });
         });
       }
@@ -565,11 +595,12 @@ export default function App({ onLogout }) {
     const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
     if (coaches?.[0]) setCoachProfile(coaches[0]);
 
-    // טען לקוחות
+    // טען לקוחות (לא מארכיון)
     const { data: clientsData } = await supabase
       .from('clients')
       .select('*')
       .eq('coach_id', user.id)
+      .or('is_archived.is.null,is_archived.eq.false')
       .order('full_name');
 
     if (clientsData) {
@@ -615,14 +646,19 @@ export default function App({ onLogout }) {
     setSubView('chat');
   };
 
-  const sendMessageToClient = async (text) => {
+  const sendMessageToClient = async (text, voice = null) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || !selectedClient || !text.trim()) return;
+    if (!user || !selectedClient) return;
+    if (!voice && !text?.trim()) return;
     await supabase.from('messages').insert({
       from_id: user.id,
       to_id: selectedClient.id,
-      content: text.trim(),
+      content: voice ? '🎙️ הודעה קולית' : text.trim(),
+      message_type: voice ? 'voice' : 'text',
+      audio_url: voice?.audio_url || null,
+      audio_duration_sec: voice?.audio_duration_sec || null,
     });
+    logEvent('message_sent', null, { to: selectedClient.id, type: voice ? 'voice' : 'text' });
     await loadMessages();
   };
 
@@ -691,17 +727,23 @@ export default function App({ onLogout }) {
       </header>
 
       {/* Sub-views override tabs */}
-      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onProgress={() => setSubView('progress')} />}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} />}
       {subView === 'schedule' && selectedClient && <WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {subView === 'workoutSchedule' && selectedClient && (
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BackHeader onBack={() => setSubView('clientProfile')} title={`לוח אימונים · ${selectedClient.name}`} />
+          <ScheduleEditor clientId={selectedClient.id} onClose={() => { setSubView('clientProfile'); showToast('💾 הלוח נשמר'); }} />
+        </main>
+      )}
 
       {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
       {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
-      {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
-      {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
+      {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('client_updated', null, { client_id: selectedClient.id }); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
+      {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('macro_calculated', null, { client_id: selectedClient.id }); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
       {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
       {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} />}
       {subView === 'newClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
-      {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} />}
+      {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} />}
 
       {/* Notifications dropdown */}
       {showNotifs && (
@@ -747,7 +789,31 @@ export default function App({ onLogout }) {
       )}
       {!subView && tab === 'meals' && <MealsTab showToast={showToast} />}
       {!subView && tab === 'workouts' && <WorkoutsTab showToast={showToast} />}
-      {!subView && tab === 'settings' && <SettingsTab showToast={showToast} onLogout={onLogout} />}
+      {!subView && tab === 'insights' && coachProfile?.id && (
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <InsightsScreen coachId={coachProfile.id} />
+
+          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+
+          <div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>
+              📝 משובי לקוחות
+            </h3>
+            <CoachFeedbackInsights coachId={coachProfile.id} />
+          </div>
+        </main>
+      )}
+      {!subView && tab === 'challenges' && coachProfile?.id && (
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>🏆 אתגרים</h2>
+          <CoachChallengesManager coachId={coachProfile.id} />
+
+          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+
+          <BroadcastsManager coachId={coachProfile.id} />
+        </main>
+      )}
+      {!subView && tab === 'settings' && <SettingsTab showToast={showToast} onLogout={onLogout} coachId={coachProfile?.id} />}
 
       {/* Toast */}
       {toast && (
@@ -765,6 +831,8 @@ function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
     { id: 'clients', label: 'לקוחות', icon: 'clients' },
+    { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
+    { id: 'insights', label: 'תובנות', icon: 'insights' },
     { id: 'meals', label: 'תזונה', icon: 'food' },
     { id: 'workouts', label: 'אימונים', icon: 'workout' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
@@ -811,6 +879,16 @@ function CoachNavIcon({ name, active }) {
     settings: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
         <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      </svg>
+    ),
+    insights: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M12 2L9.5 8.5L3 9L8 13.5L6.5 20L12 16.5L17.5 20L16 13.5L21 9L14.5 8.5L12 2Z"/>
+      </svg>
+    ),
+    challenges: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+        <path d="M5 9V3h14v6c0 3.31-2.69 6-6 6h-2c-3.31 0-6-2.69-6-6zm-2 0c0 4.42 3.58 8 8 8v3H7v2h10v-2h-4v-3c4.42 0 8-3.58 8-8V3a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6z"/>
       </svg>
     ),
   };
@@ -1138,6 +1216,7 @@ function MealsTab({ showToast }) {
   const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingMeal, setEditingMeal] = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -1179,13 +1258,50 @@ function MealsTab({ showToast }) {
     return <MealEditor meal={editingMeal} onBack={() => { setEditingMeal(null); load(); }} showToast={showToast} />;
   }
 
+  // ספריית תבניות
+  if (showLibrary) {
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית תפריטים</h2>
+        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
+          תפריטים שנוצרו ע"י מאמנות אחרות. בחרי תפריט ולחצי "שכפלי ללקוחה" כדי להקצות אותו.
+        </p>
+        <MealTemplateLibrary
+          onApply={async (template) => {
+            // פתח דיאלוג בחירת לקוחה
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: clientList } = await supabase
+              .from('clients').select('id, full_name').eq('coach_id', user.id);
+            if (!clientList || clientList.length === 0) {
+              showToast('אין לך עדיין לקוחות');
+              return;
+            }
+            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
+            const idx = parseInt(choice) - 1;
+            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
+            const { error } = await applyMealTemplate(template.id, clientList[idx].id);
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast(`✅ "${template.name}" שוכפל ל-${clientList[idx].full_name}`);
+          }}
+          onClose={() => setShowLibrary(false)}
+        />
+      </main>
+    );
+  }
+
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ארוחות</h2>
-        <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + ארוחה חדשה
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            📚 ספרייה
+          </button>
+          <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + ארוחה חדשה
+          </button>
+        </div>
       </div>
 
       {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
@@ -1392,8 +1508,10 @@ function MealEditor({ meal, onBack, showToast }) {
     
     if (meal?.id) {
       await supabase.from('meals').update(mealData).eq('id', meal.id);
+      logEvent('meal_updated', null, { meal_id: meal.id });
     } else {
-      await supabase.from('meals').insert(mealData);
+      const { data: created } = await supabase.from('meals').insert(mealData).select().single();
+      logEvent('meal_plan_created', null, { meal_id: created?.id, items_count: items.length });
     }
     
     setSaving(false);
@@ -1533,6 +1651,35 @@ function MealEditor({ meal, onBack, showToast }) {
       }}>
         {saving ? 'שומרת...' : '💾 שמרי ארוחה'}
       </button>
+
+      {/* כפתור שמירה כתבנית גלובלית */}
+      {meal?.id && (
+        <button
+          onClick={async () => {
+            const totalCal = items.reduce((s, it) => s + (it.cal || 0), 0);
+            const totalP = items.reduce((s, it) => s + (it.p || 0), 0);
+            const totalC = items.reduce((s, it) => s + (it.c || 0), 0);
+            const totalF = items.reduce((s, it) => s + (it.f || 0), 0);
+            const desc = prompt('תיאור קצר לתבנית (אופציונלי):', '');
+            const { data: { user } } = await supabase.auth.getUser();
+            const { error } = await saveMealTemplate(user.id, {
+              template_name: name,
+              template_description: desc || '',
+              meals: [{ key: 'main', name, items, cal: totalCal, p: totalP, c: totalC, f: totalF }],
+            });
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast('✨ נשמר בספריית התבניות');
+          }}
+          style={{
+            width: '100%', background: 'white', color: COLORS.primaryDark,
+            border: `1px solid ${COLORS.primary}`,
+            padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', marginTop: 8,
+          }}
+        >
+          ✨ שמרי גם בספריית התבניות הציבורית
+        </button>
+      )}
     </main>
   );
 }
@@ -1604,6 +1751,7 @@ function WorkoutsTab({ showToast }) {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -1641,13 +1789,49 @@ function WorkoutsTab({ showToast }) {
     return <WorkoutEditor workout={editing} onBack={() => { setEditing(null); load(); }} showToast={showToast} />;
   }
 
+  // ספריית תבניות אימונים
+  if (showLibrary) {
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית אימונים</h2>
+        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
+          תבניות אימונים מוכנות. בחרי תבנית והקצי אותה ללקוחה בלחיצה.
+        </p>
+        <WorkoutTemplateLibrary
+          onApply={async (template) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: clientList } = await supabase
+              .from('clients').select('id, full_name').eq('coach_id', user.id);
+            if (!clientList || clientList.length === 0) {
+              showToast('אין לך עדיין לקוחות');
+              return;
+            }
+            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
+            const idx = parseInt(choice) - 1;
+            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
+            const { error } = await applyWorkoutTemplate(template.id, clientList[idx].id);
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast(`✅ "${template.name}" הוקצה ל-${clientList[idx].full_name}`);
+          }}
+          onClose={() => setShowLibrary(false)}
+        />
+      </main>
+    );
+  }
+
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>אימונים</h2>
-        <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          + אימון חדש
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            📚 ספרייה
+          </button>
+          <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + אימון חדש
+          </button>
+        </div>
       </div>
 
       {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
@@ -1754,8 +1938,10 @@ function WorkoutEditor({ workout, onBack, showToast }) {
     };
     if (workout?.id) {
       await supabase.from('workouts').update(data).eq('id', workout.id);
+      logEvent('workout_updated', null, { workout_id: workout.id });
     } else {
-      await supabase.from('workouts').insert(data);
+      const { data: created } = await supabase.from('workouts').insert(data).select().single();
+      logEvent('workout_assigned', null, { workout_id: created?.id, exercises_count: exercises.length });
     }
     setSaving(false);
     onBack();
@@ -1840,6 +2026,37 @@ function WorkoutEditor({ workout, onBack, showToast }) {
       }}>
         {saving ? 'שומרת...' : '💾 שמרי אימון'}
       </button>
+
+      {/* כפתור שמירה כתבנית גלובלית */}
+      {workout?.id && (
+        <button
+          onClick={async () => {
+            const desc = prompt('תיאור קצר לתבנית (אופציונלי):', '');
+            const focus = prompt('פוקוס הגוף: full_body / upper / lower / core / cardio', 'full_body');
+            const difficulty = prompt('רמת קושי: beginner / intermediate / advanced', 'beginner');
+            const duration = parseInt(prompt('משך משוער בדקות:', '30')) || 30;
+            const { data: { user } } = await supabase.auth.getUser();
+            const { error } = await saveWorkoutTemplate(user.id, {
+              name,
+              description: desc || '',
+              difficulty: difficulty || 'beginner',
+              duration_min: duration,
+              body_focus: focus || 'full_body',
+              exercises,
+            });
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast('✨ נשמר בספריית התבניות');
+          }}
+          style={{
+            width: '100%', background: 'white', color: COLORS.primaryDark,
+            border: `1px solid ${COLORS.primary}`,
+            padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', marginTop: 8,
+          }}
+        >
+          ✨ שמרי גם בספריית התבניות הציבורית
+        </button>
+      )}
     </main>
   );
 }
@@ -2254,7 +2471,9 @@ function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds
 
 
 /* ===================== SETTINGS TAB ===================== */
-function SettingsTab({ showToast, onLogout }) {
+function SettingsTab({ showToast, onLogout, coachId }) {
+  const [showArchive, setShowArchive] = useState(false);
+
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
@@ -2274,6 +2493,28 @@ function SettingsTab({ showToast, onLogout }) {
           </div>
         </Field>
         <button onClick={() => showToast('💾 הגדרות נשמרו')} style={primaryBtnStyle}>שמרי שינויים</button>
+      </section>
+
+      {/* 📦 ארכיון לקוחות */}
+      <section style={cardStyle}>
+        <button
+          onClick={() => setShowArchive(!showArchive)}
+          style={{
+            width: '100%', background: 'transparent', border: 'none',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+          }}
+        >
+          <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: COLORS.text }}>
+            📦 ארכיון לקוחות
+          </h3>
+          <span style={{ fontSize: 18, color: COLORS.textMuted }}>{showArchive ? '▲' : '▼'}</span>
+        </button>
+        {showArchive && coachId && (
+          <div style={{ marginTop: 14 }}>
+            <ArchivedClientsList coachId={coachId} onUnarchive={() => showToast('✅ הוחזרה לפעילות')} />
+          </div>
+        )}
       </section>
 
       <section style={cardStyle}>
@@ -2340,7 +2581,7 @@ function MiniStat({ label, value, color }) {
 }
 
 /* ===================== CLIENT PROFILE ===================== */
-function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSchedule, onProgress }) {
+function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSchedule, onProgress, onWorkoutSchedule }) {
   const [tab, setTab] = useState('overview');
   const [realWeights, setRealWeights] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
@@ -2490,7 +2731,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
       } />
       
       {/* Action buttons */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
         <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '22px' }}>📅</span>
           לוח שבועי
@@ -2500,6 +2741,27 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           התקדמות
         </button>
       </div>
+
+      {/* 🗓️ לוח אימונים עם תזכורות חכמות */}
+      <button onClick={onWorkoutSchedule} style={{
+        width: '100%', background: 'white', color: COLORS.primaryDark,
+        border: `1px solid ${COLORS.primary}`, padding: '12px',
+        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: '12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 16 }}>🗓️</span>
+        לוח אימונים + תזכורות חכמות
+      </button>
+
+      {/* 📝 שלחי טופס משוב */}
+      {client.coach_id && (
+        <TriggerFeedbackButton
+          coachId={client.coach_id}
+          clientId={c.id}
+          weeksActive={Math.floor((new Date() - new Date(client.created_at || Date.now())) / (7 * 86400000))}
+        />
+      )}
 
       {/* 📄 כפתור ייצוא דוח */}
       <button onClick={() => exportClientReport(c, weightSeries, recentLogs, progressPhotos)} style={{
@@ -2604,6 +2866,12 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           {/* 💜 דוח שבועי ותגי הישג */}
           <CoachClientWellness client={client} />
 
+          {/* 📸 תמונות התקדמות (קריאה בלבד) */}
+          <section style={cardStyle}>
+            <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📸 תמונות התקדמות</h4>
+            <ProgressPhotosGallery clientId={c.id} viewOnly={true} />
+          </section>
+
           <section style={cardStyle}>
             <h4 style={{ fontSize: '13px', fontWeight: 700, margin: '0 0 10px 0', color: COLORS.primaryDark }}>📉 התקדמות משקל</h4>
             <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 'auto' }}>
@@ -2697,8 +2965,45 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </section>
       )}
 
+      {/* 📥 ייצוא CSV וארכיון */}
+      <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: `1px solid ${COLORS.border}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button onClick={async () => {
+          try {
+            await exportClientCSV(c.id);
+          } catch (e) {
+            alert('שגיאה: ' + e.message);
+          }
+        }} style={{
+          background: 'white', color: COLORS.primaryDark,
+          border: `1px solid ${COLORS.primary}`, padding: '12px',
+          borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}>
+          <span style={{ fontSize: 14 }}>📥</span>
+          ייצוא CSV
+        </button>
+        <button onClick={async () => {
+          const reason = prompt('סיבה לארכיון (אופציונלי):', '');
+          if (reason === null) return; // ביטול
+          if (!confirm(`להעביר את ${c.name} לארכיון? ניתן לשחזר בכל עת.`)) return;
+          await archiveClient(c.id, reason);
+          alert('הלקוחה הועברה לארכיון');
+          onBack();
+        }} style={{
+          background: 'white', color: '#8B6914',
+          border: '1px solid #E8C96A', padding: '12px',
+          borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        }}>
+          <span style={{ fontSize: 14 }}>📦</span>
+          העברה לארכיון
+        </button>
+      </div>
+
       {/* 🗑️ כפתור מחיקת לקוחה - בתחתית! */}
-      <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: `1px solid ${COLORS.border}` }}>
+      <div style={{ marginTop: '12px' }}>
         <button onClick={() => setShowDeleteConfirm(true)} style={{
           width: '100%', background: 'white', color: '#C62828',
           border: '1px solid #FFCDD2', padding: '12px',
@@ -2906,6 +3211,7 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
     }).select();
 
     if (data && data[0]) {
+      logEvent('message_sent', null, { to: client.id });
       setMessages(prev => [...prev, {
         id: data[0].id,
         from: 'coach',
@@ -2930,21 +3236,28 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
             עדיין אין הודעות.<br/>שלחי הודעה ראשונה 💜
           </p>
         )}
-        {messages.map(m => (
-          <div key={m.id} style={{
-            maxWidth: '82%',
-            padding: '9px 12px',
-            borderRadius: '14px',
-            fontSize: '13px',
-            lineHeight: 1.5,
-            alignSelf: m.from === 'coach' ? 'flex-end' : 'flex-start',
-            background: m.from === 'coach' ? COLORS.primary : COLORS.primarySoft,
-            color: m.from === 'coach' ? 'white' : COLORS.text,
-          }}>
-            <p style={{ margin: 0 }}>{m.text}</p>
-            <p style={{ margin: '3px 0 0', fontSize: '10px', opacity: 0.7 }}>{m.time}</p>
-          </div>
-        ))}
+        {messages.map(m => {
+          const isFromCoach = m.from === 'coach';
+          const isVoice = m.message_type === 'voice' || m.audio_url;
+          return (
+            <div key={m.id} style={{
+              maxWidth: '82%',
+              padding: '9px 12px',
+              borderRadius: '14px',
+              fontSize: '13px',
+              lineHeight: 1.5,
+              alignSelf: isFromCoach ? 'flex-end' : 'flex-start',
+              background: isFromCoach ? COLORS.primary : COLORS.primarySoft,
+              color: isFromCoach ? 'white' : COLORS.text,
+            }}>
+              {isVoice
+                ? <VoiceMessagePlayer url={m.audio_url} duration={m.audio_duration_sec} isFromMe={isFromCoach}/>
+                : <p style={{ margin: 0 }}>{m.text}</p>
+              }
+              <p style={{ margin: '3px 0 0', fontSize: '10px', opacity: 0.7 }}>{m.time}</p>
+            </div>
+          );
+        })}
       </section>
 
       {/* תבניות מהירות */}
@@ -3226,9 +3539,10 @@ function EditClientDetails({ client, onBack, onSave }) {
 /* ═══════════════════════════════════════════════════════════
    COACH CHAT — דו שיח עם לקוחה
 ═══════════════════════════════════════════════════════════ */
-function CoachChat({ client, messages, onBack, onSend }) {
+function CoachChat({ client, messages, onBack, onSend, coachId }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -3245,10 +3559,16 @@ function CoachChat({ client, messages, onBack, onSend }) {
     setSending(false);
   };
 
-  const templates = [
+  const handleSendVoice = async (voice) => {
+    setSending(true);
+    await onSend(null, voice);
+    setSending(false);
+  };
+
+  // הודעות מהירות לקיצור דרך
+  const quickTemplates = [
     `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
     'איך ההרגשה היום?',
-    'בוקר טוב! זוכרת שיש לך אימון היום',
     'אני פה לכל שאלה',
   ];
 
@@ -3267,28 +3587,48 @@ function CoachChat({ client, messages, onBack, onSend }) {
         {messages.length === 0 && (
           <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 13, margin: 'auto 0' }}>אין עדיין הודעות. כתבי הודעה ראשונה!</p>
         )}
-        {messages.map(m => (
-          <div key={m.id} style={{
-            maxWidth: '82%',
-            padding: '9px 13px',
-            borderRadius: 14,
-            fontSize: 13,
-            lineHeight: 1.5,
-            alignSelf: m.from === 'coach' ? 'flex-end' : 'flex-start',
-            background: m.from === 'coach' ? COLORS.primary : 'white',
-            color: m.from === 'coach' ? 'white' : COLORS.text,
-            border: m.from === 'coach' ? 'none' : `1px solid ${COLORS.border}`,
-            boxShadow: m.from === 'coach' ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
-          }}>
-            <p style={{ margin: 0 }}>{m.text}</p>
-            <p style={{ margin: '3px 0 0', fontSize: 10, opacity: 0.7 }}>{m.time}</p>
-          </div>
-        ))}
+        {messages.map(m => {
+          const isFromCoach = m.from === 'coach';
+          const isVoice = m.message_type === 'voice' || m.audio_url;
+          return (
+            <div key={m.id} style={{
+              maxWidth: '82%',
+              padding: '9px 13px',
+              borderRadius: 14,
+              fontSize: 13,
+              lineHeight: 1.5,
+              alignSelf: isFromCoach ? 'flex-end' : 'flex-start',
+              background: isFromCoach ? COLORS.primary : 'white',
+              color: isFromCoach ? 'white' : COLORS.text,
+              border: isFromCoach ? 'none' : `1px solid ${COLORS.border}`,
+              boxShadow: isFromCoach ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
+            }}>
+              {isVoice
+                ? <VoiceMessagePlayer url={m.audio_url} duration={m.audio_duration_sec} isFromMe={isFromCoach}/>
+                : <p style={{ margin: 0 }}>{m.text}</p>
+              }
+              <p style={{ margin: '3px 0 0', fontSize: 10, opacity: 0.7 }}>{m.time}</p>
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ padding: '10px 14px', background: 'white', borderTop: `1px solid ${COLORS.border}` }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
-          {templates.map((t, i) => (
+          <button onClick={() => setShowPicker(true)} style={{
+            background: COLORS.primary,
+            border: 'none',
+            borderRadius: 999,
+            padding: '4px 12px',
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'white',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}>💬 תבניות</button>
+          {quickTemplates.map((t, i) => (
             <button key={i} onClick={() => setText(t)} style={{
               background: COLORS.primarySoft,
               border: `1px solid ${COLORS.border}`,
@@ -3303,7 +3643,8 @@ function CoachChat({ client, messages, onBack, onSend }) {
             }}>{t}</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <VoiceRecorderButton userId={coachId} onSend={handleSendVoice} disabled={sending} />
           <input
             value={text}
             onChange={e => setText(e.target.value)}
@@ -3335,6 +3676,18 @@ function CoachChat({ client, messages, onBack, onSend }) {
           }}>שלחי</button>
         </div>
       </div>
+
+      {/* בורר תבניות הודעות */}
+      {showPicker && coachId && (
+        <MessageTemplatePicker
+          coachId={coachId}
+          onSelect={(body) => {
+            setText(body);
+            setShowPicker(false);
+          }}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </main>
   );
 }
