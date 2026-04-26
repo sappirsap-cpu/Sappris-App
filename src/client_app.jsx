@@ -429,6 +429,29 @@ export default function App({onLogout}){
   const [activeWorkout, setActiveWorkout] = useState(null);
   const [completedStats, setCompletedStats] = useState(null);
 
+  // 🍞 Rich Toast state
+  const [clientToast, setClientToast] = useState(null);
+  const showToast = React.useCallback((text, type) => {
+    try { navigator.vibrate?.(detectClientToastType(type || text) === 'error' ? [20, 30, 20] : [8, 40, 8]); } catch {}
+    setClientToast({ message: text, type: type || detectClientToastType(text), id: Date.now() });
+    setTimeout(() => setClientToast(null), 2600);
+  }, []);
+
+  // ↓ Pull to refresh
+  const reloadData = React.useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: {} }));
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const [mealsRes, waterRes] = await Promise.all([
+      supabase.from('meal_logs').select('*').eq('client_id', user.id).gte('logged_at', today).order('logged_at', { ascending: true }),
+      supabase.from('water_logs').select('amount_ml').eq('client_id', user.id).gte('logged_at', today),
+    ]);
+    if (mealsRes.data) setMeals(mealsRes.data.map(m => ({ id: m.id, name: m.name, cal: m.calories, p: m.protein_g, c: m.carbs_g, f: m.fat_g, planKey: m.meal_type, time: new Date(m.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) })));
+    if (waterRes.data) setWater(waterRes.data.reduce((s, w) => s + w.amount_ml, 0));
+  }, []);
+
+  const { pulling, refreshing, progress: pullProg } = useClientPullToRefresh(reloadData);
+
   // טעינה ראשונית
   useEffect(() => {
     loadAll();
@@ -943,28 +966,6 @@ export default function App({onLogout}){
     {id:'stats',label:'סטטיסטיקות',icon:'chart'},
     {id:'settings',label:'הגדרות',icon:'settings'},
   ];
-
-  const [clientToast, setClientToast] = useState(null);
-  const showToast = React.useCallback((text, type) => {
-    try { navigator.vibrate?.(detectClientToastType(type || text) === 'error' ? [20, 30, 20] : [8, 40, 8]); } catch {}
-    setClientToast({ message: text, type: type || detectClientToastType(text), id: Date.now() });
-    setTimeout(() => setClientToast(null), 2600);
-  }, []);
-
-  const reloadData = React.useCallback(async () => {
-    // רענון קל — טוען מחדש ארוחות ומשקל
-    const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: {} }));
-    if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const [mealsRes, waterRes] = await Promise.all([
-      supabase.from('meal_logs').select('*').eq('client_id', user.id).gte('logged_at', today).order('logged_at', { ascending: true }),
-      supabase.from('water_logs').select('amount_ml').eq('client_id', user.id).gte('logged_at', today),
-    ]);
-    if (mealsRes.data) setMeals(mealsRes.data.map(m => ({ id: m.id, name: m.name, cal: m.calories, p: m.protein_g, c: m.carbs_g, f: m.fat_g, planKey: m.meal_type, time: new Date(m.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) })));
-    if (waterRes.data) setWater(waterRes.data.reduce((s, w) => s + w.amount_ml, 0));
-  }, []);
-
-  const { pulling, refreshing, progress: pullProg } = useClientPullToRefresh(reloadData);
 
   return(
     <div style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',

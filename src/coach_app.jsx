@@ -1009,9 +1009,9 @@ export default function App({ onLogout }) {
   const needsAttention = clients.filter((c) => c.status !== 'on-track');
   const activeCount = clients.filter((c) => c.status === 'on-track').length;
 
-  if (loading) return <DashboardSkeleton />;
-
   const { pulling, refreshing, progress: pullProgress } = usePullToRefresh(loadAll);
+
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
