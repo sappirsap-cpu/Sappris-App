@@ -12,41 +12,91 @@ import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 
 // ═══════════════════════════════════════════════════════════════
-// 🌙 DARK MODE — CSS Variables injection
+// 🌙 DARK MODE — CSS overrides for inline styles
 // ═══════════════════════════════════════════════════════════════
 if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode')) {
   const s = document.createElement('style');
   s.id = 'coach-dark-mode';
   s.textContent = `
-    /* Coach App — Dark Mode overrides */
-    [data-theme="dark"] .coach-card {
-      background: var(--card) !important;
-      border-color: var(--border) !important;
+    /* ============= DARK MODE — דורס inline styles ============= */
+    [data-theme="dark"] body {
+      background: #12101E !important;
+      color: #EDE3F5 !important;
     }
-    [data-theme="dark"] .coach-header {
-      background: var(--header-bg) !important;
-      border-color: var(--border) !important;
+
+    /* רקעים לבנים → כהים */
+    [data-theme="dark"] [style*="background: white"],
+    [data-theme="dark"] [style*="background:white"],
+    [data-theme="dark"] [style*="background: '#fff'"],
+    [data-theme="dark"] [style*="background: #fff"],
+    [data-theme="dark"] [style*="background:#fff"],
+    [data-theme="dark"] [style*="background: #FFFFFF"],
+    [data-theme="dark"] [style*="background:#FFFFFF"] {
+      background-color: #1E1A2E !important;
     }
-    [data-theme="dark"] .coach-nav {
-      background: var(--nav-bg) !important;
-      border-color: var(--border) !important;
+
+    /* רקעי ביג ראשי */
+    [data-theme="dark"] [style*="background: #F5F2FA"],
+    [data-theme="dark"] [style*="background:#F5F2FA"] {
+      background-color: #12101E !important;
     }
-    [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
-      background: var(--input-bg) !important;
-      color: var(--text) !important;
-      border-color: var(--border) !important;
+
+    /* רקע סגול בהיר */
+    [data-theme="dark"] [style*="background: #E8DFF5"],
+    [data-theme="dark"] [style*="background:#E8DFF5"] {
+      background-color: #2D2645 !important;
     }
-    [data-theme="dark"] .coach-main {
-      background: var(--bg) !important;
+    [data-theme="dark"] [style*="background: #EDE3F5"],
+    [data-theme="dark"] [style*="background:#EDE3F5"] {
+      background-color: #2D2645 !important;
+    }
+
+    /* טקסטים כהים → בהירים */
+    [data-theme="dark"] [style*="color: #2E2A3D"],
+    [data-theme="dark"] [style*="color:#2E2A3D"] {
+      color: #EDE3F5 !important;
+    }
+    [data-theme="dark"] [style*="color: #756B85"],
+    [data-theme="dark"] [style*="color:#756B85"] {
+      color: #9B8BAD !important;
+    }
+    [data-theme="dark"] [style*="color: #8B72B5"],
+    [data-theme="dark"] [style*="color:#8B72B5"] {
+      color: #C5B3E0 !important;
+    }
+
+    /* גבולות */
+    [data-theme="dark"] [style*="border: 1px solid #DDD0EB"],
+    [data-theme="dark"] [style*="1px solid #DDD0EB"] {
+      border-color: #3D3560 !important;
+    }
+    [data-theme="dark"] [style*="borderTop: 1px solid"] {
+      border-top-color: #3D3560 !important;
+    }
+    [data-theme="dark"] [style*="borderBottom: 1px solid"] {
+      border-bottom-color: #3D3560 !important;
+    }
+
+    /* Inputs */
+    [data-theme="dark"] input,
+    [data-theme="dark"] textarea,
+    [data-theme="dark"] select {
+      background: #252235 !important;
+      color: #EDE3F5 !important;
+      border-color: #3D3560 !important;
+    }
+    [data-theme="dark"] input::placeholder,
+    [data-theme="dark"] textarea::placeholder {
+      color: #6B6280 !important;
+    }
+
+    /* כפתורים סגולים נשארים בצבע */
+    [data-theme="dark"] [style*="background: #B19CD9"],
+    [data-theme="dark"] [style*="background:#B19CD9"] {
+      background-color: #C5B3E0 !important;
     }
   `;
   document.head.appendChild(s);
-}
-
-// Helper — קורא CSS variable
-function cssVar(name) {
-  if (typeof getComputedStyle === 'undefined') return '';
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1014,7 +1064,7 @@ export default function App({ onLogout }) {
   if (loading) return <DashboardSkeleton />;
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
+    <div className="coach-main" style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: 'var(--bg, ' + COLORS.bg + ')', minHeight: '100vh', paddingBottom: '72px', width: '100%', maxWidth: '900px', margin: '0 auto', position: 'relative', color: 'var(--text, ' + COLORS.text + ')' }}>
 
       <PullIndicator pulling={pulling} refreshing={refreshing} progress={pullProgress} />
 
@@ -1147,13 +1197,116 @@ function BottomNav({ tab, setTab }) {
     { id: 'workouts', label: 'אימונים', icon: 'workout' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
+  const [isWide, setIsWide] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
+  const [collapsed, setCollapsed] = React.useState(() => {
+    try { return localStorage.getItem('sappir-sidebar-collapsed') === '1'; } catch { return false; }
+  });
+
+  React.useEffect(() => {
+    const onResize = () => setIsWide(window.innerWidth >= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const toggleCollapse = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try { localStorage.setItem('sappir-sidebar-collapsed', next ? '1' : '0'); } catch {}
+  };
+
+  // ─── תפריט צד למסך רחב ───
+  if (isWide) {
+    const sidebarWidth = collapsed ? 60 : 200;
+    return (
+      <>
+        <nav style={{
+          position: 'fixed', top: 0, right: 0, bottom: 0,
+          width: sidebarWidth,
+          background: 'var(--card, white)',
+          borderLeft: `1px solid var(--border, ${COLORS.border})`,
+          display: 'flex', flexDirection: 'column',
+          padding: '14px 8px', gap: 4, zIndex: 30,
+          transition: 'width 0.25s cubic-bezier(0.25,0.46,0.45,0.94)',
+          boxShadow: '-2px 0 12px rgba(0,0,0,0.04)',
+        }}>
+          {/* Logo + collapse */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: '8px 4px 14px', borderBottom: `1px solid var(--border, ${COLORS.border})`, marginBottom: 8 }}>
+            {!collapsed && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src="/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--primary-dark, ' + COLORS.primaryDark + ')' }}>Sappir Fit</span>
+              </div>
+            )}
+            <button onClick={toggleCollapse} style={{
+              background: 'var(--primary-soft, ' + COLORS.primarySoft + ')',
+              border: 'none', borderRadius: 8, width: 28, height: 28,
+              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+              color: 'var(--primary-dark, ' + COLORS.primaryDark + ')',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {collapsed ? '◀' : '▶'}
+            </button>
+          </div>
+
+          {tabs.map((t) => {
+            const isActive = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} title={collapsed ? t.label : ''}
+                style={{
+                  background: isActive ? 'var(--primary-soft, ' + COLORS.primarySoft + ')' : 'transparent',
+                  border: 'none', borderRadius: 10,
+                  padding: collapsed ? '10px 0' : '10px 12px',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'flex', alignItems: 'center',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  gap: 12,
+                  transition: 'background 0.15s',
+                  position: 'relative',
+                }}>
+                <CoachNavIcon name={t.icon} active={isActive} />
+                {!collapsed && (
+                  <span style={{
+                    fontSize: 13,
+                    color: isActive ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text, ' + COLORS.text + ')',
+                    fontWeight: isActive ? 700 : 500,
+                  }}>{t.label}</span>
+                )}
+                {isActive && (
+                  <div style={{
+                    position: 'absolute', right: -8, top: '50%',
+                    transform: 'translateY(-50%)', width: 3, height: 22,
+                    background: 'var(--primary, ' + COLORS.primary + ')', borderRadius: 4,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        {/* Spacer to push content from sidebar */}
+        <style>{`
+          @media (min-width: 768px) {
+            body, #root { padding-right: ${sidebarWidth}px !important; transition: padding-right 0.25s; }
+          }
+        `}</style>
+      </>
+    );
+  }
+
+  // ─── תפריט תחתון למסך צר (מובייל) ───
   return (
-    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '8px 0 10px 0', zIndex: 25 }}>
+    <nav style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0,
+      maxWidth: '440px', margin: '0 auto',
+      background: 'var(--nav-bg, white)',
+      borderTop: `1px solid var(--border, ${COLORS.border})`,
+      display: 'flex', justifyContent: 'space-around',
+      padding: '8px 0 10px 0', zIndex: 25,
+    }}>
       {tabs.map((t) => (
         <button key={t.id} onClick={() => setTab(t.id)}
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
           <CoachNavIcon name={t.icon} active={tab === t.id} />
-          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+          <span style={{ fontSize: '10px', color: tab === t.id ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
         </button>
       ))}
     </nav>
