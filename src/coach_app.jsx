@@ -1053,7 +1053,7 @@ export default function App({ onLogout }) {
       {subView === 'macroPicker' && <AnimatedScreen direction="up"><MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} /></AnimatedScreen>}
       {subView === 'message' && selectedClient && <AnimatedScreen direction="up"><MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} /></AnimatedScreen>}
       {subView === 'newClient' && <AnimatedScreen direction="up"><AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} /></AnimatedScreen>}
-      {subView === 'chat' && selectedClient && <AnimatedScreen direction="right"><CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} /></AnimatedScreen>}}
+      {subView === 'chat' && selectedClient && <AnimatedScreen direction="right"><CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} /></AnimatedScreen>}
 
       {/* Notifications dropdown */}
       {showNotifs && (
@@ -1643,6 +1643,7 @@ function MealsTab({ showToast }) {
           <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין ארוחות</p>
           <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ ארוחה חדשה" למעלה 👆</p>
         </div>
+      ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {meals.map(m => (
             <div key={m.id} onClick={() => setEditingMeal(m)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
