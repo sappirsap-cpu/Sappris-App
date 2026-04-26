@@ -23,6 +23,7 @@ import { BroadcastPlayer } from './voice_broadcasts';
 import { NextWorkoutCard, startSmartReminders } from './smart_reminders';
 import { FeedbackBanner, FeedbackForm } from './feedback';
 import { PatternInsights } from './pattern_reminders';
+import { ClientWorkoutPicker, ClientMealPlanView } from './flexible_plans';
 import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
 const COLORS = {
@@ -39,66 +40,90 @@ if (typeof document !== 'undefined' && !document.getElementById('client-dark-mod
   const s = document.createElement('style');
   s.id = 'client-dark-mode';
   s.textContent = `
-    [data-theme="dark"] body {
+    [data-theme="dark"] .client-main {
       background: #12101E !important;
       color: #EDE3F5 !important;
     }
-    [data-theme="dark"] [style*="background: white"],
-    [data-theme="dark"] [style*="background:white"],
-    [data-theme="dark"] [style*="background: '#fff'"],
-    [data-theme="dark"] [style*="background: #fff"],
-    [data-theme="dark"] [style*="background:#fff"],
-    [data-theme="dark"] [style*="background: #FFFFFF"],
-    [data-theme="dark"] [style*="background:#FFFFFF"] {
+    [data-theme="dark"] .client-main [style*="background: white"],
+    [data-theme="dark"] .client-main [style*="background:white"],
+    [data-theme="dark"] .client-main [style*="background: '#fff'"],
+    [data-theme="dark"] .client-main [style*="background: #fff"],
+    [data-theme="dark"] .client-main [style*="background:#fff"],
+    [data-theme="dark"] .client-main [style*="background: #FFFFFF"],
+    [data-theme="dark"] .client-main [style*="background:#FFFFFF"] {
       background-color: #1E1A2E !important;
     }
-    [data-theme="dark"] [style*="background: #F5F2FA"],
-    [data-theme="dark"] [style*="background:#F5F2FA"] {
+    [data-theme="dark"] .client-main [style*="background: #F5F2FA"],
+    [data-theme="dark"] .client-main [style*="background:#F5F2FA"],
+    [data-theme="dark"] .client-main [style*="background: #F8F6FB"],
+    [data-theme="dark"] .client-main [style*="background:#F8F6FB"] {
       background-color: #12101E !important;
     }
-    [data-theme="dark"] [style*="background: #E8DFF5"],
-    [data-theme="dark"] [style*="background:#E8DFF5"] {
+    [data-theme="dark"] .client-main [style*="background: #E8DFF5"],
+    [data-theme="dark"] .client-main [style*="background:#E8DFF5"],
+    [data-theme="dark"] .client-main [style*="background: #EDE3F5"],
+    [data-theme="dark"] .client-main [style*="background:#EDE3F5"] {
       background-color: #2D2645 !important;
     }
-    [data-theme="dark"] [style*="background: #EDE3F5"],
-    [data-theme="dark"] [style*="background:#EDE3F5"] {
-      background-color: #2D2645 !important;
+    [data-theme="dark"] .client-main [style*="color: #2E2A3D"],
+    [data-theme="dark"] .client-main [style*="color:#2E2A3D"] {
+      color: #F0E8FA !important;
     }
-    [data-theme="dark"] [style*="color: #2E2A3D"],
-    [data-theme="dark"] [style*="color:#2E2A3D"] {
-      color: #EDE3F5 !important;
+    [data-theme="dark"] .client-main [style*="color: #756B85"],
+    [data-theme="dark"] .client-main [style*="color:#756B85"] {
+      color: #B0A0C5 !important;
     }
-    [data-theme="dark"] [style*="color: #756B85"],
-    [data-theme="dark"] [style*="color:#756B85"] {
-      color: #9B8BAD !important;
+    [data-theme="dark"] .client-main [style*="color: #8B72B5"],
+    [data-theme="dark"] .client-main [style*="color:#8B72B5"] {
+      color: #D4C2EC !important;
     }
-    [data-theme="dark"] [style*="color: #8B72B5"],
-    [data-theme="dark"] [style*="color:#8B72B5"] {
-      color: #C5B3E0 !important;
+    [data-theme="dark"] .client-main [style*="color: #B19CD9"],
+    [data-theme="dark"] .client-main [style*="color:#B19CD9"] {
+      color: #D8C5F0 !important;
     }
-    [data-theme="dark"] [style*="1px solid #DDD0EB"] {
+    [data-theme="dark"] .client-main [style*="color: black"],
+    [data-theme="dark"] .client-main [style*="color:black"],
+    [data-theme="dark"] .client-main [style*="color: #000"],
+    [data-theme="dark"] .client-main [style*="color:#000"] {
+      color: #F0E8FA !important;
+    }
+    [data-theme="dark"] .client-main [style*="1px solid #DDD0EB"],
+    [data-theme="dark"] .client-main [style*="1px solid #E0D4EB"] {
       border-color: #3D3560 !important;
     }
-    [data-theme="dark"] [style*="borderTop: 1px solid"] {
+    [data-theme="dark"] .client-main [style*="borderTop: 1px solid"] {
       border-top-color: #3D3560 !important;
     }
-    [data-theme="dark"] [style*="borderBottom: 1px solid"] {
+    [data-theme="dark"] .client-main [style*="borderBottom: 1px solid"] {
       border-bottom-color: #3D3560 !important;
     }
-    [data-theme="dark"] input,
-    [data-theme="dark"] textarea,
-    [data-theme="dark"] select {
+    [data-theme="dark"] .client-main input,
+    [data-theme="dark"] .client-main textarea,
+    [data-theme="dark"] .client-main select {
       background: #252235 !important;
-      color: #EDE3F5 !important;
+      color: #F0E8FA !important;
       border-color: #3D3560 !important;
     }
-    [data-theme="dark"] input::placeholder,
-    [data-theme="dark"] textarea::placeholder {
-      color: #6B6280 !important;
+    [data-theme="dark"] .client-main input::placeholder,
+    [data-theme="dark"] .client-main textarea::placeholder {
+      color: #7A6E92 !important;
     }
-    [data-theme="dark"] [style*="background: #B19CD9"],
-    [data-theme="dark"] [style*="background:#B19CD9"] {
+    [data-theme="dark"] .client-main [style*="background: #B19CD9"],
+    [data-theme="dark"] .client-main [style*="background:#B19CD9"] {
       background-color: #C5B3E0 !important;
+      color: #1E1A2E !important;
+    }
+    [data-theme="dark"] .client-main [style*="background: #FADDDD"],
+    [data-theme="dark"] .client-main [style*="background:#FADDDD"] {
+      background-color: #3A1F1F !important;
+    }
+    [data-theme="dark"] .client-main [style*="background: #FDF3D7"],
+    [data-theme="dark"] .client-main [style*="background:#FDF3D7"] {
+      background-color: #2E2510 !important;
+    }
+    [data-theme="dark"] .client-main [style*="background: #E0F2EB"],
+    [data-theme="dark"] .client-main [style*="background:#E0F2EB"] {
+      background-color: #1A3028 !important;
     }
   `;
   document.head.appendChild(s);
@@ -620,7 +645,10 @@ export default function App({onLogout}){
   const loadAll = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     // טען פרופיל לקוחה
     const { data: clientsData } = await supabase
@@ -1020,7 +1048,7 @@ export default function App({onLogout}){
   ];
 
   return(
-    <div style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',
+    <div className="client-main" style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',
       background:COLORS.bg,minHeight:'100vh',paddingBottom:72,maxWidth:420,margin:'0 auto',
       position:'relative',color:COLORS.text}}>
 
@@ -1198,7 +1226,7 @@ export default function App({onLogout}){
       )}
 
       {tab==='eat'&&<AnimatedTab tabId="eat"><LogScreen profile={p} meals={meals} cal={cal} prot={prot} carb={carb} fat={fat} todayPlan={todayPlan} onPlan={(key,meal)=>addMeal({...meal,planKey:key})} onCustom={addMeal} onRemove={removeMeal}/></AnimatedTab>}
-      {tab==='workout'&&<AnimatedTab tabId="workout"><WorkoutScreen exs={exs} setExs={setExs} onToggle={id=>setExs(prev=>prev.map(e=>e.id===id?{...e,done:!e.done}:e))} onFinish={()=>{if(done===exs.length)showToast('🎉 אימון הושלם!');else{setExs(p=>p.map(e=>({...e,done:true})));showToast('🎉 מעולה!');} }} done={done} showToast={showToast} onStartGuided={()=>setActiveWorkout({workout:{name:'האימון של היום'},exercises:exs})}/></AnimatedTab>}
+      {tab==='workout'&&<AnimatedTab tabId="workout"><ClientWorkoutPicker clientId={profile.id} onComplete={() => loadAll()} /></AnimatedTab>}
       {tab==='stats'&&<AnimatedTab tabId="stats"><StatsScreen weights={weights} profile={p} onLog={logWeight} onDel={deleteWeight} onOpenPhotos={()=>setShowPhotoGallery(true)}/></AnimatedTab>}
       {tab==='messages'&&<AnimatedTab tabId="messages"><MessagesScreen messages={messages} onSend={sendMessage} userId={profile.id}/></AnimatedTab>}
       {tab==='settings'&&<AnimatedTab tabId="settings"><SettingsScreen profile={profile} showToast={showToast} onLogout={onLogout}/></AnimatedTab>}
@@ -1491,61 +1519,14 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
       </div>
 
       {mode==='plan'&&(
-        <section style={S.card}>
-          {Object.keys(todayPlan).length===0 ? (
-            <div style={{textAlign:'center',padding:'30px 20px',color:COLORS.textMuted}}>
-              <p style={{fontSize:14,margin:'0 0 4px'}}>💜 ספיר עדיין לא בנתה לך תפריט להיום</p>
-              <p style={{fontSize:11,margin:0}}>את יכולה להוסיף ארוחות ידנית בלשונית ׳ידני׳</p>
-            </div>
-          ) : (
-            <>
-              <p style={{fontSize:12,color:COLORS.textMuted,margin:'0 0 12px'}}>התפריט שלך להיום. לחצי על ✓ כשאכלת מאכל.</p>
-              {Object.entries(todayPlan).map(([key,meal])=>(
-                <div key={key} style={{border:`1px solid ${COLORS.border}`,background:'white',borderRadius:12,padding:12,marginBottom:8}}>
-                  <div style={{marginBottom:10}}>
-                    <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>🍽️ {meal.name}</p>
-                    <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>
-                      סה״כ: {meal.cal} קק״ל · חלבון {meal.p}g
-                    </p>
-                  </div>
-                  {meal.meals?.length>0 && (
-                    <div>
-                      {meal.meals.map((m,i)=>{
-                        const itemKey = `${key}-${i}`;
-                        const loggedItem = meals.find(logged => logged.planKey === itemKey);
-                        return (
-                          <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:8,background:loggedItem?COLORS.mintSoft:COLORS.bg,borderRadius:8,marginBottom:4,border:`1px solid ${loggedItem?COLORS.mint:'transparent'}`}}>
-                            <button onClick={()=>{
-                              if(loggedItem) {
-                                onRemove(loggedItem.id);
-                              } else {
-                                onPlan(itemKey, {name:m.name, cal:m.cal||0, p:m.p||0, c:m.c||0, f:m.f||0});
-                              }
-                            }} style={{
-                              width:28,height:28,borderRadius:'50%',
-                              background:loggedItem?COLORS.mint:'white',
-                              border:`2px solid ${loggedItem?COLORS.mint:COLORS.border}`,
-                              cursor:'pointer',color:'white',fontSize:14,fontWeight:700,
-                              display:'flex',alignItems:'center',justifyContent:'center',
-                              fontFamily:'inherit',flexShrink:0,
-                            }}>{loggedItem?'✓':''}</button>
-                            <span style={{fontSize:18}}>{m.icon||'🍽️'}</span>
-                            <div style={{flex:1,minWidth:0}}>
-                              <p style={{margin:0,fontSize:12,fontWeight:600,textDecoration:loggedItem?'line-through':'none',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.name}</p>
-                              <p style={{margin:0,fontSize:10,color:COLORS.textMuted}}>
-                                {Math.round(m.quantity_g||100)}g · {Math.round(m.cal||0)} קק״ל
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </>
-          )}
-        </section>
+        <ClientMealPlanView
+          clientId={profile.id}
+          onLogMeal={() => {
+            // טריגר רענון ארוחות אחרי לוג
+            window.location.hash = '#refreshMeals';
+            setTimeout(() => { window.location.hash = ''; }, 100);
+          }}
+        />
       )}
 
       {mode==='drag'&&(

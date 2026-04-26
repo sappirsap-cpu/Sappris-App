@@ -10,6 +10,7 @@ import { VoiceRecorderButton, VoiceMessagePlayer } from './voice_messages';
 import { BroadcastsManager } from './voice_broadcasts';
 import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
+import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
 
 // ═══════════════════════════════════════════════════════════════
 // 🌙 DARK MODE — CSS overrides for inline styles
@@ -18,82 +19,133 @@ if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode
   const s = document.createElement('style');
   s.id = 'coach-dark-mode';
   s.textContent = `
-    /* ============= DARK MODE — דורס inline styles ============= */
-    [data-theme="dark"] body {
+    /* ============= DARK MODE (Coach) ============= */
+    /* רק על coach-main ובתוכו - לא על login */
+    [data-theme="dark"] .coach-main {
       background: #12101E !important;
       color: #EDE3F5 !important;
     }
 
-    /* רקעים לבנים → כהים */
-    [data-theme="dark"] [style*="background: white"],
-    [data-theme="dark"] [style*="background:white"],
-    [data-theme="dark"] [style*="background: '#fff'"],
-    [data-theme="dark"] [style*="background: #fff"],
-    [data-theme="dark"] [style*="background:#fff"],
-    [data-theme="dark"] [style*="background: #FFFFFF"],
-    [data-theme="dark"] [style*="background:#FFFFFF"] {
+    /* רקעים לבנים → כהים — רק בתוך coach-main */
+    [data-theme="dark"] .coach-main [style*="background: white"],
+    [data-theme="dark"] .coach-main [style*="background:white"],
+    [data-theme="dark"] .coach-main [style*="background: '#fff'"],
+    [data-theme="dark"] .coach-main [style*="background: #fff"],
+    [data-theme="dark"] .coach-main [style*="background:#fff"],
+    [data-theme="dark"] .coach-main [style*="background: #FFFFFF"],
+    [data-theme="dark"] .coach-main [style*="background:#FFFFFF"],
+    [data-theme="dark"] .coach-main [style*="background:'white'"] {
       background-color: #1E1A2E !important;
     }
 
-    /* רקעי ביג ראשי */
-    [data-theme="dark"] [style*="background: #F5F2FA"],
-    [data-theme="dark"] [style*="background:#F5F2FA"] {
+    /* רקע עיקרי */
+    [data-theme="dark"] .coach-main [style*="background: #F5F2FA"],
+    [data-theme="dark"] .coach-main [style*="background:#F5F2FA"],
+    [data-theme="dark"] .coach-main [style*="background: #F8F6FB"],
+    [data-theme="dark"] .coach-main [style*="background:#F8F6FB"] {
       background-color: #12101E !important;
     }
 
-    /* רקע סגול בהיר */
-    [data-theme="dark"] [style*="background: #E8DFF5"],
-    [data-theme="dark"] [style*="background:#E8DFF5"] {
-      background-color: #2D2645 !important;
-    }
-    [data-theme="dark"] [style*="background: #EDE3F5"],
-    [data-theme="dark"] [style*="background:#EDE3F5"] {
+    /* רקע סגול בהיר → סגול כהה */
+    [data-theme="dark"] .coach-main [style*="background: #E8DFF5"],
+    [data-theme="dark"] .coach-main [style*="background:#E8DFF5"],
+    [data-theme="dark"] .coach-main [style*="background: #EDE3F5"],
+    [data-theme="dark"] .coach-main [style*="background:#EDE3F5"],
+    [data-theme="dark"] .coach-main [style*="background: #E0D4EB"],
+    [data-theme="dark"] .coach-main [style*="background:#E0D4EB"] {
       background-color: #2D2645 !important;
     }
 
     /* טקסטים כהים → בהירים */
-    [data-theme="dark"] [style*="color: #2E2A3D"],
-    [data-theme="dark"] [style*="color:#2E2A3D"] {
-      color: #EDE3F5 !important;
+    [data-theme="dark"] .coach-main [style*="color: #2E2A3D"],
+    [data-theme="dark"] .coach-main [style*="color:#2E2A3D"] {
+      color: #F0E8FA !important;
     }
-    [data-theme="dark"] [style*="color: #756B85"],
-    [data-theme="dark"] [style*="color:#756B85"] {
-      color: #9B8BAD !important;
+    [data-theme="dark"] .coach-main [style*="color: #756B85"],
+    [data-theme="dark"] .coach-main [style*="color:#756B85"] {
+      color: #B0A0C5 !important;
     }
-    [data-theme="dark"] [style*="color: #8B72B5"],
-    [data-theme="dark"] [style*="color:#8B72B5"] {
-      color: #C5B3E0 !important;
+    [data-theme="dark"] .coach-main [style*="color: #8B72B5"],
+    [data-theme="dark"] .coach-main [style*="color:#8B72B5"] {
+      color: #D4C2EC !important;
+    }
+    [data-theme="dark"] .coach-main [style*="color: #B19CD9"],
+    [data-theme="dark"] .coach-main [style*="color:#B19CD9"] {
+      color: #D8C5F0 !important;
+    }
+    [data-theme="dark"] .coach-main [style*="color: black"],
+    [data-theme="dark"] .coach-main [style*="color:black"],
+    [data-theme="dark"] .coach-main [style*="color: #000"],
+    [data-theme="dark"] .coach-main [style*="color:#000"] {
+      color: #F0E8FA !important;
+    }
+    [data-theme="dark"] .coach-main [style*="color: #9B9B9B"],
+    [data-theme="dark"] .coach-main [style*="color:#9B9B9B"],
+    [data-theme="dark"] .coach-main [style*="color: #666"],
+    [data-theme="dark"] .coach-main [style*="color:#666"] {
+      color: #B0A0C5 !important;
     }
 
     /* גבולות */
-    [data-theme="dark"] [style*="border: 1px solid #DDD0EB"],
-    [data-theme="dark"] [style*="1px solid #DDD0EB"] {
+    [data-theme="dark"] .coach-main [style*="1px solid #DDD0EB"],
+    [data-theme="dark"] .coach-main [style*="1px solid #E0D4EB"],
+    [data-theme="dark"] .coach-main [style*="1px solid rgba(0,0,0,0.1)"],
+    [data-theme="dark"] .coach-main [style*="1px solid #ECEAEC"] {
       border-color: #3D3560 !important;
     }
-    [data-theme="dark"] [style*="borderTop: 1px solid"] {
+    [data-theme="dark"] .coach-main [style*="borderTop: 1px solid"] {
       border-top-color: #3D3560 !important;
     }
-    [data-theme="dark"] [style*="borderBottom: 1px solid"] {
+    [data-theme="dark"] .coach-main [style*="borderBottom: 1px solid"] {
       border-bottom-color: #3D3560 !important;
     }
+    [data-theme="dark"] .coach-main [style*="borderLeft: 1px solid"] {
+      border-left-color: #3D3560 !important;
+    }
+    [data-theme="dark"] .coach-main [style*="borderRight: 1px solid"] {
+      border-right-color: #3D3560 !important;
+    }
 
-    /* Inputs */
-    [data-theme="dark"] input,
-    [data-theme="dark"] textarea,
-    [data-theme="dark"] select {
+    /* Inputs בתוך coach-main בלבד */
+    [data-theme="dark"] .coach-main input,
+    [data-theme="dark"] .coach-main textarea,
+    [data-theme="dark"] .coach-main select {
       background: #252235 !important;
-      color: #EDE3F5 !important;
+      color: #F0E8FA !important;
       border-color: #3D3560 !important;
     }
-    [data-theme="dark"] input::placeholder,
-    [data-theme="dark"] textarea::placeholder {
-      color: #6B6280 !important;
+    [data-theme="dark"] .coach-main input::placeholder,
+    [data-theme="dark"] .coach-main textarea::placeholder {
+      color: #7A6E92 !important;
+    }
+    [data-theme="dark"] .coach-main input:disabled {
+      background: #1A1626 !important;
+      color: #7A6E92 !important;
     }
 
-    /* כפתורים סגולים נשארים בצבע */
-    [data-theme="dark"] [style*="background: #B19CD9"],
-    [data-theme="dark"] [style*="background:#B19CD9"] {
+    /* כפתורים primary - בהירים יותר */
+    [data-theme="dark"] .coach-main [style*="background: #B19CD9"],
+    [data-theme="dark"] .coach-main [style*="background:#B19CD9"] {
       background-color: #C5B3E0 !important;
+      color: #1E1A2E !important;
+    }
+    [data-theme="dark"] .coach-main [style*="background: #8B72B5"],
+    [data-theme="dark"] .coach-main [style*="background:#8B72B5"] {
+      background-color: #A693C5 !important;
+    }
+
+    /* רקעי warning/error/success — ניטרליזציה */
+    [data-theme="dark"] .coach-main [style*="background: #FADDDD"],
+    [data-theme="dark"] .coach-main [style*="background:#FADDDD"] {
+      background-color: #3A1F1F !important;
+    }
+    [data-theme="dark"] .coach-main [style*="background: #FDF3D7"],
+    [data-theme="dark"] .coach-main [style*="background:#FDF3D7"] {
+      background-color: #2E2510 !important;
+    }
+    [data-theme="dark"] .coach-main [style*="background: #E0F2EB"],
+    [data-theme="dark"] .coach-main [style*="background:#E0F2EB"] {
+      background-color: #1A3028 !important;
     }
   `;
   document.head.appendChild(s);
@@ -949,43 +1001,51 @@ export default function App({ onLogout }) {
   };
 
   const loadAll = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    // טען פרופיל מאמנת
-    const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
-    if (coaches?.[0]) setCoachProfile(coaches[0]);
+      // טען פרופיל מאמנת
+      const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
+      if (coaches?.[0]) setCoachProfile(coaches[0]);
 
-    // טען לקוחות (לא מארכיון)
-    const { data: clientsData } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('coach_id', user.id)
-      .or('is_archived.is.null,is_archived.eq.false')
-      .order('full_name');
+      // טען לקוחות (לא מארכיון)
+      const { data: clientsData } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('coach_id', user.id)
+        .or('is_archived.is.null,is_archived.eq.false')
+        .order('full_name');
 
-    if (clientsData) {
-      setClients(clientsData.map(c => ({
-        id: c.id, name: c.full_name, email: c.email || '',
-        weight: c.current_weight || c.start_weight || 0,
-        target: c.target_weight || 0, streak: c.streak || 0,
-        startWeight: c.start_weight || 0, height: c.height_cm || 0,
-        age: Math.floor((new Date() - new Date(c.birth_date)) / 31557600000) || 30,
-        sex: c.sex || 'female', activity: c.activity_level || 'moderate',
-        goal: c.goal || 'lose',
-        savedGoals: c.daily_calorie_goal ? {
-          kcal: c.daily_calorie_goal, carbG: c.daily_carb_goal,
-          proteinG: c.daily_protein_goal, fatG: c.daily_fat_goal
-        } : null,
-        plan: 'מודרך', weekLog: Array(7).fill('none'),
-        loggedToday: false, lastLog: 0, status: 'on-track',
-        unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
-      })));
+      if (clientsData) {
+        setClients(clientsData.map(c => ({
+          id: c.id, name: c.full_name, email: c.email || '',
+          weight: c.current_weight || c.start_weight || 0,
+          target: c.target_weight || 0, streak: c.streak || 0,
+          startWeight: c.start_weight || 0, height: c.height_cm || 0,
+          age: Math.floor((new Date() - new Date(c.birth_date)) / 31557600000) || 30,
+          sex: c.sex || 'female', activity: c.activity_level || 'moderate',
+          goal: c.goal || 'lose',
+          savedGoals: c.daily_calorie_goal ? {
+            kcal: c.daily_calorie_goal, carbG: c.daily_carb_goal,
+            proteinG: c.daily_protein_goal, fatG: c.daily_fat_goal
+          } : null,
+          plan: 'מודרך', weekLog: Array(7).fill('none'),
+          loggedToday: false, lastLog: 0, status: 'on-track',
+          unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
+        })));
+      }
+
+      // טען הודעות בטעינה ראשונית
+      await loadMessages();
+    } catch (e) {
+      console.error('loadAll error:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    
-    // טען הודעות בטעינה ראשונית
-    await loadMessages();
   };
 
   const [toast, setToast] = useState(null); // { message, type }
@@ -1087,13 +1147,24 @@ export default function App({ onLogout }) {
 
       {/* Sub-views — כל אחד עטוף ב-AnimatedScreen */}
       {subView === 'clientProfile' && selectedClient && <AnimatedScreen direction="right"><ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} /></AnimatedScreen>}
-      {subView === 'schedule' && selectedClient && <AnimatedScreen direction="right"><WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} /></AnimatedScreen>}
+      {subView === 'schedule' && selectedClient && (
+        <AnimatedScreen direction="right">
+          <CoachMealPlanEditor
+            coachId={coachProfile?.id}
+            clientId={selectedClient.id}
+            clientName={selectedClient.name}
+            onClose={() => { setSubView('clientProfile'); showToast('💾 התפריט נשמר'); }}
+          />
+        </AnimatedScreen>
+      )}
       {subView === 'workoutSchedule' && selectedClient && (
         <AnimatedScreen direction="right">
-          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <BackHeader onBack={() => setSubView('clientProfile')} title={`לוח אימונים · ${selectedClient.name}`} />
-            <ScheduleEditor clientId={selectedClient.id} onClose={() => { setSubView('clientProfile'); showToast('💾 הלוח נשמר'); }} />
-          </main>
+          <CoachWorkoutBank
+            coachId={coachProfile?.id}
+            clientId={selectedClient.id}
+            clientName={selectedClient.name}
+            onClose={() => { setSubView('clientProfile'); showToast('💾 הבנק נשמר'); }}
+          />
         </AnimatedScreen>
       )}
       {subView === 'progress' && selectedClient && <AnimatedScreen direction="right"><ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} /></AnimatedScreen>}
@@ -1481,62 +1552,67 @@ function ActivityFeed({ clients, onOpenClient }) {
     if (clients.length === 0) { setLoading(false); return; }
     const clientIds = clients.map(c => c.id);
 
-    const [meals, weights, workouts, water] = await Promise.all([
-      supabase.from('meal_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(20),
-      supabase.from('weight_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-      supabase.from('workout_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-      supabase.from('water_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-    ]);
+    try {
+      const [meals, weights, workouts, water] = await Promise.all([
+        supabase.from('meal_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(20),
+        supabase.from('weight_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+        supabase.from('workout_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+        supabase.from('water_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+      ]);
 
-    const all = [];
-    const byClient = {};
-    clients.forEach(c => { byClient[c.id] = c; });
+      const all = [];
+      const byClient = {};
+      clients.forEach(c => { byClient[c.id] = c; });
 
-    (meals.data || []).forEach(m => {
-      const c = byClient[m.client_id];
-      if (!c) return;
-      all.push({
-        id: 'meal-' + m.id,
-        time: new Date(m.logged_at).getTime(),
-        clientId: c.id,
-        clientName: c.firstName || c.name,
-        icon: '🥗',
-        text: `${c.firstName || c.name} רשמה ${m.name} (${m.calories || 0} קק״ל)`,
-        date: formatRelativeTime(m.logged_at),
+      (meals.data || []).forEach(m => {
+        const c = byClient[m.client_id];
+        if (!c) return;
+        all.push({
+          id: 'meal-' + m.id,
+          time: new Date(m.logged_at).getTime(),
+          clientId: c.id,
+          clientName: c.firstName || c.name,
+          icon: '🥗',
+          text: `${c.firstName || c.name} רשמה ${m.name} (${m.calories || 0} קק״ל)`,
+          date: formatRelativeTime(m.logged_at),
+        });
       });
-    });
 
-    (weights.data || []).forEach(w => {
-      const c = byClient[w.client_id];
-      if (!c) return;
-      all.push({
-        id: 'weight-' + w.id,
-        time: new Date(w.logged_at).getTime(),
-        clientId: c.id,
-        clientName: c.firstName || c.name,
-        icon: '⚖️',
-        text: `${c.firstName || c.name} עדכנה משקל: ${w.weight} ק״ג`,
-        date: formatRelativeTime(w.logged_at),
+      (weights.data || []).forEach(w => {
+        const c = byClient[w.client_id];
+        if (!c) return;
+        all.push({
+          id: 'weight-' + w.id,
+          time: new Date(w.logged_at).getTime(),
+          clientId: c.id,
+          clientName: c.firstName || c.name,
+          icon: '⚖️',
+          text: `${c.firstName || c.name} עדכנה משקל: ${w.weight} ק״ג`,
+          date: formatRelativeTime(w.logged_at),
+        });
       });
-    });
 
-    (workouts.data || []).forEach(w => {
-      const c = byClient[w.client_id];
-      if (!c) return;
-      all.push({
-        id: 'workout-' + w.id,
-        time: new Date(w.logged_at).getTime(),
-        clientId: c.id,
-        clientName: c.firstName || c.name,
-        icon: '🏋️',
-        text: `${c.firstName || c.name} סיימה אימון`,
-        date: formatRelativeTime(w.logged_at),
+      (workouts.data || []).forEach(w => {
+        const c = byClient[w.client_id];
+        if (!c) return;
+        all.push({
+          id: 'workout-' + w.id,
+          time: new Date(w.logged_at).getTime(),
+          clientId: c.id,
+          clientName: c.firstName || c.name,
+          icon: '🏋️',
+          text: `${c.firstName || c.name} סיימה אימון`,
+          date: formatRelativeTime(w.logged_at),
+        });
       });
-    });
 
-    all.sort((a, b) => b.time - a.time);
-    setActivities(all.slice(0, 15));
-    setLoading(false);
+      all.sort((a, b) => b.time - a.time);
+      setActivities(all.slice(0, 15));
+    } catch (e) {
+      console.error('ActivityFeed loadActivity error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const shown = expanded ? activities : activities.slice(0, 4);
@@ -1694,11 +1770,16 @@ function MealsTab({ showToast }) {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-    if (data) setMeals(data);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+      if (data) setMeals(data);
+    } catch (e) {
+      console.error('MealsTab load error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteMeal = async (id, e) => {
@@ -2242,11 +2323,16 @@ function WorkoutsTab({ showToast }) {
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('workouts').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-    if (data) setWorkouts(data);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('workouts').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+      if (data) setWorkouts(data);
+    } catch (e) {
+      console.error('WorkoutsTab load error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteWorkout = async (id, e) => {
@@ -3264,28 +3350,21 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </div>
       } />
       
-      {/* Action buttons */}
+      {/* Action buttons - תוכנית גמישה */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-        <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '22px' }}>📅</span>
-          לוח שבועי
+        <button onClick={onWorkoutSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '22px' }}>🏋️</span>
+          בנק אימונים
         </button>
-        <button onClick={onProgress} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '22px' }}>📊</span>
-          התקדמות
+        <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '22px' }}>🍽️</span>
+          תפריטי תזונה
         </button>
       </div>
 
-      {/* 🗓️ לוח אימונים עם תזכורות חכמות */}
-      <button onClick={onWorkoutSchedule} style={{
-        width: '100%', background: 'white', color: COLORS.primaryDark,
-        border: `1px solid ${COLORS.primary}`, padding: '12px',
-        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-        cursor: 'pointer', fontFamily: 'inherit', marginBottom: '12px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-      }}>
-        <span style={{ fontSize: 16 }}>🗓️</span>
-        לוח אימונים + תזכורות חכמות
+      <button onClick={onProgress} style={{ width: '100%', background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <span style={{ fontSize: 16 }}>📊</span>
+        התקדמות ומדדים
       </button>
 
       {/* 📝 שלחי טופס משוב */}
