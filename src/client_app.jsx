@@ -382,8 +382,6 @@ export default function App({onLogout}){
   const [plan, setPlan]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab]         = useState('home');
-  const [toast, setToast]     = useState(null);
-  const showToast = t => { setToast(t); setTimeout(()=>setToast(null), 2500); };
 
   // 🔍 דיבוג - מה המצב של החיבור בין מאמנת למתאמנת
   const [debugInfo, setDebugInfo] = useState({
