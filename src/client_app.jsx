@@ -32,6 +32,168 @@ const COLORS = {
   amber:'#E8C96A',amberSoft:'#F5EECD',text:'#2E2A3D',textMuted:'#756B85',border:'#DDD0EB',
 };
 
+// ═══════════════════════════════════════════════════════════════
+// 🌙 DARK MODE — CSS Variables
+// ═══════════════════════════════════════════════════════════════
+if (typeof document !== 'undefined' && !document.getElementById('client-dark-mode')) {
+  const s = document.createElement('style');
+  s.id = 'client-dark-mode';
+  s.textContent = `
+    [data-theme="dark"] .client-bg { background: var(--bg) !important; }
+    [data-theme="dark"] .client-card { background: var(--card) !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .client-header { background: var(--header-bg) !important; border-color: var(--border) !important; }
+    [data-theme="dark"] .client-nav { background: var(--nav-bg) !important; border-color: var(--border) !important; }
+    [data-theme="dark"] input, [data-theme="dark"] textarea {
+      background: var(--input-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🎭 UI UPGRADES — Transitions · Toast · Skeleton · Pull
+// ═══════════════════════════════════════════════════════════════
+
+if (typeof document !== 'undefined' && !document.getElementById('client-transitions')) {
+  const s = document.createElement('style');
+  s.id = 'client-transitions';
+  s.textContent = `
+    @keyframes tabSlide {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmerC {
+      0%   { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+    @keyframes toastInC {
+      from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(0.94); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+    @keyframes toastOutC {
+      from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      to   { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.94); }
+    }
+    @keyframes springC {
+      0%  { transform: scale(1); } 35% { transform: scale(0.92); }
+      65% { transform: scale(1.05); } 100% { transform: scale(1); }
+    }
+    @keyframes pullSpinC {
+      from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+function AnimatedTab({ children, tabId }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, [tabId]);
+  return (
+    <div style={{ animation: mounted ? 'tabSlide 0.2s ease forwards' : 'none', opacity: mounted ? undefined : 0 }}>
+      {children}
+    </div>
+  );
+}
+
+const CLIENT_TOAST_TYPES = {
+  success: { bg: '#E0F2EB', border: '#6BAF8A', icon: '✅', color: '#3D7A5E' },
+  error:   { bg: '#FADDDD', border: '#C88A8A', icon: '❌', color: '#8B4040' },
+  info:    { bg: '#E8DFF5', border: '#B19CD9', icon: '💜', color: '#8B72B5' },
+  saved:   { bg: '#E8DFF5', border: '#B19CD9', icon: '💾', color: '#8B72B5' },
+};
+
+function detectClientToastType(msg) {
+  if (!msg) return 'info';
+  if (msg.startsWith('✅') || msg.startsWith('💪') || msg.startsWith('🎉')) return 'success';
+  if (msg.startsWith('❌')) return 'error';
+  if (msg.startsWith('💾')) return 'saved';
+  return 'info';
+}
+
+function ClientRichToast({ message, type, onDone }) {
+  const [ex, setEx] = React.useState(false);
+  const s = CLIENT_TOAST_TYPES[type] || CLIENT_TOAST_TYPES.info;
+  React.useEffect(() => {
+    const t1 = setTimeout(() => setEx(true), 2200);
+    const t2 = setTimeout(onDone, 2520);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', bottom: 82, left: '50%', background: s.bg, border: `1px solid ${s.border}`, borderRadius: 999, padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 18px rgba(0,0,0,0.13)', fontSize: 13, fontWeight: 600, color: s.color, whiteSpace: 'nowrap', zIndex: 200, direction: 'rtl', animation: ex ? 'toastOutC 0.32s ease forwards' : 'toastInC 0.36s cubic-bezier(0.34,1.56,0.64,1) forwards' }}>
+      <span style={{ fontSize: 15 }}>{s.icon}</span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+function useClientPullToRefresh(onRefresh, threshold = 65) {
+  const [pulling, setPulling] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const startY = React.useRef(null);
+  React.useEffect(() => {
+    const onStart = (e) => { if ((window.scrollY || 0) > 5) return; startY.current = e.touches[0].clientY; };
+    const onMove = (e) => {
+      if (startY.current === null || refreshing) return;
+      const d = e.touches[0].clientY - startY.current;
+      if (d <= 0) { startY.current = null; return; }
+      const pct = Math.min(d / threshold, 1.3);
+      setProgress(pct);
+      if (pct > 0.15) setPulling(true);
+    };
+    const onEnd = async (e) => {
+      if (startY.current === null) return;
+      const d = e.changedTouches[0].clientY - startY.current;
+      startY.current = null; setPulling(false); setProgress(0);
+      if (d >= threshold && !refreshing) {
+        try { navigator.vibrate?.([15]); } catch {}
+        setRefreshing(true);
+        try { await onRefresh(); } catch {}
+        setRefreshing(false);
+      }
+    };
+    window.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onEnd, { passive: true });
+    return () => { window.removeEventListener('touchstart', onStart); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
+  }, [onRefresh, refreshing, threshold]);
+  return { pulling, refreshing, progress };
+}
+
+function ClientPullIndicator({ pulling, refreshing, progress }) {
+  if (!pulling && !refreshing) return null;
+  const r = 11, circ = 2 * Math.PI * r;
+  return (
+    <div style={{ position: 'fixed', top: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'white', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.13)', border: `1px solid ${COLORS.border}` }}>
+      {refreshing
+        ? <svg width={22} height={22} viewBox="0 0 24 24" style={{ animation: 'pullSpinC 0.8s linear infinite' }}><circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2} strokeDasharray={`${circ*0.75} ${circ*0.25}`} /></svg>
+        : <svg width={22} height={22} viewBox="0 0 24 24"><circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.border} strokeWidth={1.5} /><circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2} strokeDasharray={`${circ*Math.min(progress,1)} ${circ}`} strokeLinecap="round" transform="rotate(-90 12 12)" /></svg>
+      }
+    </div>
+  );
+}
+
+function ClientSpringButton({ onClick, children, style={}, haptic='light', disabled=false, ...rest }) {
+  const [anim, setAnim] = React.useState(false);
+  const handle = React.useCallback((e) => {
+    if (disabled) return;
+    try { const p={light:[8],medium:[15],success:[8,40,8],error:[20,30,20]}; navigator.vibrate?.(p[haptic]||[8]); } catch{}
+    setAnim(true); setTimeout(()=>setAnim(false),400); onClick?.(e);
+  }, [onClick,disabled,haptic]);
+  return (
+    <button {...rest} disabled={disabled} onClick={handle} style={{ ...style, animation:anim?'springC 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards':'none', opacity:disabled?0.5:(style.opacity??1), cursor:disabled?'default':'pointer' }}>
+      {children}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+
 const FOOD_LIB=[
   // חלבונים
   {id:'f1',name:'חזה עוף 100g',   cal:165,p:31,c:0, f:3, icon:'🍗',cat:'חלבון'},
@@ -564,6 +726,35 @@ export default function App({onLogout}){
 
   const addMeal = async (meal) => {
     const { data: { user } } = await supabase.auth.getUser();
+
+    // Optimistic update — הצג מיד
+    const tempId = `temp_${Date.now()}`;
+    const optimistic = {
+      id: tempId, name: meal.name, cal: meal.cal,
+      p: meal.p || 0, c: meal.c || 0, f: meal.f || 0,
+      planKey: meal.planKey || meal.type || 'snack',
+      time: new Date().toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
+      _pending: true,
+    };
+    setMeals(prev => [...prev, optimistic]);
+    showToast(`✅ ${meal.name} נרשמה`);
+
+    // אם אין אינטרנט — שמור בתור
+    if (!navigator.onLine) {
+      try {
+        const q = JSON.parse(localStorage.getItem('sappir-offline-queue') || '[]');
+        q.push({ type: 'insert', table: 'meal_logs', payload: {
+          client_id: user.id, name: meal.name,
+          meal_type: meal.planKey || meal.type || 'snack',
+          calories: meal.cal, protein_g: meal.p || 0,
+          carbs_g: meal.c || 0, fat_g: meal.f || 0,
+        }});
+        localStorage.setItem('sappir-offline-queue', JSON.stringify(q));
+      } catch {}
+      return;
+    }
+
+    // שלח לשרת
     const { data: inserted, error } = await supabase.from('meal_logs').insert({
       client_id: user.id,
       name: meal.name,
@@ -574,29 +765,52 @@ export default function App({onLogout}){
       fat_g: meal.f || 0,
     }).select();
 
-    if (error) { console.error('addMeal error:', error); return; }
+    if (error) {
+      // ביטול optimistic
+      setMeals(prev => prev.filter(m => m.id !== tempId));
+      showToast('❌ שגיאה ברישום');
+      return;
+    }
     const data = inserted?.[0];
     if (data) {
-      setMeals(prev => [...prev, {
+      // החלף temp ב-real
+      setMeals(prev => prev.map(m => m.id === tempId ? {
         id: data.id, name: data.name, cal: data.calories,
         p: data.protein_g, c: data.carbs_g, f: data.fat_g,
         planKey: data.meal_type,
         time: new Date(data.logged_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
-      }]);
-      showToast(`✅ ${meal.name} נרשמה`);
+      } : m));
     }
   };
 
   const removeMeal = async (id) => {
-    await supabase.from('meal_logs').delete().eq('id', id);
+    // Optimistic remove
     setMeals(prev => prev.filter(m => m.id !== id));
+    if (!navigator.onLine) {
+      try {
+        const q = JSON.parse(localStorage.getItem('sappir-offline-queue') || '[]');
+        q.push({ type: 'delete', table: 'meal_logs', payload: { id } });
+        localStorage.setItem('sappir-offline-queue', JSON.stringify(q));
+      } catch {}
+      return;
+    }
+    await supabase.from('meal_logs').delete().eq('id', id);
   };
 
   const addWater = async (ml) => {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('water_logs').insert({ client_id: user.id, amount_ml: ml });
+    // Optimistic
     setWater(w => Math.min(w + ml, 5000));
     showToast(`💧 +${ml} מ״ל`);
+    if (!navigator.onLine) {
+      try {
+        const q = JSON.parse(localStorage.getItem('sappir-offline-queue') || '[]');
+        q.push({ type: 'insert', table: 'water_logs', payload: { client_id: user.id, amount_ml: ml } });
+        localStorage.setItem('sappir-offline-queue', JSON.stringify(q));
+      } catch {}
+      return;
+    }
+    await supabase.from('water_logs').insert({ client_id: user.id, amount_ml: ml });
   };
 
   const logWeight = async (w) => {
@@ -646,11 +860,30 @@ export default function App({onLogout}){
 
   if (loading) {
     return (
-      <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:COLORS.bg}}>
-        <div style={{textAlign:'center'}}>
-          <img src="/logo.png" alt="" style={{width:80,marginBottom:16}}/>
-          <p style={{color:COLORS.textMuted,fontSize:14}}>טוענת...</p>
-        </div>
+      <div style={{ minHeight: '100vh', background: COLORS.bg, direction: 'rtl' }}>
+        <header style={{ background: 'white', padding: '14px 18px', borderBottom: `1px solid ${COLORS.border}` }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ width: 100, height: 18, borderRadius: 8, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmerC 1.6s ease-in-out infinite' }} />
+          </div>
+        </header>
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Daily ring skeleton */}
+          <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 16, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 170, height: 170, borderRadius: '50%', background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmerC 1.6s ease-in-out infinite' }} />
+          </div>
+          {/* Macros skeleton */}
+          <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
+            {[0,1,2,3].map(i => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ width: '25%', height: 10, borderRadius: 4, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmerC 1.6s ease-in-out infinite' }} />
+                  <div style={{ width: '15%', height: 10, borderRadius: 4, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmerC 1.6s ease-in-out infinite' }} />
+                </div>
+                <div style={{ height: 8, borderRadius: 4, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmerC 1.6s ease-in-out infinite' }} />
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }
@@ -713,10 +946,34 @@ export default function App({onLogout}){
     {id:'settings',label:'הגדרות',icon:'settings'},
   ];
 
+  const [clientToast, setClientToast] = useState(null);
+  const showToast = React.useCallback((text, type) => {
+    try { navigator.vibrate?.(detectClientToastType(type || text) === 'error' ? [20, 30, 20] : [8, 40, 8]); } catch {}
+    setClientToast({ message: text, type: type || detectClientToastType(text), id: Date.now() });
+    setTimeout(() => setClientToast(null), 2600);
+  }, []);
+
+  const reloadData = React.useCallback(async () => {
+    // רענון קל — טוען מחדש ארוחות ומשקל
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: {} }));
+    if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const [mealsRes, waterRes] = await Promise.all([
+      supabase.from('meal_logs').select('*').eq('client_id', user.id).gte('logged_at', today).order('logged_at', { ascending: true }),
+      supabase.from('water_logs').select('amount_ml').eq('client_id', user.id).gte('logged_at', today),
+    ]);
+    if (mealsRes.data) setMeals(mealsRes.data.map(m => ({ id: m.id, name: m.name, cal: m.calories, p: m.protein_g, c: m.carbs_g, f: m.fat_g, planKey: m.meal_type, time: new Date(m.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) })));
+    if (waterRes.data) setWater(waterRes.data.reduce((s, w) => s + w.amount_ml, 0));
+  }, []);
+
+  const { pulling, refreshing, progress: pullProg } = useClientPullToRefresh(reloadData);
+
   return(
     <div style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',
       background:COLORS.bg,minHeight:'100vh',paddingBottom:72,maxWidth:420,margin:'0 auto',
       position:'relative',color:COLORS.text}}>
+
+      <ClientPullIndicator pulling={pulling} refreshing={refreshing} progress={pullProg} />
 
       {/* header */}
       <header style={{background:'white',padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${COLORS.border}`,position:'sticky',top:0,zIndex:20}}>
@@ -733,6 +990,7 @@ export default function App({onLogout}){
 
       {/* HOME */}
       {tab==='home'&&(
+        <AnimatedTab tabId="home">
         <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
           {/* 🔔 באנר תזכורות חכם */}
           <ReminderBanner 
@@ -885,15 +1143,17 @@ export default function App({onLogout}){
             </button>
           </div>
         </main>
+        </AnimatedTab>
       )}
 
-      {tab==='eat'&&<LogScreen profile={p} meals={meals} cal={cal} prot={prot} carb={carb} fat={fat} todayPlan={todayPlan} onPlan={(key,meal)=>addMeal({...meal,planKey:key})} onCustom={addMeal} onRemove={removeMeal}/>}
-      {tab==='workout'&&<WorkoutScreen exs={exs} setExs={setExs} onToggle={id=>setExs(prev=>prev.map(e=>e.id===id?{...e,done:!e.done}:e))} onFinish={()=>{if(done===exs.length)showToast('🎉 אימון הושלם!');else{setExs(p=>p.map(e=>({...e,done:true})));showToast('🎉 מעולה!');} }} done={done} showToast={showToast} onStartGuided={()=>setActiveWorkout({workout:{name:'האימון של היום'},exercises:exs})}/>}
-      {tab==='stats'&&<StatsScreen weights={weights} profile={p} onLog={logWeight} onDel={deleteWeight} onOpenPhotos={()=>setShowPhotoGallery(true)}/>}
-      {tab==='messages'&&<MessagesScreen messages={messages} onSend={sendMessage} userId={profile.id}/>}
-      {tab==='settings'&&<SettingsScreen profile={profile} showToast={showToast} onLogout={onLogout}/>}
+      {tab==='eat'&&<AnimatedTab tabId="eat"><LogScreen profile={p} meals={meals} cal={cal} prot={prot} carb={carb} fat={fat} todayPlan={todayPlan} onPlan={(key,meal)=>addMeal({...meal,planKey:key})} onCustom={addMeal} onRemove={removeMeal}/></AnimatedTab>}
+      {tab==='workout'&&<AnimatedTab tabId="workout"><WorkoutScreen exs={exs} setExs={setExs} onToggle={id=>setExs(prev=>prev.map(e=>e.id===id?{...e,done:!e.done}:e))} onFinish={()=>{if(done===exs.length)showToast('🎉 אימון הושלם!');else{setExs(p=>p.map(e=>({...e,done:true})));showToast('🎉 מעולה!');} }} done={done} showToast={showToast} onStartGuided={()=>setActiveWorkout({workout:{name:'האימון של היום'},exercises:exs})}/></AnimatedTab>}
+      {tab==='stats'&&<AnimatedTab tabId="stats"><StatsScreen weights={weights} profile={p} onLog={logWeight} onDel={deleteWeight} onOpenPhotos={()=>setShowPhotoGallery(true)}/></AnimatedTab>}
+      {tab==='messages'&&<AnimatedTab tabId="messages"><MessagesScreen messages={messages} onSend={sendMessage} userId={profile.id}/></AnimatedTab>}
+      {tab==='settings'&&<AnimatedTab tabId="settings"><SettingsScreen profile={profile} showToast={showToast} onLogout={onLogout}/></AnimatedTab>}
 
-      {toast&&<div style={{position:'fixed',bottom:84,left:'50%',transform:'translateX(-50%)',background:COLORS.text,color:'white',padding:'10px 18px',borderRadius:999,fontSize:13,fontWeight:500,zIndex:60,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',whiteSpace:'nowrap'}}>{toast}</div>}
+      {/* Toast — Rich version */}
+      {clientToast && <ClientRichToast key={clientToast.id} message={clientToast.message} type={clientToast.type} onDone={() => setClientToast(null)} />}
 
       {/* 🎙️ הקלטות חיזוק מהמאמנת */}
       {profile?.id && <BroadcastPlayer clientId={profile.id} />}
@@ -1301,32 +1561,7 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
   const dnd=useDnd(exs,setExs);
   const total=exs.length;
   const pct=total?Math.round(done/total*100):0;
-
-  // 📝 דיווחי סטים — ב-localStorage לפי תאריך + תרגיל
-  // מבנה: { [exId]: [{ weight, reps, notes }, { ... }, ...] }
-  const today = new Date().toISOString().slice(0, 10);
-  const setLogsKey = `sappir_set_logs_${today}`;
-  const [setLogs, setSetLogs] = useState({});
-  const [expandedEx, setExpandedEx] = useState(null);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(setLogsKey);
-      if (saved) setSetLogs(JSON.parse(saved));
-    } catch(e) {}
-  }, [setLogsKey]);
-
-  const updateSetLog = (exId, setIdx, field, value) => {
-    setSetLogs(prev => {
-      const exLogs = [...(prev[exId] || [])];
-      while (exLogs.length <= setIdx) exLogs.push({ weight: '', reps: '', notes: '' });
-      exLogs[setIdx] = { ...exLogs[setIdx], [field]: value };
-      const newLogs = { ...prev, [exId]: exLogs };
-      try { localStorage.setItem(setLogsKey, JSON.stringify(newLogs)); } catch(e) {}
-      return newLogs;
-    });
-  };
-
+  
   // טען מועדפים מ-localStorage
   useEffect(()=>{
     try{
@@ -1448,55 +1683,12 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
               <p style={{margin:0,fontSize:14,fontWeight:700,textDecoration:ex.done?'line-through':'none',color:COLORS.text}}>{ex.icon} {ex.name}</p>
               <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{ex.sets} סטים × {ex.reps} · מנוחה {ex.rest} שנ׳</p>
             </div>
+            <button onClick={()=>setExs(p=>p.filter(e=>e.id!==ex.id))} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:14,color:COLORS.accentDark}}>🗑️</button>
           </div>
           <div style={{display:'flex',gap:6,marginTop:10}}>
             {ex.videoUrl && <button onClick={()=>setActiveEx(activeEx===ex.id?null:ex.id)} style={{flex:1,background:COLORS.primarySoft,color:COLORS.primaryDark,border:`1px solid ${COLORS.border}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>📺 {activeEx===ex.id?'סגור':'סרטון'}</button>}
             <button onClick={()=>{setTimer(ex.rest);setTimerOn(true);}} style={{flex:1,background:COLORS.amberSoft,color:'#8B6914',border:`1px solid ${COLORS.amber}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>⏱️ טיימר</button>
-            <button onClick={()=>setExpandedEx(expandedEx===ex.id?null:ex.id)} style={{flex:1,background:expandedEx===ex.id?COLORS.primary:COLORS.primarySoft,color:expandedEx===ex.id?'white':COLORS.primaryDark,border:`1px solid ${COLORS.primary}`,padding:8,borderRadius:8,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
-              📝 {expandedEx===ex.id?'סגרי':'הזיני סטים'}
-            </button>
           </div>
-
-          {/* 📝 רובריקת דיווח סטים */}
-          {expandedEx===ex.id && (
-            <div style={{marginTop:10,padding:10,background:COLORS.bg||'#F5F2FA',borderRadius:10}}>
-              <p style={{margin:'0 0 8px',fontSize:11,fontWeight:700,color:COLORS.primaryDark,textAlign:'center'}}>
-                דיווח ביצוע · {ex.sets} סטים
-              </p>
-              {Array.from({length:ex.sets||3},(_,setIdx)=>{
-                const log=setLogs[ex.id]?.[setIdx]||{weight:'',reps:'',notes:''};
-                return(
-                  <div key={setIdx} style={{background:'white',borderRadius:8,padding:8,marginBottom:6,border:`1px solid ${COLORS.border}`}}>
-                    <p style={{margin:'0 0 6px',fontSize:11,fontWeight:700,color:COLORS.text}}>סט {setIdx+1}</p>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:6}}>
-                      <div>
-                        <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>משקל (ק"ג)</p>
-                        <input type="number" inputMode="decimal" value={log.weight}
-                          onChange={e=>updateSetLog(ex.id,setIdx,'weight',e.target.value)}
-                          placeholder="—"
-                          style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:13,fontFamily:'inherit',outline:'none',direction:'ltr',textAlign:'right',boxSizing:'border-box'}}/>
-                      </div>
-                      <div>
-                        <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>חזרות</p>
-                        <input type="number" inputMode="numeric" value={log.reps}
-                          onChange={e=>updateSetLog(ex.id,setIdx,'reps',e.target.value)}
-                          placeholder="—"
-                          style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:13,fontFamily:'inherit',outline:'none',direction:'ltr',textAlign:'right',boxSizing:'border-box'}}/>
-                      </div>
-                    </div>
-                    <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>הערות</p>
-                    <input type="text" value={log.notes}
-                      onChange={e=>updateSetLog(ex.id,setIdx,'notes',e.target.value)}
-                      placeholder="איך הרגשת בסט?"
-                      style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:11,fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/>
-                  </div>
-                );
-              })}
-              <p style={{margin:'4px 0 0',fontSize:9,color:COLORS.textMuted,textAlign:'center'}}>
-                💾 הנתונים נשמרים אוטומטית
-              </p>
-            </div>
-          )}
           {ex.notes && <p style={{margin:'8px 0 0',padding:8,background:COLORS.primarySoft,borderRadius:8,fontSize:11,color:COLORS.text,fontStyle:'italic'}}>💡 {ex.notes}</p>}
           {activeEx===ex.id&&ex.videoUrl&&(
             <div style={{marginTop:10,background:'black',borderRadius:10,overflow:'hidden',position:'relative'}}>
@@ -1529,9 +1721,9 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
         </section>
       ))}
 
-      <button onClick={onFinish} style={{...S.btn,background:done===total?COLORS.mint:COLORS.primary}}>
+      <ClientSpringButton onClick={onFinish} haptic="success" style={{...S.btn,background:done===total?COLORS.mint:COLORS.primary}}>
         {done===total?'🎉 סיימתי אימון!':`סיימתי (${done}/${total})`}
-      </button>
+      </ClientSpringButton>
     </main>
   );
 }
@@ -1639,7 +1831,7 @@ function StatsScreen({weights,profile,onLog,onDel,onOpenPhotos}){
         <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700}}>⚖️ עדכן משקל</h4>
         <div style={{display:'flex',gap:10}}>
           <input type="number" value={nw} onChange={e=>setNw(e.target.value)} placeholder={`${profile.weight}`} style={{...S.inp,flex:1,direction:'ltr',textAlign:'right'}}/>
-          <button onClick={()=>{if(nw){onLog(nw);setNw('');}}} style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>שמור</button>
+          <ClientSpringButton onClick={()=>{if(nw){onLog(nw);setNw('');}}} haptic="success" style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>שמור</ClientSpringButton>
         </div>
         <p style={{margin:'6px 0 0',fontSize:11,color:COLORS.textMuted}}>נוכחי: {profile.weight} ק״ג · יעד: {profile.target} ק״ג</p>
       </section>
@@ -1790,7 +1982,7 @@ function MessagesScreen({messages,onSend,userId}){
       <div style={{display:'flex',gap:6}}>
         <VoiceRecorderButton userId={userId} onSend={sendVoice} />
         <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="כתבי הודעה..." style={{...S.inp,flex:1}}/>
-        <button onClick={send} disabled={!txt.trim()} style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 18px',borderRadius:10,fontSize:13,fontWeight:600,cursor:txt.trim()?'pointer':'default',opacity:txt.trim()?1:0.4,fontFamily:'inherit'}}>שלחי</button>
+        <ClientSpringButton onClick={send} haptic="success" disabled={!txt.trim()} style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 18px',borderRadius:10,fontSize:13,fontWeight:600,cursor:txt.trim()?'pointer':'default',opacity:txt.trim()?1:0.4,fontFamily:'inherit'}}>שלחי</ClientSpringButton>
       </div>
     </main>
   );
@@ -1801,6 +1993,16 @@ function SettingsScreen({profile,showToast,onLogout}){
   const [name, setName] = useState(profile.full_name || '');
   const [kosher, setKosher] = useState(profile.kosher || false);
   const [saving, setSaving] = useState(false);
+  const [isDark, setIsDark] = React.useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
+  );
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    try { localStorage.setItem('sappir-theme', next ? 'dark' : 'light'); } catch {}
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -1819,7 +2021,6 @@ function SettingsScreen({profile,showToast,onLogout}){
   const handleKosherToggle = async () => {
     const newVal = !kosher;
     setKosher(newVal);
-    // שמור מיידי כי toggle הוא פעולה אטומית
     await supabase.from('clients').update({ kosher: newVal }).eq('id', profile.id);
   };
 
@@ -1847,6 +2048,18 @@ function SettingsScreen({profile,showToast,onLogout}){
             <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(kosher?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
           </button>
         </div>
+
+        {/* 🌙 Dark Mode Toggle */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
+          <div>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>{isDark ? '🌙 מצב כהה' : '☀️ מצב בהיר'}</p>
+            <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>לחצי לשינוי מצב תצוגה</p>
+          </div>
+          <button onClick={toggleDark} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:isDark?COLORS.primaryDark:'#C0B0D8',position:'relative',transition:'background 0.25s'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',left:isDark?22:3}}/>
+          </button>
+        </div>
+
         <button onClick={handleSave} disabled={saving} style={{...S.btn,marginTop:14,opacity:saving?0.6:1}}>
           {saving?'שומרת...':'שמור שינויים'}
         </button>

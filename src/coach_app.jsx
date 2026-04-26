@@ -11,6 +11,318 @@ import { BroadcastsManager } from './voice_broadcasts';
 import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 
+// ═══════════════════════════════════════════════════════════════
+// 🌙 DARK MODE — CSS Variables injection
+// ═══════════════════════════════════════════════════════════════
+if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode')) {
+  const s = document.createElement('style');
+  s.id = 'coach-dark-mode';
+  s.textContent = `
+    /* Coach App — Dark Mode overrides */
+    [data-theme="dark"] .coach-card {
+      background: var(--card) !important;
+      border-color: var(--border) !important;
+    }
+    [data-theme="dark"] .coach-header {
+      background: var(--header-bg) !important;
+      border-color: var(--border) !important;
+    }
+    [data-theme="dark"] .coach-nav {
+      background: var(--nav-bg) !important;
+      border-color: var(--border) !important;
+    }
+    [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select {
+      background: var(--input-bg) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    [data-theme="dark"] .coach-main {
+      background: var(--bg) !important;
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+// Helper — קורא CSS variable
+function cssVar(name) {
+  if (typeof getComputedStyle === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// 🎭 PAGE TRANSITIONS — מעבר מסכים חלק
+// ═══════════════════════════════════════════════════════════════
+
+// הוסף פעם אחת ל-<head> את ה-keyframes
+if (typeof document !== 'undefined' && !document.getElementById('coach-transitions')) {
+  const s = document.createElement('style');
+  s.id = 'coach-transitions';
+  s.textContent = `
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(28px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.97); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% center; }
+      100% { background-position: -200% center; }
+    }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(0.94); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      to   { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.94); }
+    }
+    @keyframes springPress {
+      0%   { transform: scale(1); }
+      35%  { transform: scale(0.92); }
+      65%  { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    @keyframes pullSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+/**
+ * AnimatedScreen — עוטף כל sub-view / טאב לאנימציית כניסה
+ * direction: 'right' | 'up' | 'fade'
+ */
+function AnimatedScreen({ children, direction = 'right', duration = 220 }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const anim = { right: 'slideInRight', up: 'slideInUp', fade: 'fadeInScale' }[direction] || 'slideInRight';
+  return (
+    <div style={{
+      animation: mounted ? `${anim} ${duration}ms cubic-bezier(0.25,0.46,0.45,0.94) forwards` : 'none',
+      opacity: mounted ? undefined : 0,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🍞 TOAST SYSTEM — הודעות עם סוגים וצבעים
+// ═══════════════════════════════════════════════════════════════
+
+const TOAST_TYPES = {
+  success: { bg: '#E0F2EB', border: '#6BAF8A', icon: '✅', color: '#3D7A5E' },
+  error:   { bg: '#FADDDD', border: '#C88A8A', icon: '❌', color: '#8B4040' },
+  info:    { bg: '#E8DFF5', border: '#B19CD9', icon: '💜', color: '#8B72B5' },
+  saved:   { bg: '#E8DFF5', border: '#B19CD9', icon: '💾', color: '#8B72B5' },
+  sent:    { bg: '#E0F2EB', border: '#6BAF8A', icon: '📤', color: '#3D7A5E' },
+  warning: { bg: '#FDF3D7', border: '#E8B84B', icon: '⚠️', color: '#7A5C1E' },
+};
+
+function detectToastType(msg) {
+  if (!msg) return 'info';
+  if (msg.startsWith('✅') || msg.startsWith('🎉') || msg.startsWith('🔥')) return 'success';
+  if (msg.startsWith('❌'))  return 'error';
+  if (msg.startsWith('⚠️')) return 'warning';
+  if (msg.startsWith('💾') || msg.startsWith('📋')) return 'saved';
+  if (msg.startsWith('📤') || msg.startsWith('💜') || msg.startsWith('💬')) return 'sent';
+  return 'info';
+}
+
+function RichToast({ message, type, onDone }) {
+  const [exiting, setExiting] = React.useState(false);
+  const s = TOAST_TYPES[type] || TOAST_TYPES.info;
+  React.useEffect(() => {
+    const t1 = setTimeout(() => setExiting(true), 2200);
+    const t2 = setTimeout(onDone, 2520);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div style={{
+      position: 'fixed', bottom: 88, left: '50%',
+      background: s.bg, border: `1px solid ${s.border}`,
+      borderRadius: 999, padding: '10px 18px',
+      display: 'flex', alignItems: 'center', gap: 8,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
+      fontSize: 13, fontWeight: 600, color: s.color,
+      whiteSpace: 'nowrap', zIndex: 200, direction: 'rtl',
+      animation: exiting
+        ? 'toastOut 0.32s ease forwards'
+        : 'toastIn 0.36s cubic-bezier(0.34,1.56,0.64,1) forwards',
+    }}>
+      <span style={{ fontSize: 15 }}>{s.icon}</span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🌀 SPRING BUTTON
+// ═══════════════════════════════════════════════════════════════
+
+function SpringButton({ onClick, children, style = {}, haptic = 'light', disabled = false, ...rest }) {
+  const [anim, setAnim] = React.useState(false);
+  const handleClick = React.useCallback((e) => {
+    if (disabled) return;
+    try {
+      const patterns = { light: [8], medium: [15], success: [8, 40, 8], error: [20, 30, 20] };
+      navigator.vibrate?.(patterns[haptic] || [8]);
+    } catch {}
+    setAnim(true);
+    setTimeout(() => setAnim(false), 400);
+    onClick?.(e);
+  }, [onClick, disabled, haptic]);
+  return (
+    <button {...rest} disabled={disabled} onClick={handleClick} style={{
+      ...style,
+      animation: anim ? 'springPress 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards' : 'none',
+      opacity: disabled ? 0.5 : (style.opacity ?? 1),
+      cursor: disabled ? 'default' : 'pointer',
+    }}>
+      {children}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 💀 SKELETON SCREENS
+// ═══════════════════════════════════════════════════════════════
+
+function Shimmer({ w = '100%', h = 14, r = 8, style = {} }) {
+  return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.6s ease-in-out infinite', flexShrink: 0, ...style }} />;
+}
+
+function DashboardSkeleton() {
+  return (
+    <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14 }}>
+            <Shimmer w="40%" h={22} r={6} style={{ margin: '0 auto 6px' }} />
+            <Shimmer w="60%" h={10} r={5} style={{ margin: '0 auto' }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
+        <Shimmer w="35%" h={13} r={6} style={{ marginBottom: 12 }} />
+        {[0,1,2].map(i => (
+          <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < 2 ? `1px solid ${COLORS.border}` : 'none' }}>
+            <Shimmer w={20} h={20} r={10} />
+            <div style={{ flex: 1 }}>
+              <Shimmer w="70%" h={11} r={5} style={{ marginBottom: 4 }} />
+              <Shimmer w="30%" h={9} r={4} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {[0,1,2].map(i => (
+        <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+            <Shimmer w={40} h={40} r={20} />
+            <div style={{ flex: 1 }}>
+              <Shimmer w="55%" h={13} r={6} style={{ marginBottom: 6 }} />
+              <Shimmer w="40%" h={10} r={5} />
+            </div>
+            <Shimmer w={32} h={32} r={8} />
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[0,1,2,3,4,5,6].map(j => <Shimmer key={j} w={32} h={18} r={4} />)}
+          </div>
+        </div>
+      ))}
+    </main>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ↓ PULL TO REFRESH
+// ═══════════════════════════════════════════════════════════════
+
+function usePullToRefresh(onRefresh, threshold = 65) {
+  const [pulling, setPulling]       = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [progress, setProgress]     = React.useState(0);
+  const startY = React.useRef(null);
+
+  React.useEffect(() => {
+    const onStart = (e) => {
+      if ((window.scrollY || document.documentElement.scrollTop) > 5) return;
+      startY.current = e.touches[0].clientY;
+    };
+    const onMove = (e) => {
+      if (startY.current === null || refreshing) return;
+      const delta = e.touches[0].clientY - startY.current;
+      if (delta <= 0) { startY.current = null; return; }
+      const pct = Math.min(delta / threshold, 1.3);
+      setProgress(pct);
+      if (pct > 0.15) setPulling(true);
+    };
+    const onEnd = async (e) => {
+      if (startY.current === null) return;
+      const delta = e.changedTouches[0].clientY - startY.current;
+      startY.current = null;
+      setPulling(false);
+      setProgress(0);
+      if (delta >= threshold && !refreshing) {
+        try { navigator.vibrate?.([15]); } catch {}
+        setRefreshing(true);
+        try { await onRefresh(); } catch {}
+        setRefreshing(false);
+      }
+    };
+    window.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove',  onMove,  { passive: true });
+    window.addEventListener('touchend',   onEnd,   { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onStart);
+      window.removeEventListener('touchmove',  onMove);
+      window.removeEventListener('touchend',   onEnd);
+    };
+  }, [onRefresh, refreshing, threshold]);
+
+  return { pulling, refreshing, progress };
+}
+
+function PullIndicator({ pulling, refreshing, progress }) {
+  if (!pulling && !refreshing) return null;
+  const r = 11, circ = 2 * Math.PI * r;
+  return (
+    <div style={{ position: 'fixed', top: 66, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'white', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.14)', border: `1px solid ${COLORS.border}` }}>
+      {refreshing ? (
+        <svg width={24} height={24} viewBox="0 0 24 24" style={{ animation: 'pullSpin 0.8s linear infinite' }}>
+          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2.2} strokeDasharray={`${circ * 0.75} ${circ * 0.25}`} />
+        </svg>
+      ) : (
+        <svg width={24} height={24} viewBox="0 0 24 24">
+          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.border} strokeWidth={1.5} />
+          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2.2}
+            strokeDasharray={`${circ * Math.min(progress, 1)} ${circ}`}
+            strokeLinecap="round" transform="rotate(-90 12 12)" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+
 // 📊 רישום אירועי פעילות לתובנות AI
 async function logEvent(type, durationMs, metadata) {
   try {
@@ -452,7 +764,6 @@ export default function App({ onLogout }) {
   const [subView, setSubView] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [messageText, setMessageText] = useState('');
-  const [toast, setToast] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
   const [chatMessages, setChatMessages] = useState({}); // { clientId: [messages] }
@@ -627,10 +938,13 @@ export default function App({ onLogout }) {
     await loadMessages();
   };
 
-  const showToast = (text) => {
-    setToast(text);
-    setTimeout(() => setToast(null), 2000);
-  };
+  const [toast, setToast] = useState(null); // { message, type }
+  const showToast = React.useCallback((text, type) => {
+    const resolvedType = type || detectToastType(text);
+    try { navigator.vibrate?.(resolvedType === 'error' ? [20, 30, 20] : resolvedType === 'success' || resolvedType === 'saved' || resolvedType === 'sent' ? [8, 40, 8] : [8]); } catch {}
+    setToast({ message: text, type: resolvedType, id: Date.now() });
+    setTimeout(() => setToast(null), 2600);
+  }, []);
 
   const markMessagesRead = async (clientId) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -695,19 +1009,14 @@ export default function App({ onLogout }) {
   const needsAttention = clients.filter((c) => c.status !== 'on-track');
   const activeCount = clients.filter((c) => c.status === 'on-track').length;
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
-        <div style={{ textAlign: 'center' }}>
-          <img src="/logo.png" alt="" style={{ width: 120, marginBottom: 16 }} />
-          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוענת לקוחות...</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
+
+  const { pulling, refreshing, progress: pullProgress } = usePullToRefresh(loadAll);
 
   return (
     <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
+
+      <PullIndicator pulling={pulling} refreshing={refreshing} progress={pullProgress} />
 
       {/* Header */}
       <header style={{ background: 'white', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${COLORS.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
@@ -718,37 +1027,33 @@ export default function App({ onLogout }) {
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark, margin: 0 }}>{coachProfile?.full_name?.split(' ')[0] || 'ספיר'} 💜</h1>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
-            🔔
-            {notifications.length > 0 && (
-              <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
-            )}
+        <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
+          🔔
+          {notifications.length > 0 && (
+            <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+          )}
         </button>
-        <button onClick={() => setTab('settings')} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }} title="הגדרות">
-          ⚙️
-        </button>
-        </div>
       </header>
 
-      {/* Sub-views override tabs */}
-      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} />}
-      {subView === 'schedule' && selectedClient && <WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
+      {/* Sub-views — כל אחד עטוף ב-AnimatedScreen */}
+      {subView === 'clientProfile' && selectedClient && <AnimatedScreen direction="right"><ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} /></AnimatedScreen>}
+      {subView === 'schedule' && selectedClient && <AnimatedScreen direction="right"><WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} /></AnimatedScreen>}
       {subView === 'workoutSchedule' && selectedClient && (
-        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <BackHeader onBack={() => setSubView('clientProfile')} title={`לוח אימונים · ${selectedClient.name}`} />
-          <ScheduleEditor clientId={selectedClient.id} onClose={() => { setSubView('clientProfile'); showToast('💾 הלוח נשמר'); }} />
-        </main>
+        <AnimatedScreen direction="right">
+          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <BackHeader onBack={() => setSubView('clientProfile')} title={`לוח אימונים · ${selectedClient.name}`} />
+            <ScheduleEditor clientId={selectedClient.id} onClose={() => { setSubView('clientProfile'); showToast('💾 הלוח נשמר'); }} />
+          </main>
+        </AnimatedScreen>
       )}
-
-      {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
-      {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
-      {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('client_updated', null, { client_id: selectedClient.id }); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
-      {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('macro_calculated', null, { client_id: selectedClient.id }); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
-      {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
-      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} />}
-      {subView === 'newClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} />}
-      {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} />}
+      {subView === 'progress' && selectedClient && <AnimatedScreen direction="right"><ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} /></AnimatedScreen>}
+      {subView === 'addClient' && <AnimatedScreen direction="up"><AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} /></AnimatedScreen>}
+      {subView === 'editClient' && selectedClient && <AnimatedScreen direction="right"><EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('client_updated', null, { client_id: selectedClient.id }); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} /></AnimatedScreen>}
+      {subView === 'macro' && selectedClient && <AnimatedScreen direction="right"><MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('macro_calculated', null, { client_id: selectedClient.id }); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} /></AnimatedScreen>}
+      {subView === 'macroPicker' && <AnimatedScreen direction="up"><MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} /></AnimatedScreen>}
+      {subView === 'message' && selectedClient && <AnimatedScreen direction="up"><MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} /></AnimatedScreen>}
+      {subView === 'newClient' && <AnimatedScreen direction="up"><AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} /></AnimatedScreen>}
+      {subView === 'chat' && selectedClient && <AnimatedScreen direction="right"><CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} /></AnimatedScreen>}}
 
       {/* Notifications dropdown */}
       {showNotifs && (
@@ -774,56 +1079,56 @@ export default function App({ onLogout }) {
       )}
       {showNotifs && <div onClick={() => setShowNotifs(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />}
 
-      {/* Tab content — only if no subView */}
+      {/* Tab content — כל טאב עטוף ב-AnimatedScreen */}
       {!subView && tab === 'dashboard' && (
-        <DashboardTab
-          clients={clients}
-          coachProfile={coachProfile}
-          loggedToday={loggedToday}
-          activeCount={activeCount}
-          needsAttention={needsAttention}
-          onOpenClient={openClient}
-          onOpenMessage={openMessage}
-          onOpenMacro={() => setSubView('macroPicker')}
-          onNewClient={() => setSubView('newClient')}
-          showToast={showToast}
-        />
+        <AnimatedScreen key="dashboard" direction="fade">
+          <DashboardTab
+            clients={clients}
+            coachProfile={coachProfile}
+            loggedToday={loggedToday}
+            activeCount={activeCount}
+            needsAttention={needsAttention}
+            onOpenClient={openClient}
+            onOpenMessage={openMessage}
+            onOpenMacro={() => setSubView('macroPicker')}
+            onNewClient={() => setSubView('newClient')}
+            showToast={showToast}
+          />
+        </AnimatedScreen>
       )}
       {!subView && tab === 'clients' && (
-        <ClientsTab clients={clients} onOpenClient={openClient} onOpenMessage={openMessage} onNewClient={() => setSubView('newClient')} />
+        <AnimatedScreen key="clients" direction="fade">
+          <ClientsTab clients={clients} onOpenClient={openClient} onOpenMessage={openMessage} onNewClient={() => setSubView('newClient')} />
+        </AnimatedScreen>
       )}
-      {!subView && tab === 'meals' && <MealsTab showToast={showToast} />}
-      {!subView && tab === 'workouts' && <WorkoutsTab showToast={showToast} />}
+      {!subView && tab === 'meals' && <AnimatedScreen key="meals" direction="fade"><MealsTab showToast={showToast} /></AnimatedScreen>}
+      {!subView && tab === 'workouts' && <AnimatedScreen key="workouts" direction="fade"><WorkoutsTab showToast={showToast} /></AnimatedScreen>}
       {!subView && tab === 'insights' && coachProfile?.id && (
-        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <InsightsScreen coachId={coachProfile.id} />
-
-          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
-
-          <div>
-            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>
-              📝 משובי לקוחות
-            </h3>
-            <CoachFeedbackInsights coachId={coachProfile.id} />
-          </div>
-        </main>
+        <AnimatedScreen key="insights" direction="fade">
+          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <InsightsScreen coachId={coachProfile.id} />
+            <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+            <div>
+              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>📝 משובי לקוחות</h3>
+              <CoachFeedbackInsights coachId={coachProfile.id} />
+            </div>
+          </main>
+        </AnimatedScreen>
       )}
       {!subView && tab === 'challenges' && coachProfile?.id && (
-        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>🏆 אתגרים</h2>
-          <CoachChallengesManager coachId={coachProfile.id} />
-
-          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
-
-          <BroadcastsManager coachId={coachProfile.id} />
-        </main>
+        <AnimatedScreen key="challenges" direction="fade">
+          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>🏆 אתגרים</h2>
+            <CoachChallengesManager coachId={coachProfile.id} />
+            <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+            <BroadcastsManager coachId={coachProfile.id} />
+          </main>
+        </AnimatedScreen>
       )}
-      {!subView && tab === 'settings' && <SettingsTab showToast={showToast} onLogout={onLogout} coachId={coachProfile?.id} />}
+      {!subView && tab === 'settings' && <AnimatedScreen key="settings" direction="fade"><SettingsTab showToast={showToast} onLogout={onLogout} coachId={coachProfile?.id} /></AnimatedScreen>}
 
-      {/* Toast */}
-      {toast && (
-        <div style={{ position: 'fixed', bottom: '84px', left: '50%', transform: 'translateX(-50%)', background: COLORS.text, color: 'white', padding: '10px 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, zIndex: 60, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>{toast}</div>
-      )}
+      {/* Toast — Rich version */}
+      {toast && <RichToast key={toast.id} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
 
       {/* BOTTOM NAV — improvement #5 */}
       <BottomNav tab={tab} setTab={(t) => { setTab(t); setSubView(null); setSelectedClient(null); }} />
@@ -839,15 +1144,16 @@ function BottomNav({ tab, setTab }) {
     { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
     { id: 'insights', label: 'תובנות', icon: 'insights' },
     { id: 'meals', label: 'תזונה', icon: 'food' },
-    { id: 'workouts', label: 'אימון', icon: 'workout' },
+    { id: 'workouts', label: 'אימונים', icon: 'workout' },
+    { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   return (
-    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '6px 2px 8px 2px', zIndex: 25 }}>
+    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '8px 0 10px 0', zIndex: 25 }}>
       {tabs.map((t) => (
         <button key={t.id} onClick={() => setTab(t.id)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 2px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flex: 1, minWidth: 0 }}>
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
           <CoachNavIcon name={t.icon} active={tab === t.id} />
-          <span style={{ fontSize: '9px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500, whiteSpace: 'nowrap' }}>{t.label}</span>
+          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
         </button>
       ))}
     </nav>
@@ -1090,7 +1396,17 @@ function ActivityFeed({ clients, onOpenClient }) {
       </div>
       
       {loading ? (
-        <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 10, margin: 0 }}>טוענת...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 4px' }}>
+              <Shimmer w={20} h={20} r={10} />
+              <div style={{ flex: 1 }}>
+                <Shimmer w="70%" h={11} r={5} style={{ marginBottom: 4 }} />
+                <Shimmer w="30%" h={9} r={4} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : activities.length === 0 ? (
         <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 16, margin: 0 }}>
           אין עדיין פעילות. הלקוחות שלך טרם רשמו מידע באפליקציה.
@@ -1308,13 +1624,25 @@ function MealsTab({ showToast }) {
         </div>
       </div>
 
-      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
-       : meals.length === 0 ? (
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Shimmer w="45%" h={13} r={6} />
+                <Shimmer w={50} h={13} r={6} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[0,1,2,3].map(j => <Shimmer key={j} h={10} r={4} style={{ flex: 1 }} />)}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : meals.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
           <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין ארוחות</p>
           <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ ארוחה חדשה" למעלה 👆</p>
         </div>
-      ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {meals.map(m => (
             <div key={m.id} onClick={() => setEditingMeal(m)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
@@ -1647,14 +1975,14 @@ function MealEditor({ meal, onBack, showToast }) {
         )}
       </section>
 
-      <button onClick={handleSave} disabled={!name.trim() || items.length === 0 || saving} style={{
+      <SpringButton onClick={handleSave} haptic="success" disabled={!name.trim() || items.length === 0 || saving} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600,
         cursor: (name.trim() && items.length > 0 && !saving) ? 'pointer' : 'default',
         opacity: (name.trim() && items.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
         {saving ? 'שומרת...' : '💾 שמרי ארוחה'}
-      </button>
+      </SpringButton>
 
       {/* כפתור שמירה כתבנית גלובלית */}
       {meal?.id && (
@@ -1838,8 +2166,22 @@ function WorkoutsTab({ showToast }) {
         </div>
       </div>
 
-      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
-       : workouts.length === 0 ? (
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <Shimmer w="50%" h={14} r={6} />
+                <Shimmer w={70} h={22} r={6} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Shimmer w={60} h={20} r={10} />
+                <Shimmer w={80} h={20} r={10} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : workouts.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
           <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין אימונים</p>
           <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ אימון חדש" למעלה 👆</p>
@@ -2022,16 +2364,14 @@ function WorkoutEditor({ workout, onBack, showToast }) {
         )}
       </section>
 
-      <button onClick={handleSave} disabled={!name.trim() || exercises.length === 0 || saving} style={{
+      <SpringButton onClick={handleSave} haptic="success" disabled={!name.trim() || exercises.length === 0 || saving} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600,
         cursor: (name.trim() && exercises.length > 0 && !saving) ? 'pointer' : 'default',
         opacity: (name.trim() && exercises.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
         {saving ? 'שומרת...' : '💾 שמרי אימון'}
-      </button>
-
-      {/* כפתור שמירה כתבנית גלובלית */}
+      </SpringButton>
       {workout?.id && (
         <button
           onClick={async () => {
@@ -2307,7 +2647,19 @@ function WeeklySchedule({ client, onBack, showToast }) {
     setEditDay(null);
   };
 
-  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
+  if (loading) return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[0,1,2,3,4].map(i => (
+        <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14 }}>
+          <Shimmer w="25%" h={13} r={6} style={{ marginBottom: 10 }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Shimmer h={36} r={8} style={{ flex: 1 }} />
+            <Shimmer h={36} r={8} style={{ flex: 2 }} />
+          </div>
+        </div>
+      ))}
+    </main>
+  );
 
   const getMealName = (id) => meals.find(m => m.id === id)?.name || 'ללא';
   const getWorkoutName = (id) => workouts.find(w => w.id === id)?.name || 'ללא';
@@ -2477,10 +2829,34 @@ function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds
 /* ===================== SETTINGS TAB ===================== */
 function SettingsTab({ showToast, onLogout, coachId }) {
   const [showArchive, setShowArchive] = useState(false);
+  const [isDark, setIsDark] = React.useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
+  );
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    try { localStorage.setItem('sappir-theme', next ? 'dark' : 'light'); } catch {}
+  };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
+
+      {/* 🌙 Dark Mode */}
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>תצוגה</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.text }}>{isDark ? '🌙 מצב כהה' : '☀️ מצב בהיר'}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>לחצי לשינוי מצב תצוגה</p>
+          </div>
+          <button onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', background: isDark ? COLORS.primaryDark : COLORS.border, position: 'relative', transition: 'background 0.25s' }}>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)', left: isDark ? 22 : 3 }} />
+          </button>
+        </div>
+      </section>
 
       <section style={cardStyle}>
         <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>מיתוג</h3>
@@ -3234,7 +3610,15 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
       
       {/* תיבת הודעות */}
       <section ref={scrollRef} style={{ ...cardStyle, flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '200px' }}>
-        {loading && <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px' }}>טוענת...</p>}
+        {loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{ display: 'flex', justifyContent: i % 2 === 0 ? 'flex-start' : 'flex-end' }}>
+                <Shimmer w={`${55 + i * 10}%`} h={36} r={14} />
+              </div>
+            ))}
+          </div>
+        )}
         {!loading && messages.length === 0 && (
           <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px', margin: 'auto 0' }}>
             עדיין אין הודעות.<br/>שלחי הודעה ראשונה 💜
@@ -3747,7 +4131,29 @@ function ClientProgress({ client, onBack }) {
   });
 
   if (loading) {
-    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת נתונים...</main>;
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <Shimmer w={36} h={36} r={10} />
+          <Shimmer w="40%" h={16} r={7} />
+        </div>
+        <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 16 }}>
+          <Shimmer w="35%" h={13} r={6} style={{ marginBottom: 12 }} />
+          <Shimmer h={120} r={10} />
+        </div>
+        {[0,1].map(i => (
+          <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Shimmer w="40%" h={12} r={5} />
+              <Shimmer w={50} h={12} r={5} />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[0,1,2,3].map(j => <Shimmer key={j} h={10} r={4} style={{ flex: 1 }} />)}
+            </div>
+          </div>
+        ))}
+      </main>
+    );
   }
 
   const mealIcon = { breakfast: '☀️', lunch: '🌞', dinner: '🌙', snack: '🍎' };
