@@ -77,6 +77,19 @@ export function CoachWorkoutBank({ coachId, clientId, clientName, onClose }) {
     load();
   };
 
+  const handleDuplicate = async (w) => {
+    if (!confirm(`לשכפל את האימון "${w.name}"?`)) return;
+    const { id, created_at, updated_at, ...payload } = w;
+    await supabase.from('client_workouts').insert({
+      ...payload,
+      name: `${w.name} (עותק)`,
+      client_id: clientId,
+      coach_id: coachId,
+      is_active: true,
+    });
+    load();
+  };
+
   if (editing) {
     return (
       <WorkoutEditor
@@ -120,8 +133,9 @@ export function CoachWorkoutBank({ coachId, clientId, clientName, onClose }) {
                 {w.description && <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>{w.description}</p>}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setEditing(w)} style={{ ...btnGhost, padding: '6px 12px', fontSize: 12 }}>✏️</button>
-                <button onClick={() => handleDelete(w.id)} style={{ ...btnGhost, padding: '6px 12px', fontSize: 12, color: COLORS.red }}>🗑️</button>
+                <button onClick={() => setEditing(w)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12 }} title="עריכה">✏️</button>
+                <button onClick={() => handleDuplicate(w)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12 }} title="שכפול">📋</button>
+                <button onClick={() => handleDelete(w.id)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12, color: COLORS.red }} title="מחיקה">🗑️</button>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11, color: COLORS.textMuted }}>
@@ -279,6 +293,41 @@ export function CoachMealPlanEditor({ coachId, clientId, clientName, onClose }) 
     load();
   };
 
+  const handleDuplicate = async (p) => {
+    if (!confirm(`לשכפל את התפריט "${p.name}"?`)) return;
+
+    // צור תפריט חדש
+    const { data: newPlan } = await supabase.from('meal_plans').insert({
+      client_id: clientId,
+      coach_id: coachId,
+      name: `${p.name} (עותק)`,
+      description: p.description || null,
+      is_active: true,
+    }).select().single();
+
+    if (!newPlan) { alert('שגיאה בשכפול'); return; }
+
+    // שכפל את כל הארוחות
+    const meals = p.meal_plan_meals || [];
+    if (meals.length > 0) {
+      const newMeals = meals.map(m => ({
+        meal_plan_id: newPlan.id,
+        name: m.name,
+        meal_type: m.meal_type || 'snack',
+        notes: m.notes || null,
+        items: m.items || [],
+        total_kcal: Number(m.total_kcal) || 0,
+        total_p: Number(m.total_p) || 0,
+        total_c: Number(m.total_c) || 0,
+        total_f: Number(m.total_f) || 0,
+        position: m.position || 0,
+      }));
+      await supabase.from('meal_plan_meals').insert(newMeals);
+    }
+
+    load();
+  };
+
   if (editing) {
     return (
       <MealPlanEditor
@@ -330,8 +379,9 @@ export function CoachMealPlanEditor({ coachId, clientId, clientName, onClose }) 
                   {p.description && <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>{p.description}</p>}
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setEditing(p)} style={{ ...btnGhost, padding: '6px 12px', fontSize: 12 }}>✏️</button>
-                  <button onClick={() => handleDelete(p.id)} style={{ ...btnGhost, padding: '6px 12px', fontSize: 12, color: COLORS.red }}>🗑️</button>
+                  <button onClick={() => setEditing(p)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12 }} title="עריכה">✏️</button>
+                  <button onClick={() => handleDuplicate(p)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12 }} title="שכפול">📋</button>
+                  <button onClick={() => handleDelete(p.id)} style={{ ...btnGhost, padding: '6px 10px', fontSize: 12, color: COLORS.red }} title="מחיקה">🗑️</button>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
@@ -396,6 +446,20 @@ function MealPlanEditor({ plan, coachId, clientId, onCancel, onSave }) {
       await supabase.from('meal_plan_meals').delete().eq('id', meal.id);
     }
     setMeals(meals.filter((_, i) => i !== idx));
+  };
+
+  const duplicateMeal = (idx) => {
+    const original = meals[idx];
+    const copy = {
+      ...original,
+      _new: true,        // יישמר כחדש
+      id: undefined,     // לא לקחת את ה-id המקורי
+      name: `${original.name} (עותק)`,
+      position: meals.length,
+      // עותק של פריטים — JSON deep clone
+      items: JSON.parse(JSON.stringify(original.items || [])),
+    };
+    setMeals([...meals, copy]);
   };
 
   const handleSave = async () => {
@@ -505,8 +569,9 @@ function MealPlanEditor({ plan, coachId, clientId, onCancel, onSave }) {
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => setEditingMealIdx(i)} style={{ ...btnGhost, padding: '4px 8px', fontSize: 11 }}>✏️</button>
-                <button onClick={() => removeMeal(i)} style={{ ...btnGhost, padding: '4px 8px', fontSize: 11, color: COLORS.red }}>🗑️</button>
+                <button onClick={() => setEditingMealIdx(i)} style={{ ...btnGhost, padding: '4px 8px', fontSize: 11 }} title="עריכה">✏️</button>
+                <button onClick={() => duplicateMeal(i)} style={{ ...btnGhost, padding: '4px 8px', fontSize: 11 }} title="שכפול">📋</button>
+                <button onClick={() => removeMeal(i)} style={{ ...btnGhost, padding: '4px 8px', fontSize: 11, color: COLORS.red }} title="מחיקה">🗑️</button>
               </div>
             </div>
           </div>
