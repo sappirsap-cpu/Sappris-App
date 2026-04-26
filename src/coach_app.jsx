@@ -1762,19 +1762,26 @@ function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
    NUTRITION TAB — ספיר יוצרת ארוחות
 ═══════════════════════════════════════════════════════════ */
 function MealsTab({ showToast }) {
-  const [meals, setMeals] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [coachId, setCoachId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editingMeal, setEditingMeal] = useState(null);
-  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from('meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-      if (data) setMeals(data);
+      if (!user) { setLoading(false); return; }
+      setCoachId(user.id);
+      const { data } = await supabase
+        .from('clients')
+        .select('id, full_name')
+        .eq('coach_id', user.id)
+        .or('is_archived.is.null,is_archived.eq.false')
+        .order('full_name');
+      if (data) setClients(data);
     } catch (e) {
       console.error('MealsTab load error:', e);
     } finally {
@@ -1782,129 +1789,75 @@ function MealsTab({ showToast }) {
     }
   };
 
-  const deleteMeal = async (id, e) => {
-    e?.stopPropagation();
-    if (!confirm('למחוק את הארוחה?')) return;
-    await supabase.from('meals').delete().eq('id', id);
-    setMeals(prev => prev.filter(m => m.id !== id));
-    showToast('🗑️ נמחקה');
-  };
-
-  const duplicateMeal = async (meal, e) => {
-    e?.stopPropagation();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('meals').insert({
-      coach_id: user.id,
-      name: meal.name + ' (עותק)',
-      items: meal.items,
-      total_calories: meal.total_calories,
-      total_protein_g: meal.total_protein_g,
-      total_carbs_g: meal.total_carbs_g,
-      total_fat_g: meal.total_fat_g,
-    }).select();
-    if (data?.[0]) {
-      setMeals(prev => [data[0], ...prev]);
-      showToast('📋 שוכפלה');
-    }
-  };
-
-  if (editingMeal !== null) {
-    return <MealEditor meal={editingMeal} onBack={() => { setEditingMeal(null); load(); }} showToast={showToast} />;
-  }
-
-  // ספריית תבניות
-  if (showLibrary) {
+  if (loading) {
     return (
-      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית תפריטים</h2>
-        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
-          תפריטים שנוצרו ע"י מאמנות אחרות. בחרי תפריט ולחצי "שכפלי ללקוחה" כדי להקצות אותו.
-        </p>
-        <MealTemplateLibrary
-          onApply={async (template) => {
-            // פתח דיאלוג בחירת לקוחה
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: clientList } = await supabase
-              .from('clients').select('id, full_name').eq('coach_id', user.id);
-            if (!clientList || clientList.length === 0) {
-              showToast('אין לך עדיין לקוחות');
-              return;
-            }
-            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
-            const idx = parseInt(choice) - 1;
-            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
-            const { error } = await applyMealTemplate(template.id, clientList[idx].id);
-            if (error) showToast('❌ שגיאה: ' + error.message);
-            else showToast(`✅ "${template.name}" שוכפל ל-${clientList[idx].full_name}`);
-          }}
-          onClose={() => setShowLibrary(false)}
-        />
+      <main style={{ padding: 14 }}>
+        <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
       </main>
     );
   }
 
+  // אם בחרה לקוחה — מציג את עורך התפריטים שלה
+  if (selectedClient) {
+    return (
+      <CoachMealPlanEditor
+        coachId={coachId}
+        clientId={selectedClient.id}
+        clientName={selectedClient.full_name}
+        onClose={() => { setSelectedClient(null); showToast('💾 התפריט נשמר'); }}
+      />
+    );
+  }
+
+  // מסך בחירת לקוחה
   return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ארוחות</h2>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            📚 ספרייה
-          </button>
-          <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + ארוחה חדשה
-          </button>
-        </div>
+    <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+          🍽️ תפריטי תזונה
+        </h2>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
+          בחרי לקוחה כדי לבנות לה תפריטים
+        </p>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <Shimmer w="45%" h={13} r={6} />
-                <Shimmer w={50} h={13} r={6} />
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[0,1,2,3].map(j => <Shimmer key={j} h={10} r={4} style={{ flex: 1 }} />)}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : meals.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין ארוחות</p>
-          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ ארוחה חדשה" למעלה 👆</p>
+      {clients.length === 0 ? (
+        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
+          <p style={{ fontSize: 24, margin: '0 0 8px' }}>👥</p>
+          <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
+            עדיין אין לך לקוחות פעילות
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {meals.map(m => (
-            <div key={m.id} onClick={() => setEditingMeal(m)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>🍽️ {m.name}</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                    {(m.items?.length || 0)} מאכלים · {Math.round(m.total_calories || 0)} קק״ל
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <button onClick={(e) => duplicateMeal(m, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
-                  <button onClick={(e) => deleteMeal(m.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 10, fontSize: 11, color: COLORS.textMuted }}>
-                <span style={{ color: COLORS.sky }}>חלבון <strong>{Math.round(m.total_protein_g || 0)}g</strong></span>
-                <span style={{ color: COLORS.primary }}>פחמ׳ <strong>{Math.round(m.total_carbs_g || 0)}g</strong></span>
-                <span style={{ color: '#C88968' }}>שומן <strong>{Math.round(m.total_fat_g || 0)}g</strong></span>
-              </div>
-            </div>
-          ))}
-        </div>
+        clients.map(c => (
+          <button
+            key={c.id}
+            onClick={() => setSelectedClient(c)}
+            style={{
+              background: 'white',
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 14,
+              padding: 14,
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: COLORS.text,
+              textAlign: 'right',
+            }}
+          >
+            <span>{c.full_name}</span>
+            <span style={{ color: COLORS.primary, fontSize: 18 }}>←</span>
+          </button>
+        ))
       )}
     </main>
   );
 }
+
 
 /* ═══════════════════════════════════════════════════════════
    MEAL EDITOR — יצירת/עריכת ארוחה
@@ -2312,22 +2265,29 @@ function ManualFoodInput({ onAdd }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   WORKOUTS TAB — ספיר יוצרת אימונים
+   WORKOUTS TAB — בנק אימונים לכל לקוחה
 ═══════════════════════════════════════════════════════════ */
 function WorkoutsTab({ showToast }) {
-  const [workouts, setWorkouts] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [coachId, setCoachId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
-  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
+    setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase.from('workouts').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-      if (data) setWorkouts(data);
+      if (!user) { setLoading(false); return; }
+      setCoachId(user.id);
+      const { data } = await supabase
+        .from('clients')
+        .select('id, full_name')
+        .eq('coach_id', user.id)
+        .or('is_archived.is.null,is_archived.eq.false')
+        .order('full_name');
+      if (data) setClients(data);
     } catch (e) {
       console.error('WorkoutsTab load error:', e);
     } finally {
@@ -2335,120 +2295,73 @@ function WorkoutsTab({ showToast }) {
     }
   };
 
-  const deleteWorkout = async (id, e) => {
-    e?.stopPropagation();
-    if (!confirm('למחוק את האימון?')) return;
-    await supabase.from('workouts').delete().eq('id', id);
-    setWorkouts(prev => prev.filter(w => w.id !== id));
-    showToast('🗑️ נמחק');
-  };
-
-  const duplicateWorkout = async (w, e) => {
-    e?.stopPropagation();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('workouts').insert({
-      coach_id: user.id,
-      name: w.name + ' (עותק)',
-      exercises: w.exercises,
-    }).select();
-    if (data?.[0]) {
-      setWorkouts(prev => [data[0], ...prev]);
-      showToast('📋 שוכפל');
-    }
-  };
-
-  if (editing !== null) {
-    return <WorkoutEditor workout={editing} onBack={() => { setEditing(null); load(); }} showToast={showToast} />;
-  }
-
-  // ספריית תבניות אימונים
-  if (showLibrary) {
+  if (loading) {
     return (
-      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית אימונים</h2>
-        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
-          תבניות אימונים מוכנות. בחרי תבנית והקצי אותה ללקוחה בלחיצה.
-        </p>
-        <WorkoutTemplateLibrary
-          onApply={async (template) => {
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data: clientList } = await supabase
-              .from('clients').select('id, full_name').eq('coach_id', user.id);
-            if (!clientList || clientList.length === 0) {
-              showToast('אין לך עדיין לקוחות');
-              return;
-            }
-            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
-            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
-            const idx = parseInt(choice) - 1;
-            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
-            const { error } = await applyWorkoutTemplate(template.id, clientList[idx].id);
-            if (error) showToast('❌ שגיאה: ' + error.message);
-            else showToast(`✅ "${template.name}" הוקצה ל-${clientList[idx].full_name}`);
-          }}
-          onClose={() => setShowLibrary(false)}
-        />
+      <main style={{ padding: 14 }}>
+        <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
       </main>
     );
   }
 
+  if (selectedClient) {
+    return (
+      <CoachWorkoutBank
+        coachId={coachId}
+        clientId={selectedClient.id}
+        clientName={selectedClient.full_name}
+        onClose={() => { setSelectedClient(null); showToast('💾 הבנק נשמר'); }}
+      />
+    );
+  }
+
   return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>אימונים</h2>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            📚 ספרייה
-          </button>
-          <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            + אימון חדש
-          </button>
-        </div>
+    <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+          🏋️ בנק אימונים
+        </h2>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
+          בחרי לקוחה כדי לבנות לה אימונים. היא תבחר מתי לעשות כל אימון.
+        </p>
       </div>
 
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <Shimmer w="50%" h={14} r={6} />
-                <Shimmer w={70} h={22} r={6} />
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Shimmer w={60} h={20} r={10} />
-                <Shimmer w={80} h={20} r={10} />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : workouts.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
-          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין אימונים</p>
-          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ אימון חדש" למעלה 👆</p>
+      {clients.length === 0 ? (
+        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
+          <p style={{ fontSize: 24, margin: '0 0 8px' }}>👥</p>
+          <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
+            עדיין אין לך לקוחות פעילות
+          </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {workouts.map(w => (
-            <div key={w.id} onClick={() => setEditing(w)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>💪 {w.name}</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
-                    {(w.exercises?.length || 0)} תרגילים
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                  <button onClick={(e) => duplicateWorkout(w, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
-                  <button onClick={(e) => deleteWorkout(w.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        clients.map(c => (
+          <button
+            key={c.id}
+            onClick={() => setSelectedClient(c)}
+            style={{
+              background: 'white',
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 14,
+              padding: 14,
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: COLORS.text,
+              textAlign: 'right',
+            }}
+          >
+            <span>{c.full_name}</span>
+            <span style={{ color: COLORS.primary, fontSize: 18 }}>←</span>
+          </button>
+        ))
       )}
     </main>
   );
 }
+
 
 /* ═══════════════════════════════════════════════════════════
    WORKOUT EDITOR
