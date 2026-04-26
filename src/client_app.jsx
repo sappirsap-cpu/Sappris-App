@@ -1301,7 +1301,32 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
   const dnd=useDnd(exs,setExs);
   const total=exs.length;
   const pct=total?Math.round(done/total*100):0;
-  
+
+  // 📝 דיווחי סטים — ב-localStorage לפי תאריך + תרגיל
+  // מבנה: { [exId]: [{ weight, reps, notes }, { ... }, ...] }
+  const today = new Date().toISOString().slice(0, 10);
+  const setLogsKey = `sappir_set_logs_${today}`;
+  const [setLogs, setSetLogs] = useState({});
+  const [expandedEx, setExpandedEx] = useState(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(setLogsKey);
+      if (saved) setSetLogs(JSON.parse(saved));
+    } catch(e) {}
+  }, [setLogsKey]);
+
+  const updateSetLog = (exId, setIdx, field, value) => {
+    setSetLogs(prev => {
+      const exLogs = [...(prev[exId] || [])];
+      while (exLogs.length <= setIdx) exLogs.push({ weight: '', reps: '', notes: '' });
+      exLogs[setIdx] = { ...exLogs[setIdx], [field]: value };
+      const newLogs = { ...prev, [exId]: exLogs };
+      try { localStorage.setItem(setLogsKey, JSON.stringify(newLogs)); } catch(e) {}
+      return newLogs;
+    });
+  };
+
   // טען מועדפים מ-localStorage
   useEffect(()=>{
     try{
@@ -1423,12 +1448,55 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
               <p style={{margin:0,fontSize:14,fontWeight:700,textDecoration:ex.done?'line-through':'none',color:COLORS.text}}>{ex.icon} {ex.name}</p>
               <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{ex.sets} סטים × {ex.reps} · מנוחה {ex.rest} שנ׳</p>
             </div>
-            <button onClick={()=>setExs(p=>p.filter(e=>e.id!==ex.id))} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:14,color:COLORS.accentDark}}>🗑️</button>
           </div>
           <div style={{display:'flex',gap:6,marginTop:10}}>
             {ex.videoUrl && <button onClick={()=>setActiveEx(activeEx===ex.id?null:ex.id)} style={{flex:1,background:COLORS.primarySoft,color:COLORS.primaryDark,border:`1px solid ${COLORS.border}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>📺 {activeEx===ex.id?'סגור':'סרטון'}</button>}
             <button onClick={()=>{setTimer(ex.rest);setTimerOn(true);}} style={{flex:1,background:COLORS.amberSoft,color:'#8B6914',border:`1px solid ${COLORS.amber}`,padding:8,borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>⏱️ טיימר</button>
+            <button onClick={()=>setExpandedEx(expandedEx===ex.id?null:ex.id)} style={{flex:1,background:expandedEx===ex.id?COLORS.primary:COLORS.primarySoft,color:expandedEx===ex.id?'white':COLORS.primaryDark,border:`1px solid ${COLORS.primary}`,padding:8,borderRadius:8,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+              📝 {expandedEx===ex.id?'סגרי':'הזיני סטים'}
+            </button>
           </div>
+
+          {/* 📝 רובריקת דיווח סטים */}
+          {expandedEx===ex.id && (
+            <div style={{marginTop:10,padding:10,background:COLORS.bg||'#F5F2FA',borderRadius:10}}>
+              <p style={{margin:'0 0 8px',fontSize:11,fontWeight:700,color:COLORS.primaryDark,textAlign:'center'}}>
+                דיווח ביצוע · {ex.sets} סטים
+              </p>
+              {Array.from({length:ex.sets||3},(_,setIdx)=>{
+                const log=setLogs[ex.id]?.[setIdx]||{weight:'',reps:'',notes:''};
+                return(
+                  <div key={setIdx} style={{background:'white',borderRadius:8,padding:8,marginBottom:6,border:`1px solid ${COLORS.border}`}}>
+                    <p style={{margin:'0 0 6px',fontSize:11,fontWeight:700,color:COLORS.text}}>סט {setIdx+1}</p>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:6}}>
+                      <div>
+                        <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>משקל (ק"ג)</p>
+                        <input type="number" inputMode="decimal" value={log.weight}
+                          onChange={e=>updateSetLog(ex.id,setIdx,'weight',e.target.value)}
+                          placeholder="—"
+                          style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:13,fontFamily:'inherit',outline:'none',direction:'ltr',textAlign:'right',boxSizing:'border-box'}}/>
+                      </div>
+                      <div>
+                        <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>חזרות</p>
+                        <input type="number" inputMode="numeric" value={log.reps}
+                          onChange={e=>updateSetLog(ex.id,setIdx,'reps',e.target.value)}
+                          placeholder="—"
+                          style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:13,fontFamily:'inherit',outline:'none',direction:'ltr',textAlign:'right',boxSizing:'border-box'}}/>
+                      </div>
+                    </div>
+                    <p style={{margin:'0 0 2px',fontSize:9,color:COLORS.textMuted}}>הערות</p>
+                    <input type="text" value={log.notes}
+                      onChange={e=>updateSetLog(ex.id,setIdx,'notes',e.target.value)}
+                      placeholder="איך הרגשת בסט?"
+                      style={{width:'100%',padding:'6px 8px',border:`1px solid ${COLORS.border}`,borderRadius:6,fontSize:11,fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/>
+                  </div>
+                );
+              })}
+              <p style={{margin:'4px 0 0',fontSize:9,color:COLORS.textMuted,textAlign:'center'}}>
+                💾 הנתונים נשמרים אוטומטית
+              </p>
+            </div>
+          )}
           {ex.notes && <p style={{margin:'8px 0 0',padding:8,background:COLORS.primarySoft,borderRadius:8,fontSize:11,color:COLORS.text,fontStyle:'italic'}}>💡 {ex.notes}</p>}
           {activeEx===ex.id&&ex.videoUrl&&(
             <div style={{marginTop:10,background:'black',borderRadius:10,overflow:'hidden',position:'relative'}}>

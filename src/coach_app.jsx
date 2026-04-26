@@ -718,12 +718,17 @@ export default function App({ onLogout }) {
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark, margin: 0 }}>{coachProfile?.full_name?.split(' ')[0] || 'ספיר'} 💜</h1>
           </div>
         </div>
-        <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
-          🔔
-          {notifications.length > 0 && (
-            <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
+            🔔
+            {notifications.length > 0 && (
+              <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+            )}
         </button>
+        <button onClick={() => setTab('settings')} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }} title="הגדרות">
+          ⚙️
+        </button>
+        </div>
       </header>
 
       {/* Sub-views override tabs */}
@@ -834,16 +839,15 @@ function BottomNav({ tab, setTab }) {
     { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
     { id: 'insights', label: 'תובנות', icon: 'insights' },
     { id: 'meals', label: 'תזונה', icon: 'food' },
-    { id: 'workouts', label: 'אימונים', icon: 'workout' },
-    { id: 'settings', label: 'הגדרות', icon: 'settings' },
+    { id: 'workouts', label: 'אימון', icon: 'workout' },
   ];
   return (
-    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '8px 0 10px 0', zIndex: 25 }}>
+    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '6px 2px 8px 2px', zIndex: 25 }}>
       {tabs.map((t) => (
         <button key={t.id} onClick={() => setTab(t.id)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 2px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flex: 1, minWidth: 0 }}>
           <CoachNavIcon name={t.icon} active={tab === t.id} />
-          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+          <span style={{ fontSize: '9px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500, whiteSpace: 'nowrap' }}>{t.label}</span>
         </button>
       ))}
     </nav>
