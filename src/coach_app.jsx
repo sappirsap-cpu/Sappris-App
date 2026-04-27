@@ -12,22 +12,27 @@ import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
 import { ModularPage, registerWidget } from './widgets';
+import { ExercisePicker } from './exercise_library';
+
 
 // ═══════════════════════════════════════════════════════════════
-// 🌙 DARK MODE — CSS overrides for inline styles
+// 🌙 DARK MODE — CSS overrides
 // ═══════════════════════════════════════════════════════════════
 if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode')) {
   const s = document.createElement('style');
   s.id = 'coach-dark-mode';
   s.textContent = `
-    /* ============= DARK MODE (Coach) ============= */
-    /* רק על coach-main ובתוכו - לא על login */
+    /* ============= DARK MODE — כל האפליקציה ============= */
+    /* על body כולו ועל root, כדי לכסות שטחים לבנים בהגדרות וכו׳ */
+    [data-theme="dark"] body, [data-theme="dark"] #root, [data-theme="dark"] html {
+      background: #12101E !important;
+    }
     [data-theme="dark"] .coach-main {
       background: #12101E !important;
-      color: #EDE3F5 !important;
+      color: #F0E8FA !important;
     }
 
-    /* רקעים לבנים → כהים — רק בתוך coach-main */
+    /* רקעים לבנים → כהים */
     [data-theme="dark"] .coach-main [style*="background: white"],
     [data-theme="dark"] .coach-main [style*="background:white"],
     [data-theme="dark"] .coach-main [style*="background: '#fff'"],
@@ -57,41 +62,50 @@ if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode
       background-color: #2D2645 !important;
     }
 
-    /* טקסטים כהים → בהירים */
+    /* טקסטים — בהירים מאוד לקריאות מקסימלית */
     [data-theme="dark"] .coach-main [style*="color: #2E2A3D"],
     [data-theme="dark"] .coach-main [style*="color:#2E2A3D"] {
-      color: #F0E8FA !important;
+      color: #F5F0FF !important;
     }
     [data-theme="dark"] .coach-main [style*="color: #756B85"],
     [data-theme="dark"] .coach-main [style*="color:#756B85"] {
-      color: #B0A0C5 !important;
+      color: #C0B5D5 !important;
     }
     [data-theme="dark"] .coach-main [style*="color: #8B72B5"],
     [data-theme="dark"] .coach-main [style*="color:#8B72B5"] {
-      color: #D4C2EC !important;
+      color: #E8D5FF !important;
     }
     [data-theme="dark"] .coach-main [style*="color: #B19CD9"],
     [data-theme="dark"] .coach-main [style*="color:#B19CD9"] {
-      color: #D8C5F0 !important;
+      color: #E5D2FF !important;
     }
     [data-theme="dark"] .coach-main [style*="color: black"],
     [data-theme="dark"] .coach-main [style*="color:black"],
     [data-theme="dark"] .coach-main [style*="color: #000"],
     [data-theme="dark"] .coach-main [style*="color:#000"] {
-      color: #F0E8FA !important;
+      color: #F5F0FF !important;
     }
     [data-theme="dark"] .coach-main [style*="color: #9B9B9B"],
     [data-theme="dark"] .coach-main [style*="color:#9B9B9B"],
     [data-theme="dark"] .coach-main [style*="color: #666"],
-    [data-theme="dark"] .coach-main [style*="color:#666"] {
-      color: #B0A0C5 !important;
+    [data-theme="dark"] .coach-main [style*="color:#666"],
+    [data-theme="dark"] .coach-main [style*="color: #555"],
+    [data-theme="dark"] .coach-main [style*="color:#555"] {
+      color: #C0B5D5 !important;
     }
+    /* כל טקסט אפור בכל גוון */
+    [data-theme="dark"] .coach-main [style*="color: #444"] { color: #F0E8FA !important; }
+    [data-theme="dark"] .coach-main [style*="color: #888"] { color: #C0B5D5 !important; }
+    [data-theme="dark"] .coach-main [style*="color: #999"] { color: #C0B5D5 !important; }
+    [data-theme="dark"] .coach-main [style*="color: #AAA"] { color: #B0A5C5 !important; }
 
     /* גבולות */
     [data-theme="dark"] .coach-main [style*="1px solid #DDD0EB"],
     [data-theme="dark"] .coach-main [style*="1px solid #E0D4EB"],
     [data-theme="dark"] .coach-main [style*="1px solid rgba(0,0,0,0.1)"],
-    [data-theme="dark"] .coach-main [style*="1px solid #ECEAEC"] {
+    [data-theme="dark"] .coach-main [style*="1px solid #ECEAEC"],
+    [data-theme="dark"] .coach-main [style*="1px solid #E5E5E5"],
+    [data-theme="dark"] .coach-main [style*="1px solid #EEE"] {
       border-color: #3D3560 !important;
     }
     [data-theme="dark"] .coach-main [style*="borderTop: 1px solid"] {
@@ -107,24 +121,24 @@ if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode
       border-right-color: #3D3560 !important;
     }
 
-    /* Inputs בתוך coach-main בלבד */
+    /* Inputs */
     [data-theme="dark"] .coach-main input,
     [data-theme="dark"] .coach-main textarea,
     [data-theme="dark"] .coach-main select {
-      background: #252235 !important;
-      color: #F0E8FA !important;
-      border-color: #3D3560 !important;
+      background: #2A2540 !important;
+      color: #F5F0FF !important;
+      border-color: #4D4470 !important;
     }
     [data-theme="dark"] .coach-main input::placeholder,
     [data-theme="dark"] .coach-main textarea::placeholder {
-      color: #7A6E92 !important;
+      color: #8E84A8 !important;
     }
     [data-theme="dark"] .coach-main input:disabled {
       background: #1A1626 !important;
-      color: #7A6E92 !important;
+      color: #8E84A8 !important;
     }
 
-    /* כפתורים primary - בהירים יותר */
+    /* כפתורי primary */
     [data-theme="dark"] .coach-main [style*="background: #B19CD9"],
     [data-theme="dark"] .coach-main [style*="background:#B19CD9"] {
       background-color: #C5B3E0 !important;
@@ -148,9 +162,21 @@ if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode
     [data-theme="dark"] .coach-main [style*="background:#E0F2EB"] {
       background-color: #1A3028 !important;
     }
+
+    /* ============= SIDEBAR בlilac dark ============= */
+    [data-theme="dark"] nav {
+      background: #1E1A2E !important;
+      border-color: #3D3560 !important;
+    }
+    [data-theme="dark"] nav button[style*="background: #E8DFF5"],
+    [data-theme="dark"] nav button[style*="background:#E8DFF5"] {
+      background-color: #2D2645 !important;
+    }
   `;
   document.head.appendChild(s);
 }
+
+// ═══════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════
 
@@ -209,17 +235,12 @@ if (typeof document !== 'undefined' && !document.getElementById('coach-transitio
  * AnimatedScreen — עוטף כל sub-view / טאב לאנימציית כניסה
  * direction: 'right' | 'up' | 'fade'
  */
-function AnimatedScreen({ children, direction = 'right', duration = 220 }) {
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
-  const anim = { right: 'slideInRight', up: 'slideInUp', fade: 'fadeInScale' }[direction] || 'slideInRight';
+function AnimatedScreen({ children, direction = 'right', duration = 180 }) {
+  // הסרת ה-opacity:0 הראשוני שגרם לפלאש לבן
+  // במקום זה - mount מיידי עם אנימציה עדינה
   return (
     <div style={{
-      animation: mounted ? `${anim} ${duration}ms cubic-bezier(0.25,0.46,0.45,0.94) forwards` : 'none',
-      opacity: mounted ? undefined : 0,
+      animation: `${({ right: 'slideInRight', up: 'slideInUp', fade: 'fadeInScale' })[direction] || 'slideInRight'} ${duration}ms cubic-bezier(0.25,0.46,0.45,0.94)`,
     }}>
       {children}
     </div>
@@ -1322,9 +1343,7 @@ function BottomNav({ tab, setTab }) {
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   const [isWide, setIsWide] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
-  const [collapsed, setCollapsed] = React.useState(() => {
-    try { return localStorage.getItem('sappir-sidebar-collapsed') === '1'; } catch { return false; }
-  });
+  const [hovered, setHovered] = React.useState(false);
 
   React.useEffect(() => {
     const onResize = () => setIsWide(window.innerWidth >= 768);
@@ -1332,84 +1351,101 @@ function BottomNav({ tab, setTab }) {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const toggleCollapse = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    try { localStorage.setItem('sappir-sidebar-collapsed', next ? '1' : '0'); } catch {}
-  };
-
-  // ─── תפריט צד למסך רחב ───
+  // ─── תפריט צד למסך רחב — בסגנון Supabase ───
   if (isWide) {
-    const sidebarWidth = collapsed ? 60 : 200;
+    const collapsedW = 60;
+    const expandedW = 220;
+    const width = hovered ? expandedW : collapsedW;
     return (
       <>
-        <nav style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0,
-          width: sidebarWidth,
-          background: 'var(--card, white)',
-          borderLeft: `1px solid var(--border, ${COLORS.border})`,
-          display: 'flex', flexDirection: 'column',
-          padding: '14px 8px', gap: 4, zIndex: 30,
-          transition: 'width 0.25s cubic-bezier(0.25,0.46,0.45,0.94)',
-          boxShadow: '-2px 0 12px rgba(0,0,0,0.04)',
-        }}>
-          {/* Logo + collapse */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between', padding: '8px 4px 14px', borderBottom: `1px solid var(--border, ${COLORS.border})`, marginBottom: 8 }}>
-            {!collapsed && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <img src="/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} />
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--primary-dark, ' + COLORS.primaryDark + ')' }}>Sappir Fit</span>
-              </div>
-            )}
-            <button onClick={toggleCollapse} style={{
-              background: 'var(--primary-soft, ' + COLORS.primarySoft + ')',
-              border: 'none', borderRadius: 8, width: 28, height: 28,
-              cursor: 'pointer', fontSize: 12, fontFamily: 'inherit',
+        <nav
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0,
+            width: width,
+            background: 'var(--card, white)',
+            borderLeft: `1px solid var(--border, ${COLORS.border})`,
+            display: 'flex', flexDirection: 'column',
+            padding: '14px 8px', gap: 4, zIndex: 30,
+            transition: 'width 0.22s cubic-bezier(0.25,0.46,0.45,0.94)',
+            boxShadow: hovered ? '-4px 0 20px rgba(0,0,0,0.08)' : '-2px 0 8px rgba(0,0,0,0.03)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Logo */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: 10,
+            padding: '8px 6px 14px',
+            borderBottom: `1px solid var(--border, ${COLORS.border})`,
+            marginBottom: 8,
+            minHeight: 44,
+          }}>
+            <img src="/logo.png" alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }} />
+            <span style={{
+              fontSize: 14, fontWeight: 800,
               color: 'var(--primary-dark, ' + COLORS.primaryDark + ')',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: hovered ? 1 : 0,
+              transition: 'opacity 0.2s',
+              whiteSpace: 'nowrap',
             }}>
-              {collapsed ? '◀' : '▶'}
-            </button>
+              Sappir Fit
+            </span>
           </div>
 
           {tabs.map((t) => {
             const isActive = tab === t.id;
             return (
-              <button key={t.id} onClick={() => setTab(t.id)} title={collapsed ? t.label : ''}
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                title={t.label}
                 style={{
                   background: isActive ? 'var(--primary-soft, ' + COLORS.primarySoft + ')' : 'transparent',
                   border: 'none', borderRadius: 10,
-                  padding: collapsed ? '10px 0' : '10px 12px',
+                  padding: '10px 12px',
                   cursor: 'pointer', fontFamily: 'inherit',
                   display: 'flex', alignItems: 'center',
-                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  justifyContent: 'flex-start',
                   gap: 12,
                   transition: 'background 0.15s',
                   position: 'relative',
+                  minHeight: 42,
+                }}
+              >
+                <div style={{ flexShrink: 0, width: 24, display: 'flex', justifyContent: 'center' }}>
+                  <CoachNavIcon name={t.icon} active={isActive} />
+                </div>
+                <span style={{
+                  fontSize: 13,
+                  color: isActive
+                    ? 'var(--primary-dark, ' + COLORS.primaryDark + ')'
+                    : 'var(--text, ' + COLORS.text + ')',
+                  fontWeight: isActive ? 700 : 500,
+                  opacity: hovered ? 1 : 0,
+                  transition: 'opacity 0.2s',
+                  whiteSpace: 'nowrap',
                 }}>
-                <CoachNavIcon name={t.icon} active={isActive} />
-                {!collapsed && (
-                  <span style={{
-                    fontSize: 13,
-                    color: isActive ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text, ' + COLORS.text + ')',
-                    fontWeight: isActive ? 700 : 500,
-                  }}>{t.label}</span>
-                )}
+                  {t.label}
+                </span>
                 {isActive && (
                   <div style={{
-                    position: 'absolute', right: -8, top: '50%',
+                    position: 'absolute', right: 0, top: '50%',
                     transform: 'translateY(-50%)', width: 3, height: 22,
-                    background: 'var(--primary, ' + COLORS.primary + ')', borderRadius: 4,
+                    background: 'var(--primary, ' + COLORS.primary + ')',
+                    borderRadius: '4px 0 0 4px',
                   }} />
                 )}
               </button>
             );
           })}
         </nav>
-        {/* Spacer to push content from sidebar */}
+        {/* Spacer — תמיד 60px (לא משתנה כשהתפריט נפתח, כדי שהתוכן לא יקפץ) */}
         <style>{`
           @media (min-width: 768px) {
-            body, #root { padding-right: ${sidebarWidth}px !important; transition: padding-right 0.25s; }
+            body, #root { padding-right: ${collapsedW}px !important; }
           }
         `}</style>
       </>
@@ -2811,8 +2847,26 @@ function WorkoutTemplateEditor({ template, coachId, onCancel, onSave }) {
   const [duration, setDuration] = useState(template?.duration_min || 45);
   const [exercises, setExercises] = useState(template?.exercises || []);
   const [saving, setSaving] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const addExercise = () => setExercises([...exercises, { name: '', sets: 3, reps: '10', rest: 60, weight: '', notes: '', icon: '💪' }]);
+
+  const addFromLibrary = (ex) => {
+    setExercises([...exercises, {
+      name: ex.name_he || ex.name,
+      sets: 3, reps: '10', rest: 60, weight: '', notes: '',
+      icon: '💪',
+      // נתונים נוספים מהמאגר
+      library_id: ex.id,
+      muscles: (ex.primary_muscles_he || []).join(', '),
+      equipment: ex.equipment_he || '',
+      image: ex.images?.[0]
+        ? `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${ex.images[0]}`
+        : null,
+    }]);
+    setPickerOpen(false);
+  };
+
   const updateEx = (i, field, val) => {
     const n = [...exercises];
     n[i] = { ...n[i], [field]: val };
@@ -2866,11 +2920,31 @@ function WorkoutTemplateEditor({ template, coachId, onCancel, onSave }) {
       <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>תרגילים ({exercises.length})</h4>
-          <button onClick={addExercise} style={{ ...btnP, padding: '6px 12px', fontSize: 12 }}>➕ תרגיל</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => setPickerOpen(true)} style={{ ...btnP, padding: '6px 10px', fontSize: 11 }}>🔍 ממאגר</button>
+            <button onClick={addExercise} style={{ ...btnG, padding: '6px 10px', fontSize: 11 }}>✏️ ידני</button>
+          </div>
         </div>
 
         {exercises.map((ex, i) => (
           <div key={i} style={{ background: COLORS.bg, borderRadius: 10, padding: 10, marginBottom: 8 }}>
+            {ex.image && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                <img src={ex.image} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  {ex.muscles && (
+                    <p style={{ margin: 0, fontSize: 10, color: COLORS.primaryDark, fontWeight: 600 }}>
+                      💪 {ex.muscles}
+                    </p>
+                  )}
+                  {ex.equipment && (
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
+                      🏋️ {ex.equipment}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               <input value={ex.name} onChange={e => updateEx(i, 'name', e.target.value)} placeholder="שם התרגיל" style={{ ...inp, flex: 1 }} />
               <button onClick={() => removeEx(i)} style={{ ...btnG, padding: '6px 10px', color: COLORS.red }}>🗑️</button>
@@ -2894,6 +2968,8 @@ function WorkoutTemplateEditor({ template, coachId, onCancel, onSave }) {
       <button onClick={handleSave} disabled={saving} style={{ ...btnP, width: '100%', padding: 14, opacity: saving ? 0.6 : 1 }}>
         {saving ? 'שומרת...' : '💾 שמור אימון'}
       </button>
+
+      {pickerOpen && <ExercisePicker onSelect={addFromLibrary} onClose={() => setPickerOpen(false)} />}
     </main>
   );
 }
