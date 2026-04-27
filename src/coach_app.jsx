@@ -11,7 +11,7 @@ import { BroadcastsManager } from './voice_broadcasts';
 import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
-import { ModularPage, registerWidget } from './widgets';
+import { ModularPage, registerWidget, WIDGET_REGISTRY } from './widgets';
 import { ExercisePicker } from './exercise_library';
 
 
@@ -1524,8 +1524,9 @@ function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAt
   const today = new Date();
   const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // רישום ה-widgets ב-Registry (פעם אחת)
-  React.useEffect(() => {
+  // רישום ה-widgets ב-Registry — חייב לרוץ מיד (לא ב-useEffect),
+  // כי ModularPage צריך אותם בrender הראשון
+  if (!WIDGET_REGISTRY['stats']) {
     registerWidget('stats', {
       title: 'סטטיסטיקות יומיות',
       icon: '📊',
@@ -1566,7 +1567,7 @@ function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAt
         <ClientsListWithSearch clients={clients} onOpenClient={onOpenClient} onOpenMessage={onOpenMessage} />
       ),
     });
-  }, []);
+  }
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -4218,6 +4219,7 @@ function ResetPasswordDialog({ client, onClose }) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async () => {
     setError('');
@@ -4233,47 +4235,87 @@ function ResetPasswordDialog({ client, onClose }) {
     setWorking(true);
 
     try {
-      // שליחת מייל איפוס סיסמה ללקוחה דרך Supabase
-      // (שינוי סיסמה ישיר דורש Service Role - לא זמין מ-frontend)
-      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(client.email);
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData?.session?.access_token;
 
-      if (resetErr) throw resetErr;
+      if (!token) {
+        throw new Error('לא מחובר. נסי להתחבר מחדש.');
+      }
+
+      // קריאה ל-Edge Function לשינוי סיסמה ישיר
+      const supabaseUrl = supabase.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/reset-client-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            clientId: client.id,
+            newPassword: newPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'שגיאה בעדכון סיסמה');
+      }
 
       setDone(true);
     } catch (err) {
       console.error('Reset error:', err);
-      setError('שגיאה: ' + (err.message || 'נסי שוב'));
+      setError(err.message || 'שגיאה לא ידועה. נסי שוב.');
     } finally {
       setWorking(false);
     }
   };
 
+  const inputStyle = {
+    width: '100%', padding: '10px 12px', boxSizing: 'border-box',
+    border: `1px solid ${COLORS.border}`, borderRadius: 10,
+    fontSize: 14, fontFamily: 'inherit', outline: 'none',
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.5)', zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-    }} onClick={() => !working && onClose()}>
-      <div style={{
-        background: 'white', borderRadius: 16, padding: 24,
-        maxWidth: 400, width: '100%',
-      }} onClick={e => e.stopPropagation()}>
+    <div
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      }}
+      onMouseDown={(e) => {
+        // סגור רק אם לחצו ממש על ה-overlay, לא על ילד שלו
+        if (e.target === e.currentTarget && !working) onClose();
+      }}
+    >
+      <div
+        style={{
+          background: 'white', borderRadius: 16, padding: 24,
+          maxWidth: 420, width: '100%',
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         {done ? (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
             <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-              נשלח מייל איפוס
+              הסיסמה עודכנה!
             </h3>
             <p style={{ margin: '0 0 16px', fontSize: 13, color: COLORS.textMuted, lineHeight: 1.6 }}>
-              נשלח מייל ל-<strong>{client.email}</strong> עם קישור לאיפוס סיסמה.
+              הסיסמה של <strong>{client.name}</strong> עודכנה בהצלחה.
               <br/>
-              המתאמנת תיכנס למייל ותגדיר סיסמה חדשה בעצמה.
+              עכשיו תוכלי לעדכן אותה לסיסמה החדשה — היא יכולה להתחבר מיידית.
             </p>
             <button onClick={onClose} style={{
               background: COLORS.primary, color: 'white', border: 'none',
               padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit', width: '100%',
-            }}>אישור</button>
+            }}>סיום</button>
           </div>
         ) : (
           <>
@@ -4286,7 +4328,7 @@ function ResetPasswordDialog({ client, onClose }) {
                 <strong>{client.name}</strong>
               </p>
               <p style={{ margin: '8px 0 0', fontSize: 11, color: COLORS.textMuted, lineHeight: 1.5 }}>
-                יישלח מייל ללקוחה עם קישור לאיפוס סיסמה
+                הגדירי סיסמה חדשה — תוכלי לעדכן אותה ללקוחה
               </p>
             </div>
 
@@ -4298,6 +4340,43 @@ function ResetPasswordDialog({ client, onClose }) {
                 {error}
               </div>
             )}
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>
+                סיסמה חדשה
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="לפחות 6 תווים"
+                style={inputStyle}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>
+                אימות סיסמה
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="הקלידי שוב את הסיסמה"
+                style={inputStyle}
+              />
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.textMuted, marginBottom: 16, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={e => setShowPassword(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              הצג סיסמה
+            </label>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <button onClick={onClose} disabled={working} style={{
@@ -4312,7 +4391,7 @@ function ResetPasswordDialog({ client, onClose }) {
                 padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
                 cursor: working ? 'default' : 'pointer', fontFamily: 'inherit',
                 opacity: working ? 0.5 : 1,
-              }}>{working ? 'שולחת...' : 'שלחי מייל איפוס'}</button>
+              }}>{working ? 'מעדכנת...' : 'עדכני סיסמה'}</button>
             </div>
           </>
         )}
@@ -4671,28 +4750,39 @@ function EditClientDetails({ client, onBack, onSave }) {
 
   const handleSave = async () => {
     setSaving(true);
-    
-    // עדכן ב-Supabase
-    await supabase.from('clients').update({
-      full_name: name,
-      email: email,
-      phone: phone,
-      height_cm: parseInt(height) || null,
-      age: parseInt(age) || null,
-      target_weight: parseFloat(target) || null,
-    }).eq('id', client.id);
 
-    // עדכן ב-state
-    onSave({
-      name,
-      email,
-      phone,
-      height: parseInt(height) || client.height,
-      age: parseInt(age) || client.age,
-      target: parseFloat(target) || client.target,
-    });
-    
-    setSaving(false);
+    try {
+      // עדכן ב-Supabase (רק שדות שקיימים בטבלה)
+      const { error } = await supabase.from('clients').update({
+        full_name: name,
+        email: email,
+        phone: phone,
+        height_cm: parseInt(height) || null,
+        target_weight: parseFloat(target) || null,
+      }).eq('id', client.id);
+
+      if (error) {
+        console.error('Update error:', error);
+        alert('שגיאה בשמירה: ' + error.message);
+        setSaving(false);
+        return;
+      }
+
+      // עדכן ב-state
+      onSave({
+        name,
+        email,
+        phone,
+        height: parseInt(height) || client.height,
+        age: parseInt(age) || client.age,
+        target: parseFloat(target) || client.target,
+      });
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('שגיאה: ' + (err.message || 'נסי שוב'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cardStyle = { 
@@ -4734,7 +4824,7 @@ function EditClientDetails({ client, onBack, onSave }) {
           padding: '4px'
         }}>←</button>
         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#8B72B5' }}>
-          עריכת פרטי {client.name.split(' ')[0]}
+          עריכת פרטי {(client.name || '').split(' ')[0] || 'לקוחה'}
         </h2>
       </div>
 
