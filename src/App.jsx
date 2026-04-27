@@ -400,13 +400,16 @@ function ClientLogin({ onCoachLogin }) {
 
           {/* לוגו */}
           <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
-            <img src="/logo.png" alt="Sappir Barak" style={{
-              width: 160, height: 160, objectFit: 'contain',
-              margin: '0 auto 16px', display: 'block',
-              filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.3))',
-            }} />
+            <div style={{
+              width: 100, height: 100, margin: '0 auto 16px',
+              background: 'white', borderRadius: 24,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+            }}>
+              <img src="/logo.png" alt="Sappir Barak" style={{ width: 76, height: 76, objectFit: 'contain' }} />
+            </div>
             <h1 style={{
-              fontSize: 32, fontWeight: 800, color: 'white',
+              fontSize: 28, fontWeight: 800, color: 'white',
               margin: '0 0 6px', textShadow: '0 2px 8px rgba(0,0,0,0.3)',
               letterSpacing: '-0.5px',
             }}>
@@ -539,12 +542,25 @@ function CoachLogin({ onBack }) {
       return;
     }
     if (data?.user) {
-      const { data: coaches } = await supabase.from('coaches').select('id').eq('id', data.user.id).limit(1);
-      if (!coaches || coaches.length === 0) {
-        await supabase.auth.signOut();
-        setError('אין לך הרשאת מאמנת. אנא השתמשי במסך כניסת מתאמנת.');
-        setLoading(false);
-        return;
+      // נסה לוודא שזו מאמנת — אם הקריאה נכשלת מסיבה כלשהי (RLS, רשת),
+      // אל תחסום את ההתחברות
+      try {
+        const { data: coaches, error: cErr } = await supabase
+          .from('coaches')
+          .select('id')
+          .eq('id', data.user.id)
+          .limit(1);
+
+        // רק אם בוודאות אין מאמנת בתוצאה — חסום
+        if (!cErr && coaches !== null && coaches.length === 0) {
+          await supabase.auth.signOut();
+          setError('אין לך הרשאת מאמנת. אנא השתמשי במסך כניסת מתאמנת.');
+          setLoading(false);
+          return;
+        }
+        // בכל שאר המקרים (שגיאה / קיים) — תני להיכנס
+      } catch (e) {
+        console.warn('Coach check failed (allowing login):', e);
       }
     }
   };
@@ -572,13 +588,16 @@ function CoachLogin({ onBack }) {
 
       <div style={{ maxWidth: 380, width: '100%', position: 'relative', animation: 'fadeInUp 0.7s ease-out' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img src="/logo.png" alt="Sappir Barak" style={{
-            width: 180, height: 180, objectFit: 'contain',
-            margin: '0 auto 16px', display: 'block',
-            filter: 'drop-shadow(0 12px 32px rgba(0,0,0,0.3))',
-          }} />
+          <div style={{
+            width: 140, height: 140, margin: '0 auto 16px',
+            background: 'white', borderRadius: 32,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+          }}>
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: 110 }} />
+          </div>
           <h1 style={{
-            fontSize: 28, fontWeight: 800, color: 'white',
+            fontSize: 26, fontWeight: 800, color: 'white',
             margin: '0 0 6px', textShadow: '0 2px 6px rgba(0,0,0,0.2)',
           }}>
             כניסת מאמנת

@@ -567,28 +567,44 @@ export function NotificationSettings() {
   };
 
   const testNotification = async () => {
-    const { ok } = await requestNotificationPermission();
+    const { ok, reason } = await requestNotificationPermission();
     if (!ok) {
-      showToast('לא התקבלה הרשאה');
+      showToast(reason || 'לא התקבלה הרשאה');
       return;
     }
     try {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        const reg = await navigator.serviceWorker.ready;
-        reg.showNotification('Sappir Fit', {
-          body: '💜 זו התראה לדוגמה — נראה מצוין!',
-          icon: '/icon-192.png',
-          tag: 'sappir-test',
-          lang: 'he', dir: 'rtl',
-        });
-      } else {
-        new Notification('Sappir Fit', {
-          body: '💜 זו התראה לדוגמה — נראה מצוין!',
-          icon: '/icon-192.png',
-          lang: 'he', dir: 'rtl',
-        });
+      const opts = {
+        body: '💜 זו התראה לדוגמה — נראה מצוין!',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: `sappir-test-${Date.now()}`,
+        lang: 'he', dir: 'rtl',
+        requireInteraction: false,
+        silent: false,
+      };
+
+      let shown = false;
+      // נסה דרך service worker (עובד גם כשהדפדפן ברקע)
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg) {
+            await reg.showNotification('Sappir Fit', opts);
+            shown = true;
+          }
+        } catch (e) {
+          console.warn('SW notification failed:', e);
+        }
       }
+
+      // fallback: notification ישיר
+      if (!shown) {
+        new Notification('Sappir Fit', opts);
+      }
+
+      showToast('✅ ההתראה נשלחה');
     } catch (e) {
+      console.error('Notification error:', e);
       showToast('שגיאה: ' + e.message);
     }
   };
