@@ -3746,6 +3746,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const [recentLogs, setRecentLogs] = useState([]);
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const c = client;
   
@@ -4169,6 +4170,20 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </button>
       </div>
 
+      {/* 🔑 כפתור איפוס סיסמה */}
+      <div style={{ marginTop: '12px' }}>
+        <button onClick={() => setShowResetPassword(true)} style={{
+          width: '100%', background: 'white', color: COLORS.primaryDark,
+          border: `1px solid ${COLORS.primary}`, padding: '12px',
+          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>🔑</span>
+          איפוס סיסמת מתאמנת
+        </button>
+      </div>
+
       {/* 🗑️ כפתור מחיקת לקוחה - בתחתית! */}
       <div style={{ marginTop: '12px' }}>
         <button onClick={() => setShowDeleteConfirm(true)} style={{
@@ -4182,7 +4197,127 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           מחק לקוחה לצמיתות
         </button>
       </div>
+
+      {/* Dialog איפוס סיסמה */}
+      {showResetPassword && (
+        <ResetPasswordDialog
+          client={c}
+          onClose={() => setShowResetPassword(false)}
+        />
+      )}
     </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESET PASSWORD DIALOG
+═══════════════════════════════════════════════════════════ */
+function ResetPasswordDialog({ client, onClose }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    setError('');
+    if (newPassword.length < 6) {
+      setError('הסיסמה חייבת להיות לפחות 6 תווים');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('הסיסמאות לא תואמות');
+      return;
+    }
+
+    setWorking(true);
+
+    try {
+      // שליחת מייל איפוס סיסמה ללקוחה דרך Supabase
+      // (שינוי סיסמה ישיר דורש Service Role - לא זמין מ-frontend)
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(client.email);
+
+      if (resetErr) throw resetErr;
+
+      setDone(true);
+    } catch (err) {
+      console.error('Reset error:', err);
+      setError('שגיאה: ' + (err.message || 'נסי שוב'));
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+    }} onClick={() => !working && onClose()}>
+      <div style={{
+        background: 'white', borderRadius: 16, padding: 24,
+        maxWidth: 400, width: '100%',
+      }} onClick={e => e.stopPropagation()}>
+        {done ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+              נשלח מייל איפוס
+            </h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: COLORS.textMuted, lineHeight: 1.6 }}>
+              נשלח מייל ל-<strong>{client.email}</strong> עם קישור לאיפוס סיסמה.
+              <br/>
+              המתאמנת תיכנס למייל ותגדיר סיסמה חדשה בעצמה.
+            </p>
+            <button onClick={onClose} style={{
+              background: COLORS.primary, color: 'white', border: 'none',
+              padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+            }}>אישור</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🔑</div>
+              <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+                איפוס סיסמה
+              </h3>
+              <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>
+                <strong>{client.name}</strong>
+              </p>
+              <p style={{ margin: '8px 0 0', fontSize: 11, color: COLORS.textMuted, lineHeight: 1.5 }}>
+                יישלח מייל ללקוחה עם קישור לאיפוס סיסמה
+              </p>
+            </div>
+
+            {error && (
+              <div style={{
+                background: '#FADDDD', border: '1px solid #C88A8A',
+                borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#8B4040',
+              }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button onClick={onClose} disabled={working} style={{
+                background: 'white', color: COLORS.text,
+                border: `1px solid ${COLORS.border}`, padding: 12,
+                borderRadius: 10, fontSize: 14, fontWeight: 600,
+                cursor: working ? 'default' : 'pointer', fontFamily: 'inherit',
+                opacity: working ? 0.5 : 1,
+              }}>ביטול</button>
+              <button onClick={handleSubmit} disabled={working} style={{
+                background: COLORS.primary, color: 'white', border: 'none',
+                padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
+                cursor: working ? 'default' : 'pointer', fontFamily: 'inherit',
+                opacity: working ? 0.5 : 1,
+              }}>{working ? 'שולחת...' : 'שלחי מייל איפוס'}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

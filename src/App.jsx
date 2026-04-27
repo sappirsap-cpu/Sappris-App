@@ -329,11 +329,19 @@ function ClientLogin({ onCoachLogin }) {
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
+      // הודעת שגיאה ברורה יותר
+      let msg = error.message;
+      if (msg === 'Invalid login credentials') {
+        msg = 'אימייל או סיסמה שגויים. אם המאמנת הוסיפה אותך — בדקי שאת משתמשת באימייל הנכון.';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = 'האימייל עדיין לא אומת. בדקי בתיבת הדואר.';
+      }
+      setError(msg);
       setLoading(false);
       return;
     }
     if (data?.user) {
+      // בדוק אם המשתמש הוא מאמנת
       const { data: coaches } = await supabase.from('coaches').select('id').eq('id', data.user.id).limit(1);
       if (coaches && coaches.length > 0) {
         await supabase.auth.signOut();
@@ -341,11 +349,26 @@ function ClientLogin({ onCoachLogin }) {
         setLoading(false);
         return;
       }
+
+      // וודא שהמתאמנת קיימת בטבלת clients
+      const { data: client } = await supabase.from('clients').select('id, is_archived').eq('id', data.user.id).limit(1);
+      if (!client || client.length === 0) {
+        await supabase.auth.signOut();
+        setError('החשבון שלך לא נמצא במערכת. פני למאמנת.');
+        setLoading(false);
+        return;
+      }
+      if (client[0].is_archived) {
+        await supabase.auth.signOut();
+        setError('החשבון שלך הועבר לארכיון. פני למאמנת.');
+        setLoading(false);
+        return;
+      }
     }
   };
 
   return (
-    <div style={{
+    <div data-theme="light" style={{
       minHeight: '100vh', position: 'relative', overflow: 'hidden',
       direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     }}>
@@ -377,20 +400,17 @@ function ClientLogin({ onCoachLogin }) {
 
           {/* לוגו */}
           <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
-            <div style={{
-              width: 100, height: 100, margin: '0 auto 16px',
-              background: 'white', borderRadius: 24,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-            }}>
-              <img src="/logo.png" alt="Sappir Barak" style={{ width: 76, height: 76, objectFit: 'contain' }} />
-            </div>
+            <img src="/logo.png" alt="Sappir Barak" style={{
+              width: 160, height: 160, objectFit: 'contain',
+              margin: '0 auto 16px', display: 'block',
+              filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.3))',
+            }} />
             <h1 style={{
-              fontSize: 28, fontWeight: 800, color: 'white',
+              fontSize: 32, fontWeight: 800, color: 'white',
               margin: '0 0 6px', textShadow: '0 2px 8px rgba(0,0,0,0.3)',
               letterSpacing: '-0.5px',
             }}>
-              Sappir Fit
+              Sappir Fitness
             </h1>
             <p style={{
               fontSize: 15, color: 'rgba(255,255,255,0.95)',
@@ -530,7 +550,7 @@ function CoachLogin({ onBack }) {
   };
 
   return (
-    <div style={{
+    <div data-theme="light" style={{
       minHeight: '100vh',
       background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #C5B3E0 100%)`,
       padding: 20, direction: 'rtl',
@@ -552,16 +572,13 @@ function CoachLogin({ onBack }) {
 
       <div style={{ maxWidth: 380, width: '100%', position: 'relative', animation: 'fadeInUp 0.7s ease-out' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 140, height: 140, margin: '0 auto 16px',
-            background: 'white', borderRadius: 32,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
-          }}>
-            <img src="/logo.png" alt="Sappir Barak" style={{ width: 110 }} />
-          </div>
+          <img src="/logo.png" alt="Sappir Barak" style={{
+            width: 180, height: 180, objectFit: 'contain',
+            margin: '0 auto 16px', display: 'block',
+            filter: 'drop-shadow(0 12px 32px rgba(0,0,0,0.3))',
+          }} />
           <h1 style={{
-            fontSize: 26, fontWeight: 800, color: 'white',
+            fontSize: 28, fontWeight: 800, color: 'white',
             margin: '0 0 6px', textShadow: '0 2px 6px rgba(0,0,0,0.2)',
           }}>
             כניסת מאמנת
