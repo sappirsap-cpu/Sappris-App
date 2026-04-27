@@ -11,6 +11,7 @@ import { BroadcastsManager } from './voice_broadcasts';
 import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
+import { ModularPage, registerWidget } from './widgets';
 
 // ═══════════════════════════════════════════════════════════════
 // 🌙 DARK MODE — CSS overrides for inline styles
@@ -1435,45 +1436,71 @@ function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAt
   const today = new Date();
   const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <p style={{ fontSize: '13px', color: COLORS.textMuted, margin: 0, textAlign: 'right' }}>{dayStr}</p>
-
-      {/* IMPROVEMENT #1 — "logged today" stat */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-        <StatCard value={activeCount} label="פעילים" color={COLORS.primaryDark} />
-        <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
-        <StatCard value={needsAttention.length} label="ממתינים" color={needsAttention.length > 0 ? COLORS.red : COLORS.textMuted} />
-      </div>
-
-      {/* 💜 סקירה שבועית של כל הלקוחות */}
-      {coachProfile?.id && <CoachWeeklyOverview coachId={coachProfile.id} />}
-
-      {/* 🔔 פיד פעילות אחרונה */}
-      <ActivityFeed clients={clients} onOpenClient={onOpenClient} />
-
-      {/* Attention banner */}
-      {needsAttention.length > 0 && (
+  // רישום ה-widgets ב-Registry (פעם אחת)
+  React.useEffect(() => {
+    registerWidget('stats', {
+      title: 'סטטיסטיקות יומיות',
+      icon: '📊',
+      render: ({ activeCount, loggedToday, needsAttention }) => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+          <StatCard value={activeCount} label="פעילים" color={COLORS.primaryDark} />
+          <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
+          <StatCard value={needsAttention?.length || 0} label="ממתינים" color={(needsAttention?.length || 0) > 0 ? COLORS.red : COLORS.textMuted} />
+        </div>
+      ),
+    });
+    registerWidget('weekly_overview', {
+      title: 'סקירה שבועית',
+      icon: '📅',
+      render: ({ coachProfile }) => coachProfile?.id ? <CoachWeeklyOverview coachId={coachProfile.id} /> : null,
+    });
+    registerWidget('feed', {
+      title: 'פיד פעילות',
+      icon: '🔔',
+      render: ({ clients, onOpenClient }) => <ActivityFeed clients={clients} onOpenClient={onOpenClient} />,
+    });
+    registerWidget('attention', {
+      title: 'התראות',
+      icon: '⚠️',
+      render: ({ needsAttention }) => (needsAttention?.length || 0) > 0 ? (
         <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#8B6914' }}>
             ⚠️ {needsAttention.length} לקוחות לא רשמו היום
           </span>
           <span style={{ fontSize: '18px' }}>←</span>
         </div>
-      )}
+      ) : null,
+    });
+    registerWidget('clients_list', {
+      title: 'רשימת לקוחות',
+      icon: '👥',
+      render: ({ clients, onOpenClient, onOpenMessage }) => (
+        <div>
+          <input placeholder="🔍 חיפוש לקוח..." style={inputStyle} />
+          <ClientFilterChips clients={clients} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 10 }}>
+            {clients.map((c) => (
+              <ClientCardWithWeek key={c.id} client={c} onOpen={() => onOpenClient(c)} onMessage={() => onOpenMessage(c)} />
+            ))}
+          </div>
+        </div>
+      ),
+    });
+  }, []);
 
-      {/* Search */}
-      <input placeholder="🔍 חיפוש לקוח..." style={inputStyle} />
+  return (
+    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <p style={{ fontSize: '13px', color: COLORS.textMuted, margin: 0, textAlign: 'right' }}>{dayStr}</p>
 
-      {/* Client filter chips */}
-      <ClientFilterChips clients={clients} />
-
-      {/* IMPROVEMENT #2 — Client cards with weekly heatmap */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {clients.map((c) => (
-          <ClientCardWithWeek key={c.id} client={c} onOpen={() => onOpenClient(c)} onMessage={() => onOpenMessage(c)} />
-        ))}
-      </div>
+      <ModularPage
+        pageId="coach-dashboard"
+        defaultWidgets={['stats', 'weekly_overview', 'feed', 'attention', 'clients_list']}
+        availableWidgets={['stats', 'weekly_overview', 'feed', 'attention', 'clients_list']}
+        widgetProps={{
+          clients, coachProfile, loggedToday, activeCount, needsAttention,
+          onOpenClient, onOpenMessage, onOpenMacro, onNewClient,
+        }}
+      />
     </main>
   );
 }
@@ -3205,32 +3232,47 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const handleDeleteClient = async () => {
     setDeleting(true);
     try {
-      // קרא ל-Edge Function שמוחקת גם מ-auth
-      const { data: authData } = await supabase.auth.getSession();
-      const token = authData?.session?.access_token;
+      // מחיקה ישירה — Supabase יעשה CASCADE לפי ה-foreign keys
+      // אם יש טבלאות בלי CASCADE, ננקה ידנית קודם
+      const cid = c.id;
 
-      const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/delete-client`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ clientId: c.id }),
+      // נקה ידנית טבלאות שייתכן ולא הוגדרו עם CASCADE
+      const tables = [
+        'meal_logs', 'weight_logs', 'workout_logs', 'water_logs',
+        'meal_schedule', 'workout_schedule',
+        'messages', 'notifications', 'reminders',
+        'progress_photos', 'body_measurements',
+        'client_workouts', 'meal_plans',
+        'feedback', 'daily_scores', 'achievements',
+        'broadcast_recipients',
+      ];
+
+      for (const t of tables) {
+        try {
+          // נסה client_id קודם
+          await supabase.from(t).delete().eq('client_id', cid);
+        } catch (e) {
+          // לא נכשל אם הטבלה לא קיימת
         }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Failed to delete');
+        try {
+          // נסה גם to_id (להודעות שנשלחו אליה)
+          await supabase.from(t).delete().eq('to_id', cid);
+        } catch (e) {}
+        try {
+          // נסה גם from_id (להודעות שהיא שלחה)
+          await supabase.from(t).delete().eq('from_id', cid);
+        } catch (e) {}
       }
-      
+
+      // מחק את הלקוחה עצמה
+      const { error } = await supabase.from('clients').delete().eq('id', cid);
+      if (error) throw error;
+
       // חזור למסך הקודם
       onBack();
     } catch (err) {
-      alert('שגיאה במחיקה: ' + err.message);
+      console.error('Delete error:', err);
+      alert('שגיאה במחיקה: ' + (err.message || 'נסי שוב'));
       setDeleting(false);
       setShowDeleteConfirm(false);
     }
