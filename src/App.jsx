@@ -148,8 +148,6 @@ export default function App() {
       if (event === 'TOKEN_REFRESHED') { setSession(newSession); return; }
       if (event === 'USER_UPDATED') { setSession(newSession); return; }
       if (event === 'SIGNED_IN' && newSession) {
-        // אם דגל suppress פעיל (login של מתאמנת באמצע אימות) — דלגי
-        if (window.__sappirSuppressAuth) return;
         // אם זה אותו user שכבר זוהה, אל תעשה כלום (מונע race condition)
         if (initDone && session?.user?.id === newSession.user.id && userRole) {
           setSession(newSession);
@@ -181,32 +179,49 @@ export default function App() {
   const detectRole = async (userId, backgroundOnly = false) => {
     try {
       if (!backgroundOnly) setDebugInfo('בודק תפקיד...');
-      const [coachRes, clientRes] = await Promise.all([
-        supabase.from('coaches').select('id').eq('id', userId).limit(1),
-        supabase.from('clients').select('id').eq('id', userId).limit(1),
-      ]);
-      const coaches = coachRes?.data || [];
-      const clients = clientRes?.data || [];
+
+      // בדוק כל טבלה בנפרד — אם אחת נכשלת בגלל RLS, השנייה עדיין תעבוד
+      let isCoach = false;
+      let isClient = false;
+
+      try {
+        const { data: coaches } = await supabase.from('coaches').select('id').eq('id', userId).limit(1);
+        if (coaches && coaches.length > 0) isCoach = true;
+      } catch (e) {
+        console.warn('coaches check failed:', e);
+      }
+
+      try {
+        const { data: clients } = await supabase.from('clients').select('id').eq('id', userId).limit(1);
+        if (clients && clients.length > 0) isClient = true;
+      } catch (e) {
+        console.warn('clients check failed:', e);
+      }
+
       let role = null;
-      if (coaches.length > 0) role = 'coach';
-      else if (clients.length > 0) role = 'client';
+      if (isCoach) role = 'coach';
+      else if (isClient) role = 'client';
 
       if (role) {
         if (!backgroundOnly) setDebugInfo(role === 'coach' ? 'נמצאה מאמנת ✓' : 'נמצאה לקוחה ✓');
         setUserRole(role);
         setCachedRole(userId, role);
       } else {
-        // 🛡️ אם יש cache תקף, אל תתנתק רק כי השרת לא החזיר תוצאה
-        if (backgroundOnly) {
-          // לא מצאנו — אבל אנחנו ברקע, זה יכול להיות זמני
+        // לא מצאנו - בדוק cache לפני שמתנתק
+        if (backgroundOnly) return;
+
+        const cached = getCachedRole(userId);
+        if (cached === 'coach' || cached === 'client') {
+          setUserRole(cached);
+          setDebugInfo('עובדת ממטמון');
           return;
         }
+
         if (!backgroundOnly) setDebugInfo('משתמש לא נמצא בטבלאות');
         setUserRole(null);
       }
     } catch (e) {
       console.error('detectRole failed:', e);
-      // 🛡️ שגיאה ברשת — אל תוציא את המשתמש אם יש cache
       if (backgroundOnly) return;
       const cached = getCachedRole(userId);
       if (cached === 'coach' || cached === 'client') {
@@ -330,58 +345,43 @@ function ClientLogin({ onCoachLogin }) {
     setError('');
     setLoading(true);
 
-    // הפעלת דגל suppress — מונע מ-App לזוז למסך הראשי בזמן הבדיקה
-    window.__sappirSuppressAuth = true;
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        let msg = error.message;
-        if (msg === 'Invalid login credentials') {
-          msg = 'אימייל או סיסמה שגויים';
-        } else if (msg.includes('Email not confirmed')) {
-          msg = 'האימייל עדיין לא אומת. בדקי בתיבת הדואר.';
-        }
-        setError(msg);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      let msg = error.message;
+      if (msg === 'Invalid login credentials') {
+        msg = 'אימייל או סיסמה שגויים';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = 'האימייל עדיין לא אומת. בדקי בתיבת הדואר.';
+      }
+      setError(msg);
+      setLoading(false);
+      return;
+    }
+    if (data?.user) {
+      // בדוק אם המשתמש הוא מאמנת
+      const { data: coaches } = await supabase.from('coaches').select('id').eq('id', data.user.id).limit(1);
+      if (coaches && coaches.length > 0) {
+        await supabase.auth.signOut();
+        setError('משתמש זה הוא מאמנת. אנא השתמשי במסך כניסת מאמנת.');
         setLoading(false);
         return;
       }
-      if (data?.user) {
-        // בדוק אם המשתמש הוא מאמנת
-        const { data: coaches } = await supabase.from('coaches').select('id').eq('id', data.user.id).limit(1);
-        if (coaches && coaches.length > 0) {
-          await supabase.auth.signOut();
-          setError('משתמש זה הוא מאמנת. אנא השתמשי במסך כניסת מאמנת.');
-          setLoading(false);
-          return;
-        }
 
-        // וודא שהמתאמנת קיימת בטבלת clients
-        const { data: client } = await supabase.from('clients').select('id, is_archived').eq('id', data.user.id).limit(1);
-        if (!client || client.length === 0) {
-          await supabase.auth.signOut();
-          setError('החשבון שלך לא נמצא במערכת. פני למאמנת.');
-          setLoading(false);
-          return;
-        }
-        if (client[0].is_archived) {
-          await supabase.auth.signOut();
-          setError('החשבון שלך הועבר לארכיון. פני למאמנת.');
-          setLoading(false);
-          return;
-        }
-
-        // הכל תקין — בטל את הדגל וטריגר את ה-auth flow
-        window.__sappirSuppressAuth = false;
-        // טריגר ידני של refresh session כדי שה-App יזהה
-        const { data: { session: freshSession } } = await supabase.auth.getSession();
-        if (freshSession) {
-          // יוצרים אירוע מחדש דרך getSession - ה-App יעדכן state
-          window.location.reload();
-        }
+      // וודא שהמתאמנת קיימת בטבלת clients
+      const { data: client } = await supabase.from('clients').select('id, is_archived').eq('id', data.user.id).limit(1);
+      if (!client || client.length === 0) {
+        await supabase.auth.signOut();
+        setError('החשבון שלך לא נמצא במערכת. פני למאמנת.');
+        setLoading(false);
+        return;
       }
-    } finally {
-      window.__sappirSuppressAuth = false;
+      if (client[0].is_archived) {
+        await supabase.auth.signOut();
+        setError('החשבון שלך הועבר לארכיון. פני למאמנת.');
+        setLoading(false);
+        return;
+      }
+      // הכל תקין — onAuthStateChange של App יזהה ויטען
     }
   };
 
@@ -553,40 +553,32 @@ function CoachLogin({ onBack }) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    window.__sappirSuppressAuth = true;
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
-        setLoading(false);
-        return;
-      }
-      if (data?.user) {
-        // נסה לוודא שזו מאמנת — אם הקריאה נכשלת מסיבה כלשהי, אל תחסום
-        try {
-          const { data: coaches, error: cErr } = await supabase
-            .from('coaches')
-            .select('id')
-            .eq('id', data.user.id)
-            .limit(1);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(error.message === 'Invalid login credentials' ? 'אימייל או סיסמה שגויים' : error.message);
+      setLoading(false);
+      return;
+    }
+    if (data?.user) {
+      // נסה לוודא שזו מאמנת — אם הקריאה נכשלת מסיבה כלשהי, אל תחסום
+      try {
+        const { data: coaches, error: cErr } = await supabase
+          .from('coaches')
+          .select('id')
+          .eq('id', data.user.id)
+          .limit(1);
 
-          if (!cErr && coaches !== null && coaches.length === 0) {
-            await supabase.auth.signOut();
-            setError('אין לך הרשאת מאמנת. אנא השתמשי במסך כניסת מתאמנת.');
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.warn('Coach check failed (allowing login):', e);
+        if (!cErr && coaches !== null && coaches.length === 0) {
+          await supabase.auth.signOut();
+          setError('אין לך הרשאת מאמנת. אנא השתמשי במסך כניסת מתאמנת.');
+          setLoading(false);
+          return;
         }
-
-        // הכל תקין — bטל suppress וטען מחדש
-        window.__sappirSuppressAuth = false;
-        window.location.reload();
+      } catch (e) {
+        console.warn('Coach check failed (allowing login):', e);
       }
-    } finally {
-      window.__sappirSuppressAuth = false;
+      // הכל תקין — onAuthStateChange של App יזהה ויטען
     }
   };
 
