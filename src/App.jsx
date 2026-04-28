@@ -419,12 +419,12 @@ function ClientLogin({ onCoachLogin }) {
           {/* לוגו */}
           <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
             <div style={{
-              width: 100, height: 100, margin: '0 auto 16px',
-              background: 'white', borderRadius: 24,
+              width: 150, height: 150, margin: '0 auto 16px',
+              background: 'white', borderRadius: 28,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}>
-              <img src="/logo.png" alt="Sappir Barak" style={{ width: 76, height: 76, objectFit: 'contain' }} />
+              <img src="/logo.png" alt="Sappir Barak" style={{ width: 138, height: 138, objectFit: 'contain' }} />
             </div>
             <h1 style={{
               fontSize: 28, fontWeight: 800, color: 'white',
@@ -614,12 +614,12 @@ function CoachLogin({ onBack }) {
       <div style={{ maxWidth: 380, width: '100%', position: 'relative', animation: 'fadeInUp 0.7s ease-out' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
-            width: 140, height: 140, margin: '0 auto 16px',
-            background: 'white', borderRadius: 32,
+            width: 210, height: 210, margin: '0 auto 16px',
+            background: 'white', borderRadius: 36,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
           }}>
-            <img src="/logo.png" alt="Sappir Barak" style={{ width: 110 }} />
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: 195, height: 195, objectFit: 'contain' }} />
           </div>
           <h1 style={{
             fontSize: 26, fontWeight: 800, color: 'white',
