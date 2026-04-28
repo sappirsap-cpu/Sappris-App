@@ -13,6 +13,8 @@ import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
 import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
 import { ModularPage, registerWidget, WIDGET_REGISTRY } from './widgets';
 import { ExercisePicker } from './exercise_library';
+import { BarcodeScanner } from './barcode_scanner';
+import { UnifiedFoodSearch, MoHImportButton } from './food_sources';
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -890,6 +892,9 @@ export default function App({ onLogout }) {
   const [messageText, setMessageText] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
+  const [showHeaderScanner, setShowHeaderScanner] = useState(false);
+  const [scannerResult, setScannerResult] = useState(null);
+  const [scannerLookingUp, setScannerLookingUp] = useState(false);
   const [chatMessages, setChatMessages] = useState({}); // { clientId: [messages] }
 
   // טען נתונים מ-Supabase
@@ -1211,12 +1216,19 @@ export default function App({ onLogout }) {
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark, margin: 0 }}>{coachProfile?.full_name?.split(' ')[0] || 'ספיר'} 💜</h1>
           </div>
         </div>
-        <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
-          🔔
-          {notifications.length > 0 && (
-            <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
-          )}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={() => setShowHeaderScanner(true)}
+            style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}
+            title="סרקי ברקוד">
+            📷
+          </button>
+          <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
+            🔔
+            {notifications.length > 0 && (
+              <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+            )}
+          </button>
+        </div>
       </header>
 
       {/* Sub-views — כל אחד עטוף ב-AnimatedScreen */}
@@ -1273,6 +1285,141 @@ export default function App({ onLogout }) {
         </div>
       )}
       {showNotifs && <div onClick={() => setShowNotifs(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />}
+
+      {/* 📷 סורק ברקוד - תוצאה מוצגת במודל */}
+      {showHeaderScanner && (
+        <BarcodeScanner
+          onDetect={async (barcode) => {
+            setShowHeaderScanner(false);
+            setScannerLookingUp(true);
+            try {
+              const { data: local } = await supabase
+                .from('food_database')
+                .select('*')
+                .eq('barcode', barcode)
+                .limit(1);
+              let food = local && local.length > 0 ? local[0] : null;
+
+              if (!food) {
+                const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+                if (res.ok) {
+                  const json = await res.json();
+                  if (json.status === 1 && json.product) {
+                    const prod = json.product;
+                    const n = prod.nutriments || {};
+                    const productName = prod.product_name_he || prod.product_name || prod.product_name_en;
+                    if (productName) {
+                      food = {
+                        name: productName,
+                        brand: prod.brands || null,
+                        image_url: prod.image_thumb_url || null,
+                        kcal_per_100g: parseFloat(n['energy-kcal_100g']) || 0,
+                        protein_per_100g: parseFloat(n.proteins_100g) || 0,
+                        carbs_per_100g: parseFloat(n.carbohydrates_100g) || 0,
+                        fat_per_100g: parseFloat(n.fat_100g) || 0,
+                      };
+                      try {
+                        await supabase.from('food_database').upsert({
+                          source: 'off', source_id: barcode, barcode,
+                          name: productName, brand: food.brand, image_url: food.image_url,
+                          kcal_per_100g: food.kcal_per_100g,
+                          protein_per_100g: food.protein_per_100g,
+                          carbs_per_100g: food.carbs_per_100g,
+                          fat_per_100g: food.fat_per_100g,
+                        }, { onConflict: 'source,source_id' });
+                      } catch {}
+                    }
+                  }
+                }
+              }
+
+              if (!food) {
+                showToast(`❌ לא נמצא מוצר עם ברקוד ${barcode}`);
+                return;
+              }
+
+              setScannerResult({ ...food, barcode });
+            } catch (e) {
+              showToast('שגיאה: ' + e.message);
+            } finally {
+              setScannerLookingUp(false);
+            }
+          }}
+          onClose={() => setShowHeaderScanner(false)}
+        />
+      )}
+
+      {scannerLookingUp && (
+        <div style={{
+          position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
+          background: COLORS.primary, color: 'white', padding: '10px 18px',
+          borderRadius: 24, fontSize: 13, fontWeight: 600, zIndex: 1500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+        }}>🔍 מחפשת מוצר...</div>
+      )}
+
+      {scannerResult && (
+        <div
+          onClick={() => setScannerResult(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+            zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20, direction: 'rtl',
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'white', borderRadius: 16, padding: 20,
+            maxWidth: 380, width: '100%',
+          }}>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+              {scannerResult.image_url ? (
+                <img src={scannerResult.image_url} alt="" style={{
+                  width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0,
+                }} />
+              ) : (
+                <div style={{
+                  width: 64, height: 64, borderRadius: 10, background: COLORS.primarySoft,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 28, flexShrink: 0,
+                }}>📦</div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>
+                  {scannerResult.name}
+                </h3>
+                {scannerResult.brand && (
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
+                    {scannerResult.brand}
+                  </p>
+                )}
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: COLORS.textMuted, direction: 'ltr', textAlign: 'right' }}>
+                  ברקוד: {scannerResult.barcode}
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              background: COLORS.primarySoft, borderRadius: 10, padding: 12, marginBottom: 14,
+            }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: COLORS.primaryDark }}>
+                לכל 100 גרם:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.kcal_per_100g || 0)}</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>קק״ל</span></div>
+                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.protein_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>חלבון</span></div>
+                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.carbs_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>פחמ׳</span></div>
+                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.fat_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>שומן</span></div>
+              </div>
+            </div>
+
+            <button onClick={() => setScannerResult(null)} style={{
+              width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+              padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>סגרי</button>
+          </div>
+        </div>
+      )}
 
       {/* Tab content — כל טאב עטוף ב-AnimatedScreen */}
       {!subView && tab === 'dashboard' && (
@@ -2771,7 +2918,7 @@ function MealEditorInTemplate({ meal, onCancel, onSave }) {
 
       <button onClick={handleSave} style={{ ...btnP, width: '100%', padding: 14 }}>✅ שמור ארוחה</button>
 
-      {searchOpen && <FoodSearchInTemplate onClose={() => setSearchOpen(false)} onSelect={addItem} />}
+      {searchOpen && <UnifiedFoodSearch onClose={() => setSearchOpen(false)} onSelect={addItem} />}
     </main>
   );
 }
@@ -3623,6 +3770,17 @@ function SettingsTab({ showToast, onLogout, coachId }) {
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
+
+      {/* 🍽️ מאגרי מזון */}
+      <section style={cardStyle}>
+        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 8px 0', color: COLORS.text }}>
+          🍽️ מאגרי מזון
+        </h3>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
+          טעני את מאגר משרד הבריאות (4500+ פריטים בעברית). חיפוש Open Food Facts זמין אוטומטית בכל פעם שאת מחפשת מזון.
+        </p>
+        <MoHImportButton />
+      </section>
 
       {/* 🌙 Dark Mode */}
       <section style={cardStyle}>
