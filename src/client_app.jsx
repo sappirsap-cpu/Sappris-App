@@ -24,6 +24,7 @@ import { NextWorkoutCard, startSmartReminders } from './smart_reminders';
 import { FeedbackBanner, FeedbackForm } from './feedback';
 import { PatternInsights } from './pattern_reminders';
 import { ClientWorkoutPicker, ClientMealPlanView } from './flexible_plans';
+import { BarcodeScanner } from './barcode_scanner';
 import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
 const COLORS = {
@@ -495,6 +496,9 @@ export default function App({onLogout}){
 
   // ✨ AI meal logger
   const [showAILogger, setShowAILogger] = useState(false);
+  const [showHeaderScanner, setShowHeaderScanner] = useState(false);
+  const [scannerLookingUp, setScannerLookingUp] = useState(false);
+  const [scannerError, setScannerError] = useState('');
 
   // 📸 גלריית תמונות
   const [showPhotoGallery, setShowPhotoGallery] = useState(false);
@@ -1060,11 +1064,18 @@ export default function App({onLogout}){
           <p style={{fontSize:12,color:COLORS.textMuted,margin:0}}>שלום,</p>
           <h1 style={{fontSize:18,fontWeight:700,color:COLORS.primaryDark,margin:0}}>{p.firstName} 💚</h1>
         </div>
-        <button onClick={()=>{setTab('messages');setUnread(0);}}
-          style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,position:'relative',cursor:'pointer',fontSize:18,fontFamily:'inherit'}}>
-          💬
-          {unread>0&&<span style={{position:'absolute',top:-4,left:-4,background:COLORS.accentDark,color:'white',fontSize:10,fontWeight:700,borderRadius:999,width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center'}}>{unread}</span>}
-        </button>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <button onClick={()=>setShowHeaderScanner(true)}
+            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,cursor:'pointer',fontSize:18,fontFamily:'inherit'}}
+            title="סרקי ברקוד">
+            📷
+          </button>
+          <button onClick={()=>{setTab('messages');setUnread(0);}}
+            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,position:'relative',cursor:'pointer',fontSize:18,fontFamily:'inherit'}}>
+            💬
+            {unread>0&&<span style={{position:'absolute',top:-4,left:-4,background:COLORS.accentDark,color:'white',fontSize:10,fontWeight:700,borderRadius:999,width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center'}}>{unread}</span>}
+          </button>
+        </div>
       </header>
 
       {/* HOME */}
@@ -1283,6 +1294,99 @@ export default function App({onLogout}){
           onSave={() => { loadAll(); }}
           onClose={() => setShowAILogger(false)}
         />
+      )}
+
+      {/* 📷 סורק ברקוד מההדר */}
+      {showHeaderScanner && (
+        <BarcodeScanner
+          onDetect={async (barcode) => {
+            setShowHeaderScanner(false);
+            setScannerLookingUp(true);
+            setScannerError('');
+            try {
+              // חיפוש במאגר המקומי
+              const { data: local } = await supabase
+                .from('food_database')
+                .select('*')
+                .eq('barcode', barcode)
+                .limit(1);
+              let food = local && local.length > 0 ? local[0] : null;
+
+              // אם לא נמצא - חיפוש ב-Open Food Facts
+              if (!food) {
+                const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+                if (res.ok) {
+                  const json = await res.json();
+                  if (json.status === 1 && json.product) {
+                    const prod = json.product;
+                    const n = prod.nutriments || {};
+                    const productName = prod.product_name_he || prod.product_name || prod.product_name_en;
+                    if (productName) {
+                      food = {
+                        name: productName + (prod.brands ? ` (${prod.brands})` : ''),
+                        kcal_per_100g: parseFloat(n['energy-kcal_100g']) || 0,
+                        protein_per_100g: parseFloat(n.proteins_100g) || 0,
+                        carbs_per_100g: parseFloat(n.carbohydrates_100g) || 0,
+                        fat_per_100g: parseFloat(n.fat_100g) || 0,
+                      };
+                      try {
+                        await supabase.from('food_database').upsert({
+                          source: 'off', source_id: barcode, barcode,
+                          name: productName, brand: prod.brands || null,
+                          image_url: prod.image_thumb_url || null,
+                          kcal_per_100g: food.kcal_per_100g,
+                          protein_per_100g: food.protein_per_100g,
+                          carbs_per_100g: food.carbs_per_100g,
+                          fat_per_100g: food.fat_per_100g,
+                        }, { onConflict: 'source,source_id' });
+                      } catch {}
+                    }
+                  }
+                }
+              }
+
+              if (!food) {
+                setScannerError(`לא נמצא מוצר עם ברקוד ${barcode}`);
+                setTimeout(() => setScannerError(''), 4000);
+                return;
+              }
+
+              // רשמי ארוחה אוטומטית עם כמות 100ג
+              await addMeal({
+                type: 'snack',
+                name: food.name,
+                cal: Math.round(food.kcal_per_100g || 0),
+                p: Math.round(food.protein_per_100g || 0),
+                c: Math.round(food.carbs_per_100g || 0),
+                f: Math.round(food.fat_per_100g || 0),
+              });
+            } catch (e) {
+              setScannerError('שגיאה: ' + (e.message || 'נסי שוב'));
+              setTimeout(() => setScannerError(''), 4000);
+            } finally {
+              setScannerLookingUp(false);
+            }
+          }}
+          onClose={() => setShowHeaderScanner(false)}
+        />
+      )}
+
+      {/* טוסטים של סריקת ברקוד */}
+      {scannerLookingUp && (
+        <div style={{
+          position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
+          background: COLORS.primary, color: 'white', padding: '10px 18px',
+          borderRadius: 24, fontSize: 13, fontWeight: 600, zIndex: 1500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+        }}>🔍 מחפשת מוצר...</div>
+      )}
+      {scannerError && (
+        <div style={{
+          position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
+          background: '#C88A8A', color: 'white', padding: '10px 18px',
+          borderRadius: 24, fontSize: 13, fontWeight: 600, zIndex: 1500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)', maxWidth: '90vw',
+        }}>{scannerError}</div>
       )}
 
       {/* 📸 גלריית תמונות התקדמות */}
@@ -2115,14 +2219,125 @@ function CustomMealForm({onLog}){
   const[c,setC]=useState('');
   const[f,setF]=useState('');
   const[type,setType]=useState('snack');
+  const[showScanner,setShowScanner]=useState(false);
+  const[lookingUp,setLookingUp]=useState(false);
+  const[lookupError,setLookupError]=useState('');
+  const[lookupSuccess,setLookupSuccess]=useState(false);
   const ok=name.trim()&&cal;
+
   const submit=()=>{
     onLog({type,name:name.trim(),cal:+cal,p:+p||0,c:+c||0,f:+f||0});
     setName('');setCal('');setP('');setC('');setF('');
+    setLookupSuccess(false);
   };
+
+  const handleBarcodeDetected = async (barcode) => {
+    setShowScanner(false);
+    setLookingUp(true);
+    setLookupError('');
+    setLookupSuccess(false);
+
+    try {
+      // נסה קודם במאגר המקומי
+      const { data: local } = await supabase
+        .from('food_database')
+        .select('*')
+        .eq('barcode', barcode)
+        .limit(1);
+
+      let food = local && local.length > 0 ? local[0] : null;
+
+      // אם לא נמצא - חפש ב-Open Food Facts
+      if (!food) {
+        const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === 1 && json.product) {
+            const prod = json.product;
+            const n = prod.nutriments || {};
+            const productName = prod.product_name_he || prod.product_name || prod.product_name_en;
+            if (productName) {
+              food = {
+                name: productName + (prod.brands ? ` (${prod.brands})` : ''),
+                kcal_per_100g: parseFloat(n['energy-kcal_100g']) || 0,
+                protein_per_100g: parseFloat(n.proteins_100g) || 0,
+                carbs_per_100g: parseFloat(n.carbohydrates_100g) || 0,
+                fat_per_100g: parseFloat(n.fat_100g) || 0,
+              };
+
+              // שמור למטמון
+              try {
+                await supabase.from('food_database').upsert({
+                  source: 'off',
+                  source_id: barcode,
+                  barcode,
+                  name: productName,
+                  brand: prod.brands || null,
+                  image_url: prod.image_thumb_url || null,
+                  kcal_per_100g: food.kcal_per_100g,
+                  protein_per_100g: food.protein_per_100g,
+                  carbs_per_100g: food.carbs_per_100g,
+                  fat_per_100g: food.fat_per_100g,
+                }, { onConflict: 'source,source_id' });
+              } catch {}
+            }
+          }
+        }
+      }
+
+      if (!food) {
+        setLookupError(`לא נמצא מוצר עם ברקוד ${barcode}. הזיני ידנית.`);
+        return;
+      }
+
+      setName(food.name);
+      setCal(String(Math.round(food.kcal_per_100g || 0)));
+      setP(String(Math.round(food.protein_per_100g || 0)));
+      setC(String(Math.round(food.carbs_per_100g || 0)));
+      setF(String(Math.round(food.fat_per_100g || 0)));
+      setLookupSuccess(true);
+    } catch (e) {
+      setLookupError('שגיאה: ' + (e.message || 'נסי שוב'));
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
   return(
     <section style={S.card}>
       <p style={{fontSize:12,color:COLORS.textMuted,margin:'0 0 12px'}}>רשמי ארוחה שאינה בתפריט:</p>
+
+      {/* כפתור סריקת ברקוד */}
+      <button
+        onClick={()=>setShowScanner(true)}
+        disabled={lookingUp}
+        style={{
+          width:'100%',background:'linear-gradient(135deg,#B19CD9 0%,#8B72B5 100%)',
+          color:'white',border:'none',padding:14,borderRadius:12,
+          fontSize:14,fontWeight:700,cursor:lookingUp?'default':'pointer',
+          fontFamily:'inherit',marginBottom:12,
+          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+          opacity:lookingUp?0.6:1,
+        }}
+      >
+        <span style={{fontSize:18}}>📷</span>
+        {lookingUp?'מחפשת מוצר...':'סרקי ברקוד'}
+      </button>
+
+      {lookupError && (
+        <div style={{
+          background:'#FADDDD',borderRadius:8,padding:10,
+          marginBottom:10,fontSize:12,color:'#8B4040',
+        }}>{lookupError}</div>
+      )}
+
+      {lookupSuccess && (
+        <div style={{
+          background:'#E0F2EB',borderRadius:8,padding:10,
+          marginBottom:10,fontSize:12,color:'#3D7A5E',fontWeight:600,
+        }}>✅ נמצא מוצר! בדקי את הפרטים ולחצי על "+ רשמי ארוחה"</div>
+      )}
+
       <div style={{marginBottom:10}}>
         <label style={{fontSize:11,fontWeight:600,display:'block',marginBottom:4}}>שם האוכל</label>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder="לדוגמה: תפוח" style={S.inp}/>
@@ -2148,6 +2363,13 @@ function CustomMealForm({onLog}){
         ))}
       </div>
       <button onClick={submit} disabled={!ok} style={{...S.btn,opacity:ok?1:0.4,cursor:ok?'pointer':'default'}}>+ רשמי ארוחה</button>
+
+      {showScanner && (
+        <BarcodeScanner
+          onDetect={handleBarcodeDetected}
+          onClose={()=>setShowScanner(false)}
+        />
+      )}
     </section>
   );
 }
