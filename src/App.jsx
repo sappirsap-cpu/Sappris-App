@@ -583,7 +583,6 @@ function CoachLogin({ onBack }) {
   };
 
   return (
-  return (
     <div data-theme="light" style={{
       minHeight: '100vh',
       background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #C5B3E0 100%)`,
