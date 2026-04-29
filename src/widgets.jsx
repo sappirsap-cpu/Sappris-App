@@ -67,8 +67,16 @@ export function ModularPage({
   const [layout, setLayout] = useState(() => loadLayout(pageId, defaultWidgets));
   const [editing, setEditing] = useState(false);
   const [draggedIdx, setDraggedIdx] = useState(null);
+  const isFirstRender = React.useRef(true);
 
-  useEffect(() => { saveLayout(pageId, layout); }, [pageId, layout]);
+  // שמור רק אחרי השינוי הראשון של המשתמשת — לא בrender הראשוני
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    saveLayout(pageId, layout);
+  }, [pageId, layout]);
 
   const addWidget = (id) => {
     if (layout.includes(id)) return;
@@ -140,14 +148,8 @@ export function ModularPage({
           return (
             <div
               key={id}
-              draggable={editing}
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDragEnd={handleDragEnd}
               style={{
                 position: 'relative',
-                opacity: draggedIdx === idx ? 0.4 : 1,
-                cursor: editing ? 'grab' : 'default',
                 transition: 'opacity 0.2s',
               }}
             >
@@ -160,18 +162,38 @@ export function ModularPage({
                     onClick={() => removeWidget(id)}
                     style={{
                       background: COLORS.red, color: 'white', border: 'none',
-                      borderRadius: '50%', width: 26, height: 26,
-                      cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                      borderRadius: '50%', width: 30, height: 30,
+                      cursor: 'pointer', fontSize: 16, fontFamily: 'inherit',
+                      fontWeight: 700,
                     }}
                     title="הסר קובייה"
                   >×</button>
-                  <div style={{
-                    background: COLORS.primaryDark, color: 'white',
-                    borderRadius: 6, padding: '4px 8px', fontSize: 11,
-                    fontWeight: 600, cursor: 'grab',
-                  }}>
-                    ⋮⋮ גרור
-                  </div>
+                  <button
+                    onClick={() => idx > 0 && moveWidget(idx, idx - 1)}
+                    disabled={idx === 0}
+                    style={{
+                      background: idx === 0 ? '#ccc' : COLORS.primary,
+                      color: 'white', border: 'none',
+                      borderRadius: '50%', width: 30, height: 30,
+                      cursor: idx === 0 ? 'default' : 'pointer',
+                      fontSize: 14, fontFamily: 'inherit',
+                      fontWeight: 700,
+                    }}
+                    title="העלה למעלה"
+                  >↑</button>
+                  <button
+                    onClick={() => idx < layout.length - 1 && moveWidget(idx, idx + 1)}
+                    disabled={idx === layout.length - 1}
+                    style={{
+                      background: idx === layout.length - 1 ? '#ccc' : COLORS.primary,
+                      color: 'white', border: 'none',
+                      borderRadius: '50%', width: 30, height: 30,
+                      cursor: idx === layout.length - 1 ? 'default' : 'pointer',
+                      fontSize: 14, fontFamily: 'inherit',
+                      fontWeight: 700,
+                    }}
+                    title="הורד למטה"
+                  >↓</button>
                 </div>
               )}
 

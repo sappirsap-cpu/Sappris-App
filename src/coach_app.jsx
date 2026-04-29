@@ -1218,9 +1218,16 @@ export default function App({ onLogout }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => setShowHeaderScanner(true)}
-            style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}
+            style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             title="סרקי ברקוד">
-            📷
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.primaryDark} strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="4" y2="18" />
+              <line x1="7" y1="6" x2="7" y2="18" />
+              <line x1="10" y1="6" x2="10" y2="18" strokeWidth="3" />
+              <line x1="14" y1="6" x2="14" y2="18" />
+              <line x1="17" y1="6" x2="17" y2="18" strokeWidth="3" />
+              <line x1="20" y1="6" x2="20" y2="18" />
+            </svg>
           </button>
           <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
             🔔
@@ -2058,7 +2065,7 @@ function ClientCardWithWeek({ client, statusColor, onOpen, onMessage }) {
           : statusColor === 'red' ? `לא פעילה כבר ${c.lastLog || '?'} ימים`
           : ''
         }>
-          {c.name.charAt(0)}
+          {(c.name||'?').charAt(0)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2094,7 +2101,7 @@ function ClientCardWithWeek({ client, statusColor, onOpen, onMessage }) {
 /* ===================== CLIENTS TAB ===================== */
 function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
   const [search, setSearch] = useState('');
-  const filtered = clients.filter((c) => c.name.includes(search.trim()));
+  const filtered = clients.filter((c) => (c.name||'').includes(search.trim()));
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2107,7 +2114,7 @@ function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.map((c) => (
           <div key={c.id} onClick={() => onOpenClient(c)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ ...avatarStyle, width: '44px', height: '44px', fontSize: '16px' }}>{c.name.charAt(0)}</div>
+            <div style={{ ...avatarStyle, width: '44px', height: '44px', fontSize: '16px' }}>{(c.name||'?').charAt(0)}</div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{c.name}</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>
@@ -3151,10 +3158,22 @@ function WorkoutEditor({ workout, onBack, showToast }) {
   useEffect(() => { loadSaved(); }, []);
 
   const loadSaved = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
-    if (data) setSavedExercises(data);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('coach_exercises')
+        .select('*')
+        .eq('coach_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.warn('coach_exercises table not available:', error);
+        return;
+      }
+      if (data) setSavedExercises(data);
+    } catch (e) {
+      console.warn('loadSaved failed:', e);
+    }
   };
 
   const savedMatches = search.trim()
@@ -3175,21 +3194,25 @@ function WorkoutEditor({ workout, onBack, showToast }) {
     setExercises(prev => [...prev, newEx]);
     
     // שמור למאגר אם חדש
-    const { data: { user } } = await supabase.auth.getUser();
-    const exists = savedExercises.find(se => se.name === ex.name);
-    if (!exists && ex.name) {
-      const { data } = await supabase.from('coach_exercises').insert({
-        coach_id: user.id,
-        name: ex.name,
-        sets: newEx.sets,
-        reps: newEx.reps,
-        weight_kg: newEx.weight,
-        rest_seconds: newEx.rest,
-        icon: newEx.icon,
-        video_url: newEx.video_url,
-        notes: newEx.notes,
-      }).select();
-      if (data?.[0]) setSavedExercises(prev => [data[0], ...prev]);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const exists = savedExercises.find(se => se.name === ex.name);
+      if (!exists && ex.name) {
+        const { data, error } = await supabase.from('coach_exercises').insert({
+          coach_id: user.id,
+          name: ex.name,
+          sets: newEx.sets,
+          reps: newEx.reps,
+          weight_kg: newEx.weight,
+          rest_seconds: newEx.rest,
+          icon: newEx.icon,
+          video_url: newEx.video_url,
+          notes: newEx.notes,
+        }).select();
+        if (!error && data?.[0]) setSavedExercises(prev => [data[0], ...prev]);
+      }
+    } catch (e) {
+      console.warn('Save to coach_exercises failed:', e);
     }
     
     setSearch('');
@@ -3611,7 +3634,7 @@ function WeeklySchedule({ client, onBack, showToast }) {
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`לוח שבועי: ${client.name.split(' ')[0]}`} />
+      <BackHeader onBack={onBack} title={`לוח שבועי: ${(client.name||'').split(' ')[0]||'לקוחה'}`} />
 
       {(meals.length === 0 && workouts.length === 0) && (
         <div style={{ padding: 16, background: '#FFF4CC', border: '1px solid #F5D76E', borderRadius: 10, fontSize: 12, color: '#8B6914' }}>
@@ -4162,7 +4185,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <div style={{ ...avatarStyle, width: '52px', height: '52px', fontSize: '18px' }}>{c.name.charAt(0)}</div>
+          <div style={{ ...avatarStyle, width: '52px', height: '52px', fontSize: '18px' }}>{(c.name||'?').charAt(0)}</div>
           <div>
             <p style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>{c.name}</p>
             <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
@@ -4655,7 +4678,7 @@ function MacroCalc({ client, onBack, onSave }) {
       </section>
 
       <button onClick={() => onSave({ weight, height, age, activity, goal, macroSplit: { carb: carbPct, protein: proteinPct, fat: fatPct }, savedGoals: { kcal: finalKcal, carbG, proteinG, fatG } })} disabled={totalPct !== 100} style={{ ...primaryBtnStyle, opacity: totalPct === 100 ? 1 : 0.4 }}>
-        💾 שמרי יעדים ל{client.name.split(' ')[0]}
+        💾 שמרי יעדים ל{(client.name||'').split(' ')[0]||'לקוחה'}
       </button>
     </main>
   );
@@ -4669,7 +4692,7 @@ function MacroClientPicker({ clients, onBack, onPick }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {clients.map((c) => (
           <button key={c.id} onClick={() => onPick(c)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '12px', background: 'white', cursor: 'pointer', fontFamily: 'inherit', direction: 'rtl', textAlign: 'right' }}>
-            <div style={avatarStyle}>{c.name.charAt(0)}</div>
+            <div style={avatarStyle}>{(c.name||'?').charAt(0)}</div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{c.name}</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{c.savedGoals ? `🎯 ${c.savedGoals.kcal} קק״ל` : '⚠️ ללא יעד'}</p>
@@ -4691,7 +4714,7 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
   const templates = [
     'בוקר טוב, זוכרת שיש לך אימון היום 💪',
     'איך ההרגשה אחרי האימון?',
-    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
+    `${(client.name||'').split(' ')[0]||'לקוחה'}, כבוד! המשיכי ככה 💜`,
     'אני פה לכל שאלה',
   ];
 
@@ -5125,7 +5148,7 @@ function CoachChat({ client, messages, onBack, onSend, coachId }) {
 
   // הודעות מהירות לקיצור דרך
   const quickTemplates = [
-    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
+    `${(client.name||'').split(' ')[0]||'לקוחה'}, כבוד! המשיכי ככה 💜`,
     'איך ההרגשה היום?',
     'אני פה לכל שאלה',
   ];
@@ -5330,7 +5353,7 @@ function ClientProgress({ client, onBack }) {
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <BackHeader onBack={onBack} title={`התקדמות ${client.name.split(' ')[0]}`} />
+      <BackHeader onBack={onBack} title={`התקדמות ${(client.name||'').split(' ')[0]||'לקוחה'}`} />
 
       <div style={{ display: 'flex', gap: '4px', background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '10px', padding: '4px' }}>
         {[
