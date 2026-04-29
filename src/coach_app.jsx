@@ -1677,6 +1677,7 @@ function CoachNavIcon({ name, active }) {
 function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
   const today = new Date();
   const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const [showAttentionList, setShowAttentionList] = React.useState(false);
 
   // רישום ה-widgets ב-Registry — חייב לרוץ מיד (לא ב-useEffect),
   // כי ModularPage צריך אותם בrender הראשון
@@ -1705,13 +1706,21 @@ function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAt
     registerWidget('attention', {
       title: 'התראות',
       icon: '⚠️',
-      render: ({ needsAttention }) => (needsAttention?.length || 0) > 0 ? (
-        <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+      render: ({ needsAttention, onOpenAttention }) => (needsAttention?.length || 0) > 0 ? (
+        <button
+          onClick={() => onOpenAttention && onOpenAttention()}
+          style={{
+            width: '100%', background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`,
+            borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', gap: '8px', cursor: 'pointer',
+            fontFamily: 'inherit', textAlign: 'right',
+          }}
+        >
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#8B6914' }}>
             ⚠️ {needsAttention.length} לקוחות לא רשמו היום
           </span>
-          <span style={{ fontSize: '18px' }}>←</span>
-        </div>
+          <span style={{ fontSize: '18px', color: '#8B6914' }}>←</span>
+        </button>
       ) : null,
     });
     registerWidget('clients_list', {
@@ -1734,9 +1743,103 @@ function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAt
         widgetProps={{
           clients, coachProfile, loggedToday, activeCount, needsAttention,
           onOpenClient, onOpenMessage, onOpenMacro, onNewClient,
+          onOpenAttention: () => setShowAttentionList(true),
         }}
       />
+
+      {showAttentionList && (
+        <AttentionListModal
+          clients={needsAttention}
+          onClose={() => setShowAttentionList(false)}
+          onOpenClient={(c) => { setShowAttentionList(false); onOpenClient(c); }}
+          onSendMessage={(c) => { setShowAttentionList(false); onOpenMessage(c); }}
+        />
+      )}
     </main>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// AttentionListModal — רשימת לקוחות שלא דיווחו
+// ═════════════════════════════════════════════════════════════
+function AttentionListModal({ clients, onClose, onOpenClient, onSendMessage }) {
+  return (
+    <div
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+        zIndex: 1500, display: 'flex', alignItems: 'flex-start',
+        justifyContent: 'center', padding: 20, direction: 'rtl', overflowY: 'auto',
+      }}
+    >
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          background: 'white', borderRadius: 16, padding: 16,
+          maxWidth: 480, width: '100%', marginTop: 30,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#8B6914' }}>
+            ⚠️ לקוחות שלא רשמו היום ({clients.length})
+          </h3>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: 'none', fontSize: 22,
+            cursor: 'pointer', color: COLORS.textMuted, padding: '0 6px',
+            fontFamily: 'inherit',
+          }}>×</button>
+        </div>
+
+        <p style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
+          לחצי על לקוחה כדי לפתוח אותה, או על כפתור התזכורת לשלוח לה הודעה.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {clients.map(c => (
+            <div key={c.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: 10, background: COLORS.bg,
+              border: `1px solid ${COLORS.border}`, borderRadius: 10,
+            }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: '50%',
+                background: COLORS.primarySoft, color: COLORS.primaryDark,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, fontWeight: 700, flexShrink: 0,
+              }}>{(c.name || '?').charAt(0)}</div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{c.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
+                  {c.last_log ? `דיווח אחרון: ${new Date(c.last_log).toLocaleDateString('he-IL')}` : 'עוד לא דיווחה'}
+                </p>
+              </div>
+
+              <button
+                onClick={() => onOpenClient(c)}
+                style={{
+                  background: 'white', color: COLORS.primaryDark,
+                  border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                  padding: '6px 10px', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                title="פתחי כרטיס לקוחה"
+              >👤</button>
+              <button
+                onClick={() => onSendMessage(c)}
+                style={{
+                  background: COLORS.primary, color: 'white',
+                  border: 'none', borderRadius: 8,
+                  padding: '6px 10px', fontSize: 11, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                title="שלחי תזכורת"
+              >💬 תזכורת</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -3929,6 +4032,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const c = client;
   
@@ -4352,6 +4456,20 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </button>
       </div>
 
+      {/* 👤 פרטי התחברות הלקוחה */}
+      <div style={{ marginTop: '12px' }}>
+        <button onClick={() => setShowCredentials(true)} style={{
+          width: '100%', background: 'white', color: COLORS.primaryDark,
+          border: `1px solid ${COLORS.primary}`, padding: '12px',
+          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>👤</span>
+          פרטי התחברות הלקוחה
+        </button>
+      </div>
+
       {/* 🔑 כפתור איפוס סיסמה */}
       <div style={{ marginTop: '12px' }}>
         <button onClick={() => setShowResetPassword(true)} style={{
@@ -4387,7 +4505,118 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           onClose={() => setShowResetPassword(false)}
         />
       )}
+
+      {/* Dialog פרטי התחברות */}
+      {showCredentials && (
+        <CredentialsDialog
+          client={c}
+          onClose={() => setShowCredentials(false)}
+        />
+      )}
     </main>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CREDENTIALS DIALOG — הצגת פרטי התחברות הלקוחה
+═══════════════════════════════════════════════════════════ */
+function CredentialsDialog({ client, onClose }) {
+  const [copied, setCopied] = useState(null);
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(label);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
+  const fields = [
+    { label: 'שם מלא', value: client.name || '—', key: 'name' },
+    { label: 'אימייל', value: client.email || '—', key: 'email' },
+    { label: 'טלפון', value: client.phone || '—', key: 'phone' },
+  ];
+
+  return (
+    <div
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        zIndex: 9999, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: 20, direction: 'rtl',
+      }}
+    >
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          background: 'white', borderRadius: 16, padding: 24,
+          maxWidth: 420, width: '100%',
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>👤</div>
+          <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
+            פרטי התחברות
+          </h3>
+          <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
+            הלקוחה משתמשת בפרטים האלו לכניסה
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          {fields.map(f => (
+            <div key={f.key} style={{
+              background: COLORS.bg, padding: 10, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              gap: 10,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 11, color: COLORS.textMuted, fontWeight: 600 }}>
+                  {f.label}
+                </p>
+                <p style={{
+                  margin: '2px 0 0', fontSize: 14, fontWeight: 600,
+                  color: COLORS.text, direction: f.key === 'email' || f.key === 'phone' ? 'ltr' : 'rtl',
+                  textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {f.value}
+                </p>
+              </div>
+              {f.value !== '—' && (
+                <button
+                  onClick={() => copyToClipboard(f.value, f.key)}
+                  style={{
+                    background: copied === f.key ? COLORS.green : 'white',
+                    color: copied === f.key ? 'white' : COLORS.primaryDark,
+                    border: `1px solid ${copied === f.key ? COLORS.green : COLORS.border}`,
+                    borderRadius: 8, padding: '6px 10px',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'inherit', flexShrink: 0,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {copied === f.key ? '✓ הועתק' : '📋 העתקה'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{
+          background: '#FFF8E1', border: `1px solid ${COLORS.amber}`,
+          borderRadius: 8, padding: 10, marginBottom: 14,
+        }}>
+          <p style={{ margin: 0, fontSize: 11, color: '#7A5C00', lineHeight: 1.5 }}>
+            🔒 <b>הסיסמה מוצפנת</b> ולא ניתנת לצפייה. אם הלקוחה שכחה — לחצי על "איפוס סיסמת מתאמנת".
+          </p>
+        </div>
+
+        <button onClick={onClose} style={{
+          width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+          padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+        }}>סגירה</button>
+      </div>
+    </div>
   );
 }
 
