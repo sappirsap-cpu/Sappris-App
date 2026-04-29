@@ -1193,10 +1193,12 @@ export default function App({ onLogout }) {
   const openMacro = (c) => { setSelectedClient(c); setSubView('macro'); };
   const goBack = () => { setSubView(null); setSelectedClient(null); };
 
-  // Stats
-  const loggedToday = clients.filter((c) => c.loggedToday).length;
-  const needsAttention = clients.filter((c) => c.status !== 'on-track');
-  const activeCount = clients.filter((c) => c.status === 'on-track').length;
+  // Stats — memoized
+  const { loggedToday, needsAttention, activeCount } = React.useMemo(() => ({
+    loggedToday: clients.filter((c) => c.loggedToday).length,
+    needsAttention: clients.filter((c) => c.status !== 'on-track'),
+    activeCount: clients.filter((c) => c.status === 'on-track').length,
+  }), [clients]);
 
   const { pulling, refreshing, progress: pullProgress } = usePullToRefresh(loadAll);
 
@@ -1707,7 +1709,7 @@ function BottomNav({ tab, setTab }) {
 }
 
 /* ===================== NAV ICON ===================== */
-function CoachNavIcon({ name, active }) {
+const CoachNavIcon = React.memo(function CoachNavIcon({ name, active }) {
   const color = active ? COLORS.primary : '#B0B0B0';
   const size = 22;
   
@@ -1750,7 +1752,7 @@ function CoachNavIcon({ name, active }) {
   };
   
   return icons[name] || icons.dashboard;
-}
+});
 
 /* ===================== DASHBOARD TAB ===================== */
 function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
@@ -1924,11 +1926,18 @@ function AttentionListModal({ clients, onClose, onOpenClient, onSendMessage }) {
 
 function ClientFilterChips({ clients }) {
   const [filter, setFilter] = useState('all');
-  const filters = [
-    { id: 'all', label: `הכל ${clients.length}` },
-    { id: 'active', label: `פעילים ${clients.filter(c => c.status === 'on-track').length}` },
-    { id: 'attention', label: `ממתינים ${clients.filter(c => c.status !== 'on-track').length}` },
-  ];
+  const filters = React.useMemo(() => {
+    let active = 0, attention = 0;
+    for (const c of clients) {
+      if (c.status === 'on-track') active++;
+      else attention++;
+    }
+    return [
+      { id: 'all', label: `הכל ${clients.length}` },
+      { id: 'active', label: `פעילים ${active}` },
+      { id: 'attention', label: `ממתינים ${attention}` },
+    ];
+  }, [clients]);
   return (
     <div style={{ display: 'flex', gap: '6px' }}>
       {filters.map((f) => (
@@ -2130,34 +2139,51 @@ function ActivityFeed({ clients, onOpenClient }) {
 ═══════════════════════════════════════════════════════════ */
 function ClientsListWithSearch({ clients, onOpenClient, onOpenMessage }) {
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filter, setFilter] = useState('all'); // all | active | warning | inactive
 
-  const getStatusColor = (c) => {
-    // ירוק = רשמה היום
-    // כתום = רשמה ב-3 ימים האחרונים
-    // אדום = לא רשמה יותר מ-3 ימים
+  // Debounce — 200ms אחרי שהמשתמש מפסיק להקליד
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const getStatusColor = React.useCallback((c) => {
     if (c.loggedToday) return 'green';
     if ((c.lastLog || 99) <= 3) return 'amber';
     return 'red';
-  };
+  }, []);
 
-  const filtered = clients.filter(c => {
-    // חיפוש לפי שם
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (!c.name?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) {
-        return false;
+  // ספירות סטטוס — חישוב פעם אחת
+  const statusCounts = React.useMemo(() => {
+    let green = 0, amber = 0, red = 0;
+    for (const c of clients) {
+      const s = getStatusColor(c);
+      if (s === 'green') green++;
+      else if (s === 'amber') amber++;
+      else red++;
+    }
+    return { green, amber, red };
+  }, [clients, getStatusColor]);
+
+  // פילטר — memoized
+  const filtered = React.useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    return clients.filter(c => {
+      if (q) {
+        if (!c.name?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) {
+          return false;
+        }
       }
-    }
-    // סינון לפי סטטוס
-    if (filter !== 'all') {
-      const status = getStatusColor(c);
-      if (filter === 'active' && status !== 'green') return false;
-      if (filter === 'warning' && status !== 'amber') return false;
-      if (filter === 'inactive' && status !== 'red') return false;
-    }
-    return true;
-  });
+      if (filter !== 'all') {
+        const status = getStatusColor(c);
+        if (filter === 'active' && status !== 'green') return false;
+        if (filter === 'warning' && status !== 'amber') return false;
+        if (filter === 'inactive' && status !== 'red') return false;
+      }
+      return true;
+    });
+  }, [clients, debouncedSearch, filter, getStatusColor]);
 
   return (
     <div>
@@ -2172,9 +2198,9 @@ function ClientsListWithSearch({ clients, onOpenClient, onOpenMessage }) {
       <div style={{ display: 'flex', gap: 6, marginTop: 10, marginBottom: 10, flexWrap: 'wrap' }}>
         {[
           { id: 'all', label: 'הכל', color: COLORS.primary, count: clients.length },
-          { id: 'active', label: '🟢 רשמו היום', color: '#6BAF8A', count: clients.filter(c => getStatusColor(c) === 'green').length },
-          { id: 'warning', label: '🟡 לא רשמו 1-3 ימים', color: COLORS.amber, count: clients.filter(c => getStatusColor(c) === 'amber').length },
-          { id: 'inactive', label: '🔴 לא פעילות', color: COLORS.red, count: clients.filter(c => getStatusColor(c) === 'red').length },
+          { id: 'active', label: '🟢 רשמו היום', color: '#6BAF8A', count: statusCounts.green },
+          { id: 'warning', label: '🟡 לא רשמו 1-3 ימים', color: COLORS.amber, count: statusCounts.amber },
+          { id: 'inactive', label: '🔴 לא פעילות', color: COLORS.red, count: statusCounts.red },
         ].map(f => (
           <button
             key={f.id}

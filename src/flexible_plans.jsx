@@ -1300,13 +1300,12 @@ function ClientWorkoutSession({ workout, clientId, onClose, onComplete }) {
                 {/* כותרות העמודות */}
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 36px',
+                  gridTemplateColumns: '32px 1fr 1fr 1fr 36px',
                   gap: 6, marginBottom: 8, alignItems: 'center',
                 }}>
                   <span style={colHeaderStyle}>סט</span>
                   <span style={colHeaderStyle}>חזרות</span>
                   <span style={colHeaderStyle}>משקל</span>
-                  <span style={colHeaderStyle}>RIR</span>
                   <span style={colHeaderStyle}>RPE</span>
                   <span></span>
                 </div>
@@ -1318,7 +1317,7 @@ function ClientWorkoutSession({ workout, clientId, onClose, onComplete }) {
                   return (
                     <div key={sIdx} style={{
                       display: 'grid',
-                      gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 36px',
+                      gridTemplateColumns: '32px 1fr 1fr 1fr 36px',
                       gap: 6, marginBottom: 8, alignItems: 'center',
                     }}>
                       <div style={{
@@ -1339,15 +1338,6 @@ function ClientWorkoutSession({ workout, clientId, onClose, onComplete }) {
                         placeholder={ex.weight || ''}
                         value={s.weight || ''}
                         onChange={e => updateSet(i, sIdx, 'weight', e.target.value)}
-                        style={greenInputStyle}
-                      />
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0" max="10"
-                        placeholder="0-5"
-                        value={s.rir || ''}
-                        onChange={e => updateSet(i, sIdx, 'rir', e.target.value)}
                         style={greenInputStyle}
                       />
                       <input
