@@ -25,6 +25,7 @@ import { FeedbackBanner, FeedbackForm } from './feedback';
 import { PatternInsights } from './pattern_reminders';
 import { ClientWorkoutPicker, ClientMealPlanView } from './flexible_plans';
 import { BarcodeScanner } from './barcode_scanner';
+import { MealPhotoAnalyzer } from './meal_photo_ai';
 import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
 const COLORS = {
@@ -1066,9 +1067,16 @@ export default function App({onLogout}){
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <button onClick={()=>setShowHeaderScanner(true)}
-            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,cursor:'pointer',fontSize:18,fontFamily:'inherit'}}
+            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center'}}
             title="סרקי ברקוד">
-            📷
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.primaryDark} strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="4" y2="18" />
+              <line x1="7" y1="6" x2="7" y2="18" />
+              <line x1="10" y1="6" x2="10" y2="18" strokeWidth="3" />
+              <line x1="14" y1="6" x2="14" y2="18" />
+              <line x1="17" y1="6" x2="17" y2="18" strokeWidth="3" />
+              <line x1="20" y1="6" x2="20" y2="18" />
+            </svg>
           </button>
           <button onClick={()=>{setTab('messages');setUnread(0);}}
             style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,position:'relative',cursor:'pointer',fontSize:18,fontFamily:'inherit'}}>
@@ -2220,6 +2228,7 @@ function CustomMealForm({onLog}){
   const[f,setF]=useState('');
   const[type,setType]=useState('snack');
   const[showScanner,setShowScanner]=useState(false);
+  const[showPhotoAI,setShowPhotoAI]=useState(false);
   const[lookingUp,setLookingUp]=useState(false);
   const[lookupError,setLookupError]=useState('');
   const[lookupSuccess,setLookupSuccess]=useState(false);
@@ -2307,22 +2316,47 @@ function CustomMealForm({onLog}){
     <section style={S.card}>
       <p style={{fontSize:12,color:COLORS.textMuted,margin:'0 0 12px'}}>רשמי ארוחה שאינה בתפריט:</p>
 
-      {/* כפתור סריקת ברקוד */}
-      <button
-        onClick={()=>setShowScanner(true)}
-        disabled={lookingUp}
-        style={{
-          width:'100%',background:'linear-gradient(135deg,#B19CD9 0%,#8B72B5 100%)',
-          color:'white',border:'none',padding:14,borderRadius:12,
-          fontSize:14,fontWeight:700,cursor:lookingUp?'default':'pointer',
-          fontFamily:'inherit',marginBottom:12,
-          display:'flex',alignItems:'center',justifyContent:'center',gap:8,
-          opacity:lookingUp?0.6:1,
-        }}
-      >
-        <span style={{fontSize:18}}>📷</span>
-        {lookingUp?'מחפשת מוצר...':'סרקי ברקוד'}
-      </button>
+      {/* כפתורי AI ו-ברקוד */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+        <button
+          onClick={()=>setShowPhotoAI(true)}
+          disabled={lookingUp}
+          style={{
+            background:'linear-gradient(135deg,#F4C2C2 0%,#B19CD9 100%)',
+            color:'white',border:'none',padding:14,borderRadius:12,
+            fontSize:13,fontWeight:700,cursor:lookingUp?'default':'pointer',
+            fontFamily:'inherit',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+            opacity:lookingUp?0.6:1,
+          }}
+        >
+          <span style={{fontSize:18}}>✨</span>
+          <span>צלמי ארוחה</span>
+        </button>
+
+        <button
+          onClick={()=>setShowScanner(true)}
+          disabled={lookingUp}
+          style={{
+            background:'linear-gradient(135deg,#B19CD9 0%,#8B72B5 100%)',
+            color:'white',border:'none',padding:14,borderRadius:12,
+            fontSize:13,fontWeight:700,cursor:lookingUp?'default':'pointer',
+            fontFamily:'inherit',
+            display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+            opacity:lookingUp?0.6:1,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="4" y1="6" x2="4" y2="18" />
+            <line x1="7" y1="6" x2="7" y2="18" />
+            <line x1="10" y1="6" x2="10" y2="18" strokeWidth="3" />
+            <line x1="14" y1="6" x2="14" y2="18" />
+            <line x1="17" y1="6" x2="17" y2="18" strokeWidth="3" />
+            <line x1="20" y1="6" x2="20" y2="18" />
+          </svg>
+          <span>{lookingUp?'מחפשת...':'ברקוד'}</span>
+        </button>
+      </div>
 
       {lookupError && (
         <div style={{
@@ -2368,6 +2402,16 @@ function CustomMealForm({onLog}){
         <BarcodeScanner
           onDetect={handleBarcodeDetected}
           onClose={()=>setShowScanner(false)}
+        />
+      )}
+
+      {showPhotoAI && (
+        <MealPhotoAnalyzer
+          onConfirm={(meal)=>{
+            onLog(meal);
+            setShowPhotoAI(false);
+          }}
+          onClose={()=>setShowPhotoAI(false)}
         />
       )}
     </section>
