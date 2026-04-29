@@ -4091,7 +4091,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
         <button onClick={onWorkoutSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '22px' }}>🏋️</span>
-          בנק אימונים
+          תוכנית אימונים
         </button>
         <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '22px' }}>🍽️</span>

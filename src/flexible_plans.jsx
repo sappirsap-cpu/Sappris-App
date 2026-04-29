@@ -56,6 +56,7 @@ export function CoachWorkoutBank({ coachId, clientId, clientName, onClose }) {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | workout object
+  const [pickingTemplate, setPickingTemplate] = useState(false);
 
   useEffect(() => { load(); }, [clientId]);
 
@@ -90,6 +91,23 @@ export function CoachWorkoutBank({ coachId, clientId, clientName, onClose }) {
     load();
   };
 
+  const handleAddFromTemplate = async (template) => {
+    // העתק את התבנית כאימון ספציפי ללקוחה
+    await supabase.from('client_workouts').insert({
+      client_id: clientId,
+      coach_id: coachId,
+      name: template.name,
+      description: template.description,
+      difficulty: template.difficulty,
+      duration_min: template.duration_min,
+      exercises: template.exercises,
+      weekly_target: template.weekly_target || 1,
+      is_active: true,
+    });
+    setPickingTemplate(false);
+    load();
+  };
+
   if (editing) {
     return (
       <WorkoutEditor
@@ -106,17 +124,34 @@ export function CoachWorkoutBank({ coachId, clientId, clientName, onClose }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <button onClick={onClose} style={btnGhost}>← חזרה</button>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-          🏋️ בנק אימונים — {clientName}
+          🏋️ תוכנית אימונים — {clientName}
         </h2>
       </div>
 
       <p style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 12 }}>
-        הוסיפי את האימונים שהלקוחה יכולה לבצע. היא תבחר מה לעשות ומתי, ותדווח על היום.
+        בני את תוכנית האימונים של הלקוחה. היא תבחר מה לעשות ומתי, ותדווח על היום.
       </p>
 
-      <button onClick={() => setEditing('new')} style={{ ...btn, marginBottom: 14, width: '100%' }}>
-        ➕ הוסיפי אימון חדש
-      </button>
+      {/* שני כפתורי הוספה זה ליד זה */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+        <button onClick={() => setPickingTemplate(true)} style={{ ...btn, fontSize: 13 }}>
+          🔍 מתבניות שלי
+        </button>
+        <button onClick={() => setEditing('new')} style={{
+          ...btn, fontSize: 13, background: 'white', color: COLORS.primaryDark,
+          border: `1px solid ${COLORS.primary}`,
+        }}>
+          ✏️ הוסיפי ידנית
+        </button>
+      </div>
+
+      {pickingTemplate && (
+        <WorkoutTemplatePicker
+          coachId={coachId}
+          onSelect={handleAddFromTemplate}
+          onClose={() => setPickingTemplate(false)}
+        />
+      )}
 
       {loading ? (
         <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
@@ -1202,6 +1237,113 @@ export function ClientMealPlanView({ clientId, onLogMeal }) {
           ))}
         </>
       )}
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// WorkoutTemplatePicker — בוחר תבנית מהתבניות של המאמנת
+// ═══════════════════════════════════════════════════════════════
+function WorkoutTemplatePicker({ coachId, onSelect, onClose }) {
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('workout_templates')
+        .select('*')
+        .eq('coach_id', coachId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      if (data) setTemplates(data);
+      setLoading(false);
+    })();
+  }, [coachId]);
+
+  return (
+    <div
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+        zIndex: 1500, display: 'flex', alignItems: 'flex-start',
+        justifyContent: 'center', padding: 20, direction: 'rtl', overflowY: 'auto',
+      }}
+    >
+      <div
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          background: 'white', borderRadius: 14, padding: 16,
+          maxWidth: 500, width: '100%', marginTop: 30, marginBottom: 30,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>
+            🔍 בחירת תבנית אימון
+          </h3>
+          <button onClick={onClose} style={{
+            background: 'transparent', border: 'none', fontSize: 22,
+            cursor: 'pointer', color: COLORS.textMuted, padding: '0 6px',
+            fontFamily: 'inherit',
+          }}>×</button>
+        </div>
+
+        {loading ? (
+          <p style={{ textAlign: 'center', color: COLORS.textMuted, padding: 30 }}>טוענת תבניות...</p>
+        ) : templates.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 30 }}>
+            <p style={{ color: COLORS.textMuted, fontSize: 13, margin: '0 0 6px' }}>
+              עדיין אין לך תבניות אימון.
+            </p>
+            <p style={{ color: COLORS.textMuted, fontSize: 12 }}>
+              ניתן ליצור תבניות חדשות במסך הראשי → תבניות אימון.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {templates.map(t => (
+              <button
+                key={t.id}
+                onClick={() => onSelect(t)}
+                style={{
+                  textAlign: 'right', padding: 12, background: COLORS.bg,
+                  border: `1px solid ${COLORS.border}`, borderRadius: 10,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.text }}>
+                    {t.name}
+                  </h4>
+                  <span style={{ fontSize: 11, color: COLORS.textMuted }}>
+                    {(t.exercises || []).length} תרגילים
+                  </span>
+                </div>
+                {t.description && (
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted, textAlign: 'right' }}>
+                    {t.description}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                  {t.difficulty && (
+                    <span style={{
+                      background: COLORS.primarySoft, color: COLORS.primaryDark,
+                      fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+                    }}>{t.difficulty}</span>
+                  )}
+                  {t.duration_min && (
+                    <span style={{
+                      background: '#E0F2EB', color: '#3D7A5E',
+                      fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+                    }}>{t.duration_min} דק׳</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
