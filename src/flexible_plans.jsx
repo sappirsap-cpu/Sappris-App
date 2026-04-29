@@ -349,6 +349,23 @@ function WorkoutEditor({ workout, coachId, clientId, onCancel, onSave }) {
               <input value={ex.weight} onChange={e => updateEx(i, 'weight', e.target.value)} placeholder="משקל" style={{ ...inp, fontSize: 12, padding: 8 }} />
               <input value={ex.rest} onChange={e => updateEx(i, 'rest', e.target.value)} placeholder="מנוחה" style={{ ...inp, fontSize: 12, padding: 8 }} />
             </div>
+            <input
+              value={ex.video_url || ''}
+              onChange={e => updateEx(i, 'video_url', e.target.value)}
+              placeholder="🎬 קישור לסרטון YouTube (אופציונלי)"
+              style={{ ...inp, fontSize: 12, padding: 8, marginTop: 6, direction: 'ltr', textAlign: 'right' }}
+            />
+            <textarea
+              value={ex.notes || ''}
+              onChange={e => updateEx(i, 'notes', e.target.value)}
+              placeholder="💜 הערת מאמנת לתרגיל זה (יופיע אצל המתאמנת)"
+              style={{
+                ...inp, fontSize: 12, padding: 8, marginTop: 6,
+                width: '100%', boxSizing: 'border-box',
+                resize: 'vertical', minHeight: 50, direction: 'rtl',
+                fontFamily: 'inherit',
+              }}
+            />
           </div>
         ))}
 
@@ -1033,7 +1050,7 @@ export function ClientWorkoutPicker({ clientId, onComplete }) {
   };
 
   if (active) {
-    return <ClientWorkoutSession workout={active} onClose={() => setActive(null)} onComplete={() => { handleComplete(active); setActive(null); }} />;
+    return <ClientWorkoutSession workout={active} clientId={clientId} onClose={() => setActive(null)} onComplete={() => { handleComplete(active); setActive(null); }} />;
   }
 
   // סטטיסטיקות שבוע
@@ -1112,11 +1129,14 @@ export function ClientWorkoutPicker({ clientId, onComplete }) {
 // ───────────────────────────────────────────────────────────────
 // סשן אימון — הצגת תרגילים + סימון השלמה
 // ───────────────────────────────────────────────────────────────
-function ClientWorkoutSession({ workout, onClose, onComplete }) {
+function ClientWorkoutSession({ workout, clientId, onClose, onComplete }) {
   const [done, setDone] = useState({});
   const [expanded, setExpanded] = useState(null); // index של תרגיל פתוח
-  const [setData, setSetData] = useState({}); // { exerciseIdx: [{ weight, reps, rpe, notes }, ...] }
+  const [setData, setSetData] = useState({}); // { exerciseIdx: [{ weight, reps, rir, rpe, done }, ...] }
+  const [exerciseNotes, setExerciseNotes] = useState({}); // { exerciseIdx: "notes string" }
+  const [extraSets, setExtraSets] = useState({}); // { exerciseIdx: number_of_extra_sets }
   const [videoModal, setVideoModal] = useState(null);
+  const [previousData, setPreviousData] = useState({}); // { exerciseName: { sets, reps, weight } }
 
   const exercises = workout.exercises || [];
   const allDone = exercises.length > 0 && exercises.every((_, i) => done[i]);
@@ -1124,12 +1144,25 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
   // עזרה לעדכון נתון של סט מסוים
   const updateSet = (exIdx, setIdx, field, value) => {
     setSetData(prev => {
-      const exSets = prev[exIdx] || [];
-      const newSets = [...exSets];
-      newSets[setIdx] = { ...(newSets[setIdx] || {}), [field]: value };
-      return { ...prev, [exIdx]: newSets };
+      const exSets = Array.isArray(prev[exIdx]) ? [...prev[exIdx]] : [];
+      // וודא שיש מספיק סלוטים
+      while (exSets.length <= setIdx) exSets.push({});
+      exSets[setIdx] = { ...exSets[setIdx], [field]: value };
+      return { ...prev, [exIdx]: exSets };
     });
   };
+
+  // אוטו-סימון תרגיל כבוצע אחרי שכל הסטים מסומנים
+  React.useEffect(() => {
+    exercises.forEach((ex, i) => {
+      const setsCount = (parseInt(ex.sets) || 3) + (extraSets[i] || 0);
+      const sets = setData[i] || [];
+      const allSetsDone = sets.length >= setsCount && sets.slice(0, setsCount).every(s => s?.done);
+      if (allSetsDone && !done[i]) {
+        setDone(prev => ({ ...prev, [i]: true }));
+      }
+    });
+  }, [setData, extraSets]);
 
   // המרת video URL ל-embed (תומך YouTube)
   const getEmbedUrl = (url) => {
@@ -1149,7 +1182,7 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
 
       {exercises.map((ex, i) => {
         const isExpanded = expanded === i;
-        const setsCount = parseInt(ex.sets) || 3;
+        const setsCount = (parseInt(ex.sets) || 3) + (extraSets[i] || 0);
         const sets = setData[i] || [];
 
         return (
@@ -1344,11 +1377,7 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
                 {/* כפתור הוספת סט */}
                 <button
                   onClick={() => {
-                    const exSets = setData[i] || [];
-                    setSetData(prev => ({
-                      ...prev,
-                      [i]: [...exSets, {}],
-                    }));
+                    setExtraSets(prev => ({ ...prev, [i]: (prev[i] || 0) + 1 }));
                   }}
                   style={{
                     width: '100%', marginTop: 8,
@@ -1363,27 +1392,39 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
                   הוספת סט
                 </button>
 
-                {/* נתונים קודמים */}
+                {/* סיכום מהמאמנת + כפתור וידאו */}
                 <div style={{
                   marginTop: 14,
                   background: '#F5F5F5', borderRadius: 8,
                   padding: '10px 12px',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  fontSize: 13, color: COLORS.textMuted,
+                  fontSize: 13, color: COLORS.text, gap: 10,
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLORS.primaryDark} strokeWidth="2">
                       <rect x="3" y="5" width="18" height="16" rx="2"/>
                       <line x1="3" y1="10" x2="21" y2="10"/>
                       <line x1="8" y1="3" x2="8" y2="7"/>
                       <line x1="16" y1="3" x2="16" y2="7"/>
                     </svg>
-                    <span>אין נתונים קודמים</span>
+                    <span style={{ fontWeight: 600 }}>
+                      יעד: {ex.sets || '?'} סטים × {ex.reps || '?'} חזרות
+                      {ex.weight && ` · ${ex.weight}`}
+                    </span>
                   </div>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
+                  {ex.video_url && (
+                    <button
+                      onClick={() => setVideoModal(ex.video_url)}
+                      title="צפי בסרטון"
+                      style={{
+                        background: '#FF6B6B', color: 'white',
+                        border: 'none', borderRadius: 6,
+                        width: 30, height: 30, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'inherit', flexShrink: 0,
+                      }}
+                    >▶</button>
+                  )}
                 </div>
 
                 {/* הערות מהמאמן - מתחת */}
@@ -1422,11 +1463,8 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
                   {/* הערות אישיות של המתאמנת */}
                   <textarea
                     placeholder="הערות אישיות לתרגיל זה..."
-                    value={(setData[i] && setData[i].notes) || ''}
-                    onChange={e => setSetData(prev => ({
-                      ...prev,
-                      [i]: Object.assign([], prev[i] || [], { notes: e.target.value }),
-                    }))}
+                    value={exerciseNotes[i] || ''}
+                    onChange={e => setExerciseNotes(prev => ({ ...prev, [i]: e.target.value }))}
                     style={{
                       width: '100%', boxSizing: 'border-box',
                       padding: '10px 12px', borderRadius: 8,
