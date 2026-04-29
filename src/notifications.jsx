@@ -239,18 +239,30 @@ async function showNotification(type) {
   const shouldSkip = await shouldSkipReminder(type);
   if (shouldSkip) return;
 
+  // עבור התראת מים — נשלח מידע ב-data כדי שהאפליקציה תוסיף 250מ"ל בלחיצה
+  const notifData = type === 'water' ? { action: 'add_water', amount_ml: 250 } : { type };
+
   try {
     // העדף service worker אם קיים (עובד ב-PWA ברקע)
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       const reg = await navigator.serviceWorker.ready;
-      reg.showNotification('Sappir Fit', {
+      const opts = {
         body: meta.body,
         icon: '/icon-192.png',
         badge: '/icon-192.png',
         tag: `sappir-${type}`,
         lang: 'he',
         dir: 'rtl',
-      });
+        data: notifData,
+      };
+      // עבור תזכורת מים — הוסף כפתור פעולה ישיר
+      if (type === 'water') {
+        opts.actions = [
+          { action: 'add_water_250', title: '+ 250 מ"ל' },
+          { action: 'dismiss', title: 'סגור' },
+        ];
+      }
+      reg.showNotification('Sappir Fit', opts);
     } else {
       new Notification('Sappir Fit', {
         body: meta.body,
@@ -258,6 +270,7 @@ async function showNotification(type) {
         tag: `sappir-${type}`,
         lang: 'he',
         dir: 'rtl',
+        data: notifData,
       });
     }
     localStorage.setItem(key, today);

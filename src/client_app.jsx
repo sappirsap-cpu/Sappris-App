@@ -919,6 +919,30 @@ export default function App({onLogout}){
     await supabase.from('water_logs').insert({ client_id: user.id, amount_ml: ml });
   };
 
+  // האזנה להודעות מה-Service Worker (מתזכורת מים) + URL params
+  useEffect(() => {
+    // 1. בדיקה אם נפתח דרך URL מתזכורת
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'add_water') {
+      const amount = parseInt(params.get('amount')) || 250;
+      addWater(amount);
+      // נקה את ה-URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // 2. האזנה להודעות מה-SW
+    const handler = (event) => {
+      if (event.data?.type === 'add_water') {
+        const amount = event.data.amount_ml || 250;
+        addWater(amount);
+      }
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handler);
+      return () => navigator.serviceWorker.removeEventListener('message', handler);
+    }
+  }, []);
+
   const logWeight = async (w) => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: inserted, error } = await supabase.from('weight_logs').insert({
@@ -1099,26 +1123,26 @@ export default function App({onLogout}){
             onTabChange={setTab} 
           />
           
-          {/* calorie ring */}
-          <section style={{...S.card,display:'flex',flexDirection:'column',alignItems:'center',paddingTop:24,paddingBottom:24}}>
-            <div style={{position:'relative',width:180,height:180,marginBottom:16}}>
-              <svg viewBox="0 0 100 100" style={{width:'100%',height:'100%',transform:'rotate(-90deg)'}}>
-                <circle cx="50" cy="50" r="44" fill="none" stroke={COLORS.primarySoft} strokeWidth="8"/>
-                <circle cx="50" cy="50" r="44" fill="none" stroke={COLORS.primary} strokeWidth="8"
-                  strokeDasharray={`${calPct*2.76} 276`} strokeLinecap="round"/>
-              </svg>
-              <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                <p style={{margin:0,fontSize:36,fontWeight:700,color:COLORS.text,lineHeight:1}}>{rem}</p>
-                <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.textMuted}}>קלוריות נותרו</p>
+          {/* calorie bar — מלבני, קומפקטי */}
+          <section style={{...S.card, padding: 16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:10}}>
+              <div>
+                <p style={{margin:0,fontSize:11,color:COLORS.textMuted,fontWeight:600}}>קלוריות נותרו</p>
+                <p style={{margin:'2px 0 0',fontSize:32,fontWeight:700,color:COLORS.text,lineHeight:1}}>{rem}</p>
+              </div>
+              <div style={{textAlign:'left'}}>
+                <p style={{margin:0,fontSize:11,color:COLORS.textMuted}}>נצרכו</p>
+                <p style={{margin:'2px 0 0',fontSize:16,fontWeight:700,color:COLORS.primaryDark,lineHeight:1}}>
+                  {cal} <span style={{fontSize:11,color:COLORS.textMuted,fontWeight:400}}>/ {p.dailyCalorieGoal}</span>
+                </p>
               </div>
             </div>
-            <div style={{display:'flex',gap:32,textAlign:'center'}}>
-              {[['יעד',p.dailyCalorieGoal,COLORS.text],['נצרך',cal,COLORS.primaryDark]].map(([l,v,c],i)=>(
-                <React.Fragment key={l}>
-                  {i>0&&<div style={{width:1,background:COLORS.border}}/>}
-                  <div><p style={{margin:0,fontSize:20,fontWeight:700,color:c}}>{v}</p><p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{l}</p></div>
-                </React.Fragment>
-              ))}
+            <div style={{height:10,background:COLORS.primarySoft,borderRadius:5,overflow:'hidden'}}>
+              <div style={{
+                height:'100%', width:`${Math.min(100, calPct)}%`,
+                background:`linear-gradient(90deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                borderRadius:5, transition:'width 0.4s ease',
+              }}/>
             </div>
           </section>
 
@@ -1136,6 +1160,23 @@ export default function App({onLogout}){
               ))}
             </div>
           </section>
+
+          {/* 🧘 אינדיקטור יום מנוחה */}
+          {isRestDay && (
+            <section style={{...S.card, background: 'linear-gradient(135deg, #E8DFF5 0%, #F4C2C2 100%)', border: 'none', padding: 14, textAlign: 'center'}}>
+              <div style={{fontSize: 28, marginBottom: 4}}>🧘‍♀️</div>
+              <p style={{margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.primaryDark}}>היום יום מנוחה</p>
+              <p style={{margin: '2px 0 0', fontSize: 11, color: COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון 💜</p>
+            </section>
+          )}
+
+          {/* 💪 כרטיס האימון הבא — הועבר למעלה */}
+          {!isRestDay && <NextWorkoutCard clientId={profile.id} />}
+
+          {/* 📊 סטטיסטיקות — צעדים, שינה, ציון יומי */}
+          <StepsCard clientId={profile.id} />
+          <DailyScoreCard breakdown={dailyBreakdown} />
+          <SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} />
 
           {/* streak + water */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -1173,22 +1214,6 @@ export default function App({onLogout}){
             </div>
           </div>
 
-          {/* 🧘 אינדיקטור יום מנוחה */}
-          {isRestDay && (
-            <section style={{...S.card, background: 'linear-gradient(135deg, #E8DFF5 0%, #F4C2C2 100%)', border: 'none', padding: 14, textAlign: 'center'}}>
-              <div style={{fontSize: 28, marginBottom: 4}}>🧘‍♀️</div>
-              <p style={{margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.primaryDark}}>היום יום מנוחה</p>
-              <p style={{margin: '2px 0 0', fontSize: 11, color: COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון 💜</p>
-            </section>
-          )}
-
-          {/* 💪 כרטיס האימון הבא */}
-          {!isRestDay && <NextWorkoutCard clientId={profile.id} />}
-
-          {/* 💜 Wellness — ציון יומי, שינה, תגים */}
-          <DailyScoreCard breakdown={dailyBreakdown} />
-          <SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} />
-          <StepsCard clientId={profile.id} />
           <BadgesCard clientId={profile.id} />
 
           {/* 📸 תזכורת תמונת התקדמות (כל שבועיים) */}
