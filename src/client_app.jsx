@@ -2850,7 +2850,7 @@ function FoodSearchAndLibrary({ basket, addToBasket }) {
 }
 
 /* ══ NAV ICON COMPONENT ══ */
-const NavIcon = React.memo(function NavIcon({name, active}) {
+function NavIcon({name, active}) {
   const color = active ? '#9B7FBF' : '#B0B0B0';
   const size = 22;
   
@@ -2893,5 +2893,5 @@ const NavIcon = React.memo(function NavIcon({name, active}) {
   };
   
   return icons[name] || icons.home;
-});
+}
 

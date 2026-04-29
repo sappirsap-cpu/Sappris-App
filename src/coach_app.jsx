@@ -1492,10 +1492,10 @@ function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
     { id: 'clients', label: 'לקוחות', icon: 'clients' },
-    { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
-    { id: 'insights', label: 'תובנות', icon: 'insights' },
     { id: 'meals', label: 'תזונה', icon: 'food' },
     { id: 'workouts', label: 'אימונים', icon: 'workout' },
+    { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
+    { id: 'insights', label: 'תובנות', icon: 'insights' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
   const [isWide, setIsWide] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
@@ -1709,7 +1709,7 @@ function BottomNav({ tab, setTab }) {
 }
 
 /* ===================== NAV ICON ===================== */
-const CoachNavIcon = React.memo(function CoachNavIcon({ name, active }) {
+function CoachNavIcon({ name, active }) {
   const color = active ? COLORS.primary : '#B0B0B0';
   const size = 22;
   
@@ -1752,7 +1752,7 @@ const CoachNavIcon = React.memo(function CoachNavIcon({ name, active }) {
   };
   
   return icons[name] || icons.dashboard;
-});
+}
 
 /* ===================== DASHBOARD TAB ===================== */
 function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
