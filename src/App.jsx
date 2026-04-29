@@ -420,11 +420,11 @@ function ClientLogin({ onCoachLogin }) {
           <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
             <div style={{
               width: 150, height: 150, margin: '0 auto 16px',
-              background: 'white', borderRadius: '50%',
+              background: 'white', borderRadius: 24,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}>
-              <img src="/logo.png" alt="Sappir Barak" style={{ width: 138, height: 138, objectFit: 'contain' }} />
+              <img src="/logo.png" alt="Sappir Barak" style={{ width: 108, objectFit: 'contain' }} />
             </div>
             <h1 style={{
               fontSize: 28, fontWeight: 800, color: 'white',
@@ -583,10 +583,12 @@ function CoachLogin({ onBack }) {
   };
 
   return (
+  return (
     <div data-theme="light" style={{
       minHeight: '100vh',
       background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #C5B3E0 100%)`,
       padding: 20, direction: 'rtl',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       position: 'relative', overflow: 'hidden',
     }}>
@@ -603,77 +605,101 @@ function CoachLogin({ onBack }) {
         background: 'rgba(255,255,255,0.06)',
       }} />
 
-      <div style={{ maxWidth: 380, width: '100%', position: 'relative', animation: 'fadeInUp 0.7s ease-out' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      <div style={{ maxWidth: 380, width: '100%', position: 'relative' }}>
+
+        {/* לוגו — בדיוק כמו צד מתאמנת */}
+        <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
           <div style={{
-            width: 210, height: 210, margin: '0 auto 16px',
-            background: 'white', borderRadius: '50%',
+            width: 150, height: 150, margin: '0 auto 16px',
+            background: 'white', borderRadius: 24,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
           }}>
-            <img src="/logo.png" alt="Sappir Barak" style={{ width: 195, height: 195, objectFit: 'contain' }} />
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: 108, objectFit: 'contain' }} />
           </div>
           <h1 style={{
-            fontSize: 26, fontWeight: 800, color: 'white',
-            margin: '0 0 6px', textShadow: '0 2px 6px rgba(0,0,0,0.2)',
+            fontSize: 28, fontWeight: 800, color: 'white',
+            margin: '0 0 6px', textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            letterSpacing: '-0.5px',
           }}>
-            כניסת מאמנת
+            Sappir Fitness
           </h1>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', margin: 0 }}>
+          <p style={{
+            fontSize: 15, color: 'rgba(255,255,255,0.95)',
+            margin: 0, textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            fontWeight: 500,
+          }}>
             ברוכה הבאה ספיר 💜
           </p>
         </div>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white' }}>אימייל</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="sappirsap@gmail.com"
-              style={glassInput}
-              disabled={loading}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white' }}>סיסמה</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={glassInput}
-              disabled={loading}
-            />
-          </div>
-
-          {error && (
-            <div style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 10, padding: 10, fontSize: 12, color: 'white',
-            }}>
-              {error}
+        {/* כרטיס Glass — בדיוק כמו צד מתאמנת */}
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.15)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          borderRadius: 24,
+          padding: 24,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          animation: 'fadeInUp 1s ease-out 0.2s both',
+        }}>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                אימייל
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="sappirsap@gmail.com"
+                style={glassInput}
+                disabled={loading}
+              />
             </div>
-          )}
 
-          <button type="submit" disabled={loading} style={{
-            width: '100%', marginTop: 6,
-            background: 'white',
-            color: COLORS.primaryDark,
-            border: 'none', padding: 14, borderRadius: 12,
-            fontSize: 15, fontWeight: 700,
-            cursor: loading ? 'default' : 'pointer',
-            fontFamily: 'inherit',
-            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-            opacity: loading ? 0.7 : 1,
-          }}>
-            {loading ? 'מתחברת...' : 'כניסה'}
-          </button>
-        </form>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                סיסמה
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={glassInput}
+                disabled={loading}
+              />
+            </div>
 
+            {error && (
+              <div style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 10, padding: 10, fontSize: 12, color: 'white',
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} style={{
+              width: '100%', marginTop: 6,
+              background: loading ? 'rgba(255,255,255,0.3)' : 'white',
+              color: loading ? 'rgba(255,255,255,0.7)' : COLORS.primaryDark,
+              border: 'none', padding: 14, borderRadius: 12,
+              fontSize: 15, fontWeight: 700,
+              cursor: loading ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+              transition: 'all 0.2s',
+            }}>
+              {loading ? 'מתחברת...' : 'כניסה'}
+            </button>
+          </form>
+        </div>
+
+        {/* כפתור חזרה */}
         <div style={{ marginTop: 24, textAlign: 'center' }}>
           <button onClick={onBack} style={{
             background: 'rgba(255,255,255,0.15)',
