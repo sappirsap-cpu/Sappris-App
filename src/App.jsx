@@ -420,7 +420,7 @@ function ClientLogin({ onCoachLogin }) {
           <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
             <div style={{
               width: 150, height: 150, margin: '0 auto 16px',
-              background: 'white', borderRadius: 28,
+              background: 'white', borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}>
@@ -607,7 +607,7 @@ function CoachLogin({ onBack }) {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 210, height: 210, margin: '0 auto 16px',
-            background: 'white', borderRadius: 36,
+            background: 'white', borderRadius: '50%',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
           }}>
@@ -674,14 +674,23 @@ function CoachLogin({ onBack }) {
           </button>
         </form>
 
-        <div style={{ marginTop: 20, textAlign: 'center' }}>
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
           <button onClick={onBack} style={{
-            background: 'transparent', border: 'none',
+            background: 'rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.25)',
             color: 'white', fontSize: 13, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit',
-            opacity: 0.9, textDecoration: 'underline',
-          }}>
-            ← חזרה לכניסת מתאמנת
+            padding: '10px 20px', borderRadius: 24,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+          >
+            <span style={{ fontSize: 16 }}>←</span>
+            חזרה לכניסת מתאמנת
           </button>
         </div>
       </div>
