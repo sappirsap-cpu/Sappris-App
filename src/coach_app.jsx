@@ -1606,24 +1606,103 @@ function BottomNav({ tab, setTab }) {
     );
   }
 
-  // ─── תפריט תחתון למסך צר (מובייל) ───
+  // ─── תפריט תחתון למסך צר (מובייל) — 5 ראשיים + תפריט "עוד" ───
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const mainTabs = tabs.slice(0, 4); // 4 ראשונים
+  const moreTabs = tabs.slice(4);    // השאר ב"עוד"
+
   return (
-    <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      maxWidth: '440px', margin: '0 auto',
-      background: 'var(--nav-bg, white)',
-      borderTop: `1px solid var(--border, ${COLORS.border})`,
-      display: 'flex', justifyContent: 'space-around',
-      padding: '8px 0 10px 0', zIndex: 25,
-    }}>
-      {tabs.map((t) => (
-        <button key={t.id} onClick={() => setTab(t.id)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
-          <CoachNavIcon name={t.icon} active={tab === t.id} />
-          <span style={{ fontSize: '10px', color: tab === t.id ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
+    <>
+      <nav style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        maxWidth: '440px', margin: '0 auto',
+        background: 'var(--nav-bg, white)',
+        borderTop: `1px solid var(--border, ${COLORS.border})`,
+        display: 'flex', justifyContent: 'space-around',
+        padding: '8px 4px 10px 4px', zIndex: 25,
+      }}>
+        {mainTabs.map((t) => (
+          <button key={t.id} onClick={() => { setTab(t.id); setMoreOpen(false); }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
+            <CoachNavIcon name={t.icon} active={tab === t.id} />
+            <span style={{ fontSize: '11px', color: tab === t.id ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: tab === t.id ? 600 : 500, whiteSpace: 'nowrap' }}>{t.label}</span>
+          </button>
+        ))}
+        <button
+          onClick={() => setMoreOpen(s => !s)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}
+        >
+          <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 3 }}>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
+          </div>
+          <span style={{ fontSize: '11px', color: moreOpen || moreTabs.some(t => t.id === tab) ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: moreOpen ? 600 : 500 }}>עוד</span>
         </button>
-      ))}
-    </nav>
+      </nav>
+
+      {/* תפריט "עוד" — נפתח כסליידר מהתחתית */}
+      {moreOpen && (
+        <div
+          onClick={() => setMoreOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            zIndex: 50, animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed', bottom: 70, left: 0, right: 0,
+              maxWidth: '440px', margin: '0 auto',
+              background: 'var(--nav-bg, white)',
+              borderRadius: '20px 20px 0 0',
+              boxShadow: '0 -8px 24px rgba(0,0,0,0.15)',
+              padding: '14px 12px 18px',
+              direction: 'rtl',
+              animation: 'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            <div style={{
+              width: 40, height: 4, background: '#DDD',
+              borderRadius: 2, margin: '0 auto 12px',
+            }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              {moreTabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setTab(t.id); setMoreOpen(false); }}
+                  style={{
+                    background: tab === t.id ? COLORS.primarySoft : 'transparent',
+                    border: `1px solid ${tab === t.id ? COLORS.primary : 'var(--border, ' + COLORS.border + ')'}`,
+                    borderRadius: 12,
+                    padding: '14px 8px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <CoachNavIcon name={t.icon} active={tab === t.id} />
+                  <span style={{
+                    fontSize: 12,
+                    color: tab === t.id ? COLORS.primaryDark : 'var(--text, ' + COLORS.text + ')',
+                    fontWeight: tab === t.id ? 700 : 500,
+                  }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      `}</style>
+    </>
   );
 }
 
