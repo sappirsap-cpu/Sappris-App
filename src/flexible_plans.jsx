@@ -215,6 +215,18 @@ function WorkoutEditor({ workout, coachId, clientId, onCancel, onSave }) {
     setExercises(next);
   };
   const removeEx = (i) => setExercises(exercises.filter((_, idx) => idx !== i));
+  const moveExUp = (i) => {
+    if (i === 0) return;
+    const next = [...exercises];
+    [next[i - 1], next[i]] = [next[i], next[i - 1]];
+    setExercises(next);
+  };
+  const moveExDown = (i) => {
+    if (i === exercises.length - 1) return;
+    const next = [...exercises];
+    [next[i], next[i + 1]] = [next[i + 1], next[i]];
+    setExercises(next);
+  };
 
   const handleSave = async () => {
     if (!name.trim()) { alert('הוסיפי שם לאימון'); return; }
@@ -273,9 +285,38 @@ function WorkoutEditor({ workout, coachId, clientId, onCancel, onSave }) {
 
         {exercises.map((ex, i) => (
           <div key={i} style={{ background: COLORS.bg, borderRadius: 10, padding: 10, marginBottom: 8 }}>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+              <span style={{
+                background: COLORS.primary, color: 'white', borderRadius: 6,
+                width: 24, height: 24, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
+              }}>{i + 1}</span>
               <input value={ex.name} onChange={e => updateEx(i, 'name', e.target.value)} placeholder="שם התרגיל" style={{ ...inp, flex: 1 }} />
-              <button onClick={() => removeEx(i)} style={{ ...btnGhost, padding: '6px 10px', color: COLORS.red }}>🗑️</button>
+              <div style={{ display: 'flex', gap: 2 }}>
+                <button
+                  onClick={() => moveExUp(i)}
+                  disabled={i === 0}
+                  style={{
+                    background: i === 0 ? '#ddd' : COLORS.primary, color: 'white',
+                    border: 'none', borderRadius: 6, width: 26, height: 32,
+                    cursor: i === 0 ? 'default' : 'pointer', fontSize: 14, fontWeight: 700,
+                    fontFamily: 'inherit',
+                  }}
+                  title="העלה"
+                >↑</button>
+                <button
+                  onClick={() => moveExDown(i)}
+                  disabled={i === exercises.length - 1}
+                  style={{
+                    background: i === exercises.length - 1 ? '#ddd' : COLORS.primary, color: 'white',
+                    border: 'none', borderRadius: 6, width: 26, height: 32,
+                    cursor: i === exercises.length - 1 ? 'default' : 'pointer', fontSize: 14, fontWeight: 700,
+                    fontFamily: 'inherit',
+                  }}
+                  title="הורד"
+                >↓</button>
+                <button onClick={() => removeEx(i)} style={{ ...btnGhost, padding: '6px 10px', color: COLORS.red }} title="מחק">🗑️</button>
+              </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               <input value={ex.sets} onChange={e => updateEx(i, 'sets', e.target.value)} placeholder="סטים" style={{ ...inp, fontSize: 12, padding: 8 }} />
