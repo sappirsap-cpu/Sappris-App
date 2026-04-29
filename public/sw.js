@@ -117,8 +117,40 @@ self.addEventListener('push', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
+  const notif = event.notification;
+  const action = event.action;
+  const data = notif.data || {};
+
+  notif.close();
+
+  // לחיצה על "סגור" — פשוט סוגר
+  if (action === 'dismiss') return;
+
+  // האם צריך להוסיף מים?
+  const shouldAddWater = action === 'add_water_250' ||
+                         (data.action === 'add_water');
+
+  // URL ייעד
+  let targetUrl = '/';
+  if (shouldAddWater) {
+    targetUrl = '/?action=add_water&amount=' + (data.amount_ml || 250);
+  }
+
   event.waitUntil(
-    clients.openWindow(event.notification.data || '/')
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // אם יש כבר חלון פתוח — שלח אליו message ופוקס
+        for (const client of clientList) {
+          if (client.url.includes(self.registration.scope) || client.url.startsWith(self.location.origin)) {
+            return client.focus().then(() => {
+              if (shouldAddWater) {
+                client.postMessage({ type: 'add_water', amount_ml: data.amount_ml || 250 });
+              }
+            });
+          }
+        }
+        // אחרת פתח חדש
+        return self.clients.openWindow(targetUrl);
+      })
   );
 });
