@@ -232,12 +232,13 @@ function WorkoutEditor({ workout, coachId, clientId, onCancel, onSave }) {
     if (!name.trim()) { alert('הוסיפי שם לאימון'); return; }
     if (exercises.length === 0) { alert('הוסיפי לפחות תרגיל אחד'); return; }
     setSaving(true);
+    const cleanExercises = exercises.filter(e => e.name.trim());
     const payload = {
       client_id: clientId, coach_id: coachId,
       name: name.trim(), description: description.trim() || null,
       duration_min: Number(duration) || null,
       weekly_target: Number(weeklyTarget) || 1,
-      exercises: exercises.filter(e => e.name.trim()),
+      exercises: cleanExercises,
       is_active: true,
     };
     if (workout?.id) {
@@ -245,6 +246,30 @@ function WorkoutEditor({ workout, coachId, clientId, onCancel, onSave }) {
     } else {
       await supabase.from('client_workouts').insert(payload);
     }
+
+    // הוסף אוטומטית לבנק התבניות (אם עוד לא קיים שם)
+    try {
+      const { data: existing } = await supabase
+        .from('workout_templates')
+        .select('id')
+        .eq('coach_id', coachId)
+        .eq('name', name.trim())
+        .limit(1);
+
+      if (!existing || existing.length === 0) {
+        await supabase.from('workout_templates').insert({
+          coach_id: coachId,
+          name: name.trim(),
+          description: description.trim() || null,
+          duration_min: Number(duration) || null,
+          exercises: cleanExercises,
+          is_active: true,
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to add to template bank:', e);
+    }
+
     setSaving(false);
     onSave();
   };
