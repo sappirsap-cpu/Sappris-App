@@ -57,8 +57,8 @@ export function MoHImportButton({ onDone }) {
     setError(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('לא מחובר');
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !user) throw new Error('לא מחובר');
 
       // בדיקה: כמה כבר קיימים
       const { count: existing } = await supabase
@@ -73,68 +73,41 @@ export function MoHImportButton({ onDone }) {
         }
       }
 
-      // 1. טעינת המאגר
-      const res = await fetch(MOH_DATASET_URL);
-      if (!res.ok) throw new Error(`טעינה נכשלה: ${res.status}`);
-      const json = await res.json();
+      // קריאה ל-Edge Function (לא fetch ישיר — CORS חוסם)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('אין session תקף');
 
-      const records = json?.result?.records || [];
-      if (records.length === 0) throw new Error('המאגר ריק');
+      const supabaseUrl = supabase.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
 
-      setCount(records.length);
+      // הצגת progress פונקציונאלי (אין לנו progress אמיתי כי הכל קורה ב-Edge Function)
+      setProgress(20);
+      const progressInterval = setInterval(() => {
+        setProgress(p => Math.min(p + 5, 90));
+      }, 1500);
 
-      // 2. תרגום ל-format שלנו
-      // השדות במאגר: shmmitzrach, energy, protein, carbohydrates, total_fat, ...
-      const rows = records.map(r => ({
-        source: 'moh',
-        source_id: String(r._id || r.smlmitzrach || ''),
-        name: r.shmmitzrach || 'מזון לא מזוהה',
-        category_he: r.smlmitzrach_lhebrhov || r.food_group || null,
-        kcal_per_100g: parseFloat(r.food_energy) || parseFloat(r.energy) || 0,
-        protein_per_100g: parseFloat(r.protein) || 0,
-        carbs_per_100g: parseFloat(r.carbohydrates) || 0,
-        fat_per_100g: parseFloat(r.total_fat) || parseFloat(r.fat) || 0,
-        fiber_per_100g: parseFloat(r.total_dietary_fiber) || parseFloat(r.fiber) || null,
-        sugar_per_100g: parseFloat(r.sugar) || parseFloat(r.total_sugars) || null,
-        sodium_per_100g: parseFloat(r.sodium) || null,
-        is_verified: true,  // מאגר ממשלתי = מאומת
-      })).filter(r => r.name && r.name.trim());
-
-      // 3. העלאה במנות
-      const BATCH = 100;
-      let inserted = 0;
-
-      for (let i = 0; i < rows.length; i += BATCH) {
-        const chunk = rows.slice(i, i + BATCH);
-        const { error: upErr } = await supabase
-          .from('food_database')
-          .upsert(chunk, {
-            onConflict: 'source,source_id',
-            ignoreDuplicates: false,
-          });
-
-        if (upErr) {
-          // נסה insert במקום upsert (אם conflict לא עובד)
-          for (const row of chunk) {
-            try {
-              await supabase.from('food_database').insert(row);
-            } catch (e) {
-              // התעלם מכפילויות
-            }
-          }
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/import-moh-foods`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
         }
-        inserted += chunk.length;
-        setProgress(Math.round((inserted / rows.length) * 100));
+      );
+
+      clearInterval(progressInterval);
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || `שגיאה ${response.status}`);
       }
 
-      // 4. שמור מטא-נתונים
-      await supabase.from('food_imports').insert({
-        source: 'moh',
-        total_items: inserted,
-        status: 'success',
-        imported_by: user.id,
-      });
-
+      setCount(result.imported || 0);
+      setProgress(100);
       setStatus('done');
       if (onDone) onDone();
     } catch (e) {
