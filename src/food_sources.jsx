@@ -198,30 +198,44 @@ export function MoHImportButton({ onDone }) {
 // 🌍 Open Food Facts — חיפוש דינמי
 // ───────────────────────────────────────────────────────────────
 const OFF_API = 'https://world.openfoodfacts.org/api/v2';
+const OFF_SEARCH_API = 'https://search.openfoodfacts.org/search';
 
-async function searchOFF(query) {
+async function searchOFF(query, retryCount = 0) {
   if (!query || query.length < 2) return [];
   try {
-    const url = `${OFF_API}/search?search_terms=${encodeURIComponent(query)}` +
-      `&fields=code,product_name,product_name_he,brands,image_thumb_url,nutriments,categories_tags` +
+    // משתמשים ב-search-a-licious (חדש ויותר יציב מ-cgi/search.pl)
+    const url = `${OFF_SEARCH_API}?q=${encodeURIComponent(query)}` +
+      `&fields=code,product_name,product_name_he,brands,image_thumb_url,nutriments` +
       `&page_size=20`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'SappirFit/1.0 (sappir.fitness)' },
-    });
-    if (!res.ok) return [];
+    const res = await fetch(url);
+
+    if (res.status === 503 && retryCount < 2) {
+      // השרת עמוס - חכה שנייה ונסה שוב
+      await new Promise(r => setTimeout(r, 1000 + retryCount * 500));
+      return searchOFF(query, retryCount + 1);
+    }
+
+    if (!res.ok) {
+      console.warn('OFF returned', res.status);
+      return [];
+    }
     const json = await res.json();
-    return (json.products || []).map(formatOFFProduct).filter(Boolean);
+    // search-a-licious מחזיר hits במקום products
+    const items = json.hits || json.products || [];
+    return items.map(formatOFFProduct).filter(Boolean);
   } catch (e) {
     console.warn('OFF search error:', e);
     return [];
   }
 }
 
-async function lookupOFFBarcode(barcode) {
+async function lookupOFFBarcode(barcode, retryCount = 0) {
   try {
-    const res = await fetch(`${OFF_API}/product/${barcode}.json`, {
-      headers: { 'User-Agent': 'SappirFit/1.0 (sappir.fitness)' },
-    });
+    const res = await fetch(`${OFF_API}/product/${barcode}.json`);
+    if (res.status === 503 && retryCount < 2) {
+      await new Promise(r => setTimeout(r, 1000));
+      return lookupOFFBarcode(barcode, retryCount + 1);
+    }
     if (!res.ok) return null;
     const json = await res.json();
     if (json.status !== 1) return null;

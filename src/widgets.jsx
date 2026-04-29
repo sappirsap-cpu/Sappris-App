@@ -140,7 +140,7 @@ export function ModularPage({
       )}
 
       {/* רשימת קוביות בלייאאוט */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: editing ? 16 : 12 }}>
         {layout.map((id, idx) => {
           const widget = WIDGET_REGISTRY[id];
           if (!widget) return null;
@@ -151,30 +151,29 @@ export function ModularPage({
               style={{
                 position: 'relative',
                 transition: 'opacity 0.2s',
+                ...(editing && {
+                  border: `2px dashed ${COLORS.primary}`,
+                  borderRadius: 14,
+                  padding: 4,
+                }),
               }}
             >
               {editing && (
                 <div style={{
-                  position: 'absolute', top: 6, left: 6, zIndex: 5,
-                  display: 'flex', gap: 4,
+                  display: 'flex', gap: 4, justifyContent: 'flex-end',
+                  marginBottom: 6, padding: '4px 4px 0',
                 }}>
-                  <button
-                    onClick={() => removeWidget(id)}
-                    style={{
-                      background: COLORS.red, color: 'white', border: 'none',
-                      borderRadius: '50%', width: 30, height: 30,
-                      cursor: 'pointer', fontSize: 16, fontFamily: 'inherit',
-                      fontWeight: 700,
-                    }}
-                    title="הסר קובייה"
-                  >×</button>
+                  <span style={{
+                    fontSize: 11, color: COLORS.textMuted, fontWeight: 600,
+                    padding: '4px 8px', flex: 1, textAlign: 'right',
+                  }}>{widget.title || id}</span>
                   <button
                     onClick={() => idx > 0 && moveWidget(idx, idx - 1)}
                     disabled={idx === 0}
                     style={{
                       background: idx === 0 ? '#ccc' : COLORS.primary,
                       color: 'white', border: 'none',
-                      borderRadius: '50%', width: 30, height: 30,
+                      borderRadius: 6, width: 28, height: 28,
                       cursor: idx === 0 ? 'default' : 'pointer',
                       fontSize: 14, fontFamily: 'inherit',
                       fontWeight: 700,
@@ -187,13 +186,23 @@ export function ModularPage({
                     style={{
                       background: idx === layout.length - 1 ? '#ccc' : COLORS.primary,
                       color: 'white', border: 'none',
-                      borderRadius: '50%', width: 30, height: 30,
+                      borderRadius: 6, width: 28, height: 28,
                       cursor: idx === layout.length - 1 ? 'default' : 'pointer',
                       fontSize: 14, fontFamily: 'inherit',
                       fontWeight: 700,
                     }}
                     title="הורד למטה"
                   >↓</button>
+                  <button
+                    onClick={() => removeWidget(id)}
+                    style={{
+                      background: COLORS.red, color: 'white', border: 'none',
+                      borderRadius: 6, width: 28, height: 28,
+                      cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+                      fontWeight: 700,
+                    }}
+                    title="הסר קובייה"
+                  >×</button>
                 </div>
               )}
 
