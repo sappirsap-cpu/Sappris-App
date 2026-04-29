@@ -1195,9 +1195,41 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
             {/* תוכן מורחב */}
             {isExpanded && (
               <div style={{
-                padding: '0 14px 14px',
+                padding: '14px',
                 borderTop: `1px solid ${COLORS.border}`,
+                background: 'white',
               }}>
+                {/* badges של מטרת התרגיל - 4 סטים, 8-10 חזרות, 03:00 דקות */}
+                <div style={{
+                  display: 'flex', flexWrap: 'wrap', gap: 8,
+                  justifyContent: 'flex-start', marginBottom: 14,
+                }}>
+                  <div style={badgeStyle}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B72B5" strokeWidth="2">
+                      <ellipse cx="12" cy="6" rx="8" ry="2"/>
+                      <path d="M4 6v6c0 1.1 3.6 2 8 2s8-.9 8-2V6"/>
+                      <path d="M4 12v6c0 1.1 3.6 2 8 2s8-.9 8-2v-6"/>
+                    </svg>
+                    <span>{ex.sets} סטים</span>
+                  </div>
+                  <div style={badgeStyle}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B72B5" strokeWidth="2" strokeLinecap="round">
+                      <path d="M21 12a9 9 0 11-3-6.7L21 8"/>
+                      <path d="M21 3v5h-5"/>
+                    </svg>
+                    <span>{ex.reps} חזרות</span>
+                  </div>
+                  {ex.rest && (
+                    <div style={badgeStyle}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB347" strokeWidth="2">
+                        <circle cx="12" cy="13" r="8"/>
+                        <path d="M12 9v4l2 2M9 2h6"/>
+                      </svg>
+                      <span>{formatRest(ex.rest)}<sup style={{fontSize:8,marginLeft:1}}>zZ<sup>z</sup></sup></span>
+                    </div>
+                  )}
+                </div>
+
                 {/* כפתור וידאו אם יש */}
                 {ex.video_url && (
                   <button
@@ -1206,7 +1238,7 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
                       width: '100%', background: '#FF6B6B', color: 'white',
                       border: 'none', padding: 10, borderRadius: 10,
                       fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                      fontFamily: 'inherit', marginTop: 10,
+                      fontFamily: 'inherit', marginBottom: 14,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     }}
                   >
@@ -1214,95 +1246,197 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
                   </button>
                 )}
 
-                {/* טבלת סטים */}
-                <div style={{ marginTop: 12 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 8px', color: COLORS.primaryDark }}>
-                    מילוי סטים:
-                  </p>
+                {/* כותרת: דיווח משקלי עבודה */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  marginBottom: 12,
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4FA8E0" strokeWidth="2" strokeLinecap="round">
+                    <line x1="6" y1="20" x2="10" y2="14"/>
+                    <line x1="14" y1="10" x2="18" y2="4"/>
+                    <rect x="2" y="9" width="3" height="6" rx="1" fill="#4FA8E0"/>
+                    <rect x="5" y="7" width="2" height="10" rx="0.5" fill="#4FA8E0"/>
+                    <rect x="17" y="7" width="2" height="10" rx="0.5" fill="#4FA8E0"/>
+                    <rect x="19" y="9" width="3" height="6" rx="1" fill="#4FA8E0"/>
+                  </svg>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.text }}>
+                    דיווח משקלי עבודה
+                  </h4>
+                </div>
 
-                  {/* כותרות העמודות */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '32px 1fr 1fr 1fr',
-                    gap: 6, marginBottom: 6,
-                  }}>
-                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>סט</span>
-                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>משקל</span>
-                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>חזרות</span>
-                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>RPE</span>
+                {/* כותרות העמודות */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 36px',
+                  gap: 6, marginBottom: 8, alignItems: 'center',
+                }}>
+                  <span style={colHeaderStyle}>סט</span>
+                  <span style={colHeaderStyle}>חזרות</span>
+                  <span style={colHeaderStyle}>משקל</span>
+                  <span style={colHeaderStyle}>RIR</span>
+                  <span style={colHeaderStyle}>RPE</span>
+                  <span></span>
+                </div>
+
+                {/* שורות הסטים */}
+                {Array.from({ length: setsCount }, (_, sIdx) => {
+                  const s = sets[sIdx] || {};
+                  const isSetDone = s.done;
+                  return (
+                    <div key={sIdx} style={{
+                      display: 'grid',
+                      gridTemplateColumns: '32px 1fr 1fr 1fr 1fr 36px',
+                      gap: 6, marginBottom: 8, alignItems: 'center',
+                    }}>
+                      <div style={{
+                        textAlign: 'center', fontSize: 14, fontWeight: 600,
+                        color: COLORS.text,
+                      }}>{sIdx + 1}</div>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        placeholder={String(ex.reps || '')}
+                        value={s.reps || ''}
+                        onChange={e => updateSet(i, sIdx, 'reps', e.target.value)}
+                        style={greenInputStyle}
+                      />
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder={ex.weight || ''}
+                        value={s.weight || ''}
+                        onChange={e => updateSet(i, sIdx, 'weight', e.target.value)}
+                        style={greenInputStyle}
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="0" max="10"
+                        placeholder="0-5"
+                        value={s.rir || ''}
+                        onChange={e => updateSet(i, sIdx, 'rir', e.target.value)}
+                        style={greenInputStyle}
+                      />
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="1" max="10"
+                        placeholder="1-10"
+                        value={s.rpe || ''}
+                        onChange={e => updateSet(i, sIdx, 'rpe', e.target.value)}
+                        style={greenInputStyle}
+                      />
+                      <button
+                        onClick={() => updateSet(i, sIdx, 'done', !isSetDone)}
+                        style={{
+                          width: 32, height: 32, borderRadius: 6,
+                          background: isSetDone ? '#5EBD7A' : '#E0E0E0',
+                          border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'white', fontSize: 16, fontWeight: 700,
+                          fontFamily: 'inherit',
+                        }}
+                      >✓</button>
+                    </div>
+                  );
+                })}
+
+                {/* כפתור הוספת סט */}
+                <button
+                  onClick={() => {
+                    const exSets = setData[i] || [];
+                    setSetData(prev => ({
+                      ...prev,
+                      [i]: [...exSets, {}],
+                    }));
+                  }}
+                  style={{
+                    width: '100%', marginTop: 8,
+                    background: '#FFD9E0', color: '#C4577F',
+                    border: 'none', padding: 12, borderRadius: 10,
+                    fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>+</span>
+                  הוספת סט
+                </button>
+
+                {/* נתונים קודמים */}
+                <div style={{
+                  marginTop: 14,
+                  background: '#F5F5F5', borderRadius: 8,
+                  padding: '10px 12px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  fontSize: 13, color: COLORS.textMuted,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2">
+                      <rect x="3" y="5" width="18" height="16" rx="2"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                      <line x1="8" y1="3" x2="8" y2="7"/>
+                      <line x1="16" y1="3" x2="16" y2="7"/>
+                    </svg>
+                    <span>אין נתונים קודמים</span>
                   </div>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </div>
 
-                  {/* שורות הסטים */}
-                  {Array.from({ length: setsCount }, (_, sIdx) => {
-                    const s = sets[sIdx] || {};
-                    return (
-                      <div key={sIdx} style={{
-                        display: 'grid',
-                        gridTemplateColumns: '32px 1fr 1fr 1fr',
-                        gap: 6, marginBottom: 6,
-                      }}>
-                        <div style={{
-                          background: COLORS.primary, color: 'white',
-                          borderRadius: 6, display: 'flex', alignItems: 'center',
-                          justifyContent: 'center', fontSize: 12, fontWeight: 700,
-                        }}>{sIdx + 1}</div>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder={ex.weight || ''}
-                          value={s.weight || ''}
-                          onChange={e => updateSet(i, sIdx, 'weight', e.target.value)}
-                          style={inputStyle}
-                        />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder={String(ex.reps || '')}
-                          value={s.reps || ''}
-                          onChange={e => updateSet(i, sIdx, 'reps', e.target.value)}
-                          style={inputStyle}
-                        />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="1" max="10"
-                          placeholder="1-10"
-                          value={s.rpe || ''}
-                          onChange={e => updateSet(i, sIdx, 'rpe', e.target.value)}
-                          style={inputStyle}
-                        />
-                      </div>
-                    );
-                  })}
+                {/* הערות מהמאמן - מתחת */}
+                <div style={{
+                  marginTop: 14,
+                  borderTop: `1px solid ${COLORS.border}`,
+                  paddingTop: 14,
+                }}>
+                  <h4 style={{
+                    margin: '0 0 10px', fontSize: 14, fontWeight: 700,
+                    color: COLORS.text,
+                  }}>הערות ודיווח משקלים</h4>
 
-                  {/* שדה הערות */}
+                  {ex.notes ? (
+                    <div style={{
+                      background: COLORS.primarySoft, padding: 12, borderRadius: 10,
+                      fontSize: 13, color: COLORS.text, lineHeight: 1.5,
+                    }}>
+                      {ex.notes}
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: '#F5F5F5', borderRadius: 10, padding: 18,
+                      border: `1px dashed ${COLORS.border}`,
+                      textAlign: 'center',
+                    }}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2" style={{marginBottom: 6}}>
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                      </svg>
+                      <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>
+                        אין הערות מהמאמן לתרגיל זה
+                      </p>
+                    </div>
+                  )}
+
+                  {/* הערות אישיות של המתאמנת */}
                   <textarea
-                    placeholder="הערות לתרגיל..."
+                    placeholder="הערות אישיות לתרגיל זה..."
                     value={(setData[i] && setData[i].notes) || ''}
                     onChange={e => setSetData(prev => ({
                       ...prev,
-                      [i]: { ...(prev[i] || []), notes: e.target.value },
+                      [i]: Object.assign([], prev[i] || [], { notes: e.target.value }),
                     }))}
                     style={{
                       width: '100%', boxSizing: 'border-box',
-                      padding: '8px 10px', borderRadius: 8,
+                      padding: '10px 12px', borderRadius: 8,
                       border: `1px solid ${COLORS.border}`,
-                      fontSize: 12, fontFamily: 'inherit',
-                      marginTop: 8, resize: 'vertical', minHeight: 50,
+                      fontSize: 13, fontFamily: 'inherit',
+                      marginTop: 10, resize: 'vertical', minHeight: 50,
                       direction: 'rtl', outline: 'none',
                     }}
                   />
                 </div>
-
-                {/* מידע נוסף מהמאמן */}
-                {ex.notes && (
-                  <div style={{
-                    background: COLORS.primarySoft, padding: 10, borderRadius: 8,
-                    marginTop: 10, fontSize: 12, color: COLORS.text,
-                  }}>
-                    <b style={{ color: COLORS.primaryDark }}>💜 הערה מהמאמנת: </b>{ex.notes}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1366,6 +1500,36 @@ const inputStyle = {
   borderRadius: 6, fontSize: 13, fontWeight: 600,
   fontFamily: 'inherit', outline: 'none', direction: 'ltr',
 };
+
+const greenInputStyle = {
+  width: '100%', boxSizing: 'border-box',
+  padding: '10px 4px', textAlign: 'center',
+  border: '1.5px solid #5EBD7A',
+  borderRadius: 10, fontSize: 14, fontWeight: 600,
+  fontFamily: 'inherit', outline: 'none', direction: 'ltr',
+  background: 'white',
+  color: '#2E2A3D',
+};
+
+const colHeaderStyle = {
+  fontSize: 12, color: '#8B8B8B', textAlign: 'center', fontWeight: 600,
+};
+
+const badgeStyle = {
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  background: 'white', border: `1px solid ${COLORS.border}`,
+  borderRadius: 20, padding: '6px 12px',
+  fontSize: 13, fontWeight: 600, color: COLORS.text,
+};
+
+// פורמט זמן מנוחה: 180 -> "03:00 דקות", 60 -> "01:00 דקות"
+function formatRest(seconds) {
+  const sec = parseInt(seconds) || 0;
+  if (sec === 0) return '0 שניות';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} דקות`;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 👩 CLIENT — תצוגת תפריטים
