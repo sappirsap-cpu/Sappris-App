@@ -1114,9 +1114,31 @@ export function ClientWorkoutPicker({ clientId, onComplete }) {
 // ───────────────────────────────────────────────────────────────
 function ClientWorkoutSession({ workout, onClose, onComplete }) {
   const [done, setDone] = useState({});
+  const [expanded, setExpanded] = useState(null); // index של תרגיל פתוח
+  const [setData, setSetData] = useState({}); // { exerciseIdx: [{ weight, reps, rpe, notes }, ...] }
+  const [videoModal, setVideoModal] = useState(null);
 
   const exercises = workout.exercises || [];
   const allDone = exercises.length > 0 && exercises.every((_, i) => done[i]);
+
+  // עזרה לעדכון נתון של סט מסוים
+  const updateSet = (exIdx, setIdx, field, value) => {
+    setSetData(prev => {
+      const exSets = prev[exIdx] || [];
+      const newSets = [...exSets];
+      newSets[setIdx] = { ...(newSets[setIdx] || {}), [field]: value };
+      return { ...prev, [exIdx]: newSets };
+    });
+  };
+
+  // המרת video URL ל-embed (תומך YouTube)
+  const getEmbedUrl = (url) => {
+    if (!url) return null;
+    // YouTube
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    return url;
+  };
 
   return (
     <div style={{ direction: 'rtl', padding: 14 }}>
@@ -1125,32 +1147,167 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{workout.name}</h2>
       </div>
 
-      {exercises.map((ex, i) => (
-        <div key={i} style={{ ...card, background: done[i] ? COLORS.greenSoft : 'white', borderColor: done[i] ? COLORS.green : COLORS.border }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
-                {done[i] && '✅ '}{ex.name}
-              </p>
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-                {ex.sets} סטים × {ex.reps} חזרות {ex.weight && `· ${ex.weight}`}
-              </p>
-            </div>
-            <button
-              onClick={() => setDone({ ...done, [i]: !done[i] })}
+      {exercises.map((ex, i) => {
+        const isExpanded = expanded === i;
+        const setsCount = parseInt(ex.sets) || 3;
+        const sets = setData[i] || [];
+
+        return (
+          <div key={i} style={{
+            ...card,
+            background: done[i] ? COLORS.greenSoft : 'white',
+            borderColor: done[i] ? COLORS.green : COLORS.border,
+            padding: 0,
+            overflow: 'hidden',
+          }}>
+            {/* כותרת התרגיל - לחיצה תפתח/תסגור */}
+            <div
+              onClick={() => setExpanded(isExpanded ? null : i)}
               style={{
-                ...btn,
-                background: done[i] ? COLORS.green : COLORS.primarySoft,
-                color: done[i] ? 'white' : COLORS.primaryDark,
-                padding: '6px 14px',
-                fontSize: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: 14, cursor: 'pointer', gap: 10,
               }}
             >
-              {done[i] ? 'בוצע' : 'סמני'}
-            </button>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {done[i] && '✅ '}{ex.name}
+                  <span style={{ fontSize: 11, color: COLORS.textMuted, fontWeight: 400 }}>
+                    {isExpanded ? '▲' : '▼'}
+                  </span>
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: COLORS.textMuted }}>
+                  {ex.sets} סטים × {ex.reps} חזרות {ex.weight && `· ${ex.weight}`} {ex.rest && `· מנוחה ${ex.rest}״`}
+                </p>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); setDone({ ...done, [i]: !done[i] }); }}
+                style={{
+                  ...btn,
+                  background: done[i] ? COLORS.green : COLORS.primarySoft,
+                  color: done[i] ? 'white' : COLORS.primaryDark,
+                  padding: '6px 14px', fontSize: 12, flexShrink: 0,
+                }}
+              >
+                {done[i] ? 'בוצע' : 'סמני'}
+              </button>
+            </div>
+
+            {/* תוכן מורחב */}
+            {isExpanded && (
+              <div style={{
+                padding: '0 14px 14px',
+                borderTop: `1px solid ${COLORS.border}`,
+              }}>
+                {/* כפתור וידאו אם יש */}
+                {ex.video_url && (
+                  <button
+                    onClick={() => setVideoModal(ex.video_url)}
+                    style={{
+                      width: '100%', background: '#FF6B6B', color: 'white',
+                      border: 'none', padding: 10, borderRadius: 10,
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      fontFamily: 'inherit', marginTop: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
+                  >
+                    ▶ צפי בסרטון הדגמה
+                  </button>
+                )}
+
+                {/* טבלת סטים */}
+                <div style={{ marginTop: 12 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 8px', color: COLORS.primaryDark }}>
+                    מילוי סטים:
+                  </p>
+
+                  {/* כותרות העמודות */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '32px 1fr 1fr 1fr',
+                    gap: 6, marginBottom: 6,
+                  }}>
+                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>סט</span>
+                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>משקל</span>
+                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>חזרות</span>
+                    <span style={{ fontSize: 10, color: COLORS.textMuted, textAlign: 'center', fontWeight: 600 }}>RPE</span>
+                  </div>
+
+                  {/* שורות הסטים */}
+                  {Array.from({ length: setsCount }, (_, sIdx) => {
+                    const s = sets[sIdx] || {};
+                    return (
+                      <div key={sIdx} style={{
+                        display: 'grid',
+                        gridTemplateColumns: '32px 1fr 1fr 1fr',
+                        gap: 6, marginBottom: 6,
+                      }}>
+                        <div style={{
+                          background: COLORS.primary, color: 'white',
+                          borderRadius: 6, display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: 12, fontWeight: 700,
+                        }}>{sIdx + 1}</div>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder={ex.weight || ''}
+                          value={s.weight || ''}
+                          onChange={e => updateSet(i, sIdx, 'weight', e.target.value)}
+                          style={inputStyle}
+                        />
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder={String(ex.reps || '')}
+                          value={s.reps || ''}
+                          onChange={e => updateSet(i, sIdx, 'reps', e.target.value)}
+                          style={inputStyle}
+                        />
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="1" max="10"
+                          placeholder="1-10"
+                          value={s.rpe || ''}
+                          onChange={e => updateSet(i, sIdx, 'rpe', e.target.value)}
+                          style={inputStyle}
+                        />
+                      </div>
+                    );
+                  })}
+
+                  {/* שדה הערות */}
+                  <textarea
+                    placeholder="הערות לתרגיל..."
+                    value={(setData[i] && setData[i].notes) || ''}
+                    onChange={e => setSetData(prev => ({
+                      ...prev,
+                      [i]: { ...(prev[i] || []), notes: e.target.value },
+                    }))}
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      padding: '8px 10px', borderRadius: 8,
+                      border: `1px solid ${COLORS.border}`,
+                      fontSize: 12, fontFamily: 'inherit',
+                      marginTop: 8, resize: 'vertical', minHeight: 50,
+                      direction: 'rtl', outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* מידע נוסף מהמאמן */}
+                {ex.notes && (
+                  <div style={{
+                    background: COLORS.primarySoft, padding: 10, borderRadius: 8,
+                    marginTop: 10, fontSize: 12, color: COLORS.text,
+                  }}>
+                    <b style={{ color: COLORS.primaryDark }}>💜 הערה מהמאמנת: </b>{ex.notes}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button
         onClick={onComplete}
@@ -1166,9 +1323,49 @@ function ClientWorkoutSession({ workout, onClose, onComplete }) {
       >
         {allDone ? '🎉 סיימתי את האימון!' : 'סמני "סיימתי"'}
       </button>
+
+      {/* Modal של וידאו */}
+      {videoModal && (
+        <div
+          onClick={() => setVideoModal(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+            zIndex: 2000, display: 'flex', alignItems: 'center',
+            justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', width: '100%', maxWidth: 720 }}>
+            <button
+              onClick={() => setVideoModal(null)}
+              style={{
+                position: 'absolute', top: -40, left: 0,
+                background: 'transparent', border: 'none', color: 'white',
+                fontSize: 28, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >×</button>
+            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, background: '#000' }}>
+              <iframe
+                src={getEmbedUrl(videoModal)}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title="הדגמת תרגיל"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const inputStyle = {
+  width: '100%', boxSizing: 'border-box',
+  padding: '8px 6px', textAlign: 'center',
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 6, fontSize: 13, fontWeight: 600,
+  fontFamily: 'inherit', outline: 'none', direction: 'ltr',
+};
 
 // ═══════════════════════════════════════════════════════════════
 // 👩 CLIENT — תצוגת תפריטים
