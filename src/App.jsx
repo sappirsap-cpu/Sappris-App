@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from './supabase';
-import { ThemeProvider } from './theme_modern'; // 🎨 Updated to modern theme
+import { ThemeProvider } from './theme';
 import { OfflineProvider, NetworkBanner, registerServiceWorker } from './offline';
 
 // רישום Service Worker
