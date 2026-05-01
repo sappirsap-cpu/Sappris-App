@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from './supabase';
-import { ThemeProvider } from './theme'; // Modern theme with new colors
+import { ThemeProvider } from './theme';
 import { OfflineProvider, NetworkBanner, registerServiceWorker } from './offline';
 
 // רישום Service Worker — פעם אחת
@@ -18,7 +18,7 @@ function AppLoadingFallback() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #8B72B5 0%, #B19CD9 100%)',
+      background: 'linear-gradient(135deg, #1F4335 0%, #2D5F4C 100%)',
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
@@ -46,9 +46,9 @@ function AppLoadingFallback() {
 }
 
 const COLORS = {
-  bg: '#F5F2FA', primary: '#B19CD9', primaryDark: '#8B72B5',
-  primarySoft: '#E8DFF5', accent: '#F4C2C2', accentDark: '#C88A8A',
-  text: '#2E2A3D', textMuted: '#756B85', border: '#DDD0EB',
+  bg: '#FDFCFA', primary: '#2D5F4C', primaryDark: '#1F4335',
+  primarySoft: '#E8F2ED', accent: '#E8784F', accentDark: '#C85F3A',
+  text: '#1A1713', textMuted: '#6B6560', border: '#E6E2DD',
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -406,7 +406,7 @@ function ClientLogin({ onCoachLogin }) {
       {/* שכבת גוון סגול */}
       <div style={{
         position: 'absolute', inset: 0,
-        background: `linear-gradient(135deg, rgba(139, 114, 181, 0.75) 0%, rgba(177, 156, 217, 0.55) 50%, rgba(46, 42, 61, 0.8) 100%)`,
+        background: `linear-gradient(135deg, rgba(31, 67, 53, 0.75) 0%, rgba(45, 95, 76, 0.55) 50%, rgba(26, 23, 19, 0.8) 100%)`,
       }} />
 
       {/* תוכן */}
@@ -585,7 +585,7 @@ function CoachLogin({ onBack }) {
   return (
     <div data-theme="light" style={{
       minHeight: '100vh',
-      background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #C5B3E0 100%)`,
+      background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #4A9B76 100%)`,
       padding: 20, direction: 'rtl',
       fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
       display: 'flex', alignItems: 'center', justifyContent: 'center',

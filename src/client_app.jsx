@@ -28,28 +28,11 @@ import { BarcodeScanner } from './barcode_scanner';
 import { MealPhotoAnalyzer } from './meal_photo_ai';
 import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
-// 🎨 Using CSS Variables from theme.jsx (Modern Design)
 const COLORS = {
-  bg: 'var(--bg)',
-  bgAlt: 'var(--bg-alt)',
-  primary: 'var(--primary)',
-  primaryDark: 'var(--primary-dark)',
-  primarySoft: 'var(--primary-soft)',
-  accent: 'var(--accent)',
-  accentDark: 'var(--accent-dark)',
-  accentSoft: 'var(--accent-soft)',
-  text: 'var(--text)',
-  textMuted: 'var(--text-muted)',
-  textSubtle: 'var(--text-subtle)',
-  border: 'var(--border)',
-  borderLight: 'var(--border-light)',
-  card: 'var(--card)',
-  success: 'var(--success)',
-  successSoft: 'var(--success-soft)',
-  warning: 'var(--warning)',
-  warningSoft: 'var(--warning-soft)',
-  error: 'var(--error)',
-  errorSoft: 'var(--error-soft)',
+  bg:'#FDFCFA',primary:'#2D5F4C',primaryDark:'#1F4335',primarySoft:'#E8F2ED',
+  accent:'#E8784F',accentDark:'#C85F3A',mint:'#4A9B76',mintSoft:'#E8F2ED',
+  peach:'#FFE8DC',peachSoft:'#FFF3EF',sky:'#5B8FA8',skySoft:'#E0EBF2',
+  amber:'#D97706',amberSoft:'#FEF3E2',text:'#1A1713',textMuted:'#6B6560',border:'#E6E2DD',
 };
 
 // ═══════════════════════════════════════════════════════════════
