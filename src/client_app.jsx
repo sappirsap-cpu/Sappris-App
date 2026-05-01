@@ -603,6 +603,158 @@ function useDnd(items,setItems){
 }
 
 /* ══════════════════════════════════════════════
+   🎨 DUOTONE ICONS - Premium icon system
+══════════════════════════════════════════════ */
+function DuotoneIcon({ name, size = 22, color = '#2D5F4C', accentColor = null }) {
+  const accent = accentColor || color;
+  const fillOpacity = 0.25;
+  const strokeWidth = 1.8;
+  
+  const icons = {
+    flame: ( // קלוריות / streak
+      <>
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+    workout: ( // אימון / משקולת
+      <>
+        <path d="M6.5 6.5L9 4M17.5 17.5L20 15M14.5 9.5l-5 5M3 12l1-1M21 12l-1 1" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" fill="none"/>
+        <rect x="2" y="10" width="3" height="4" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="19" y="10" width="3" height="4" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="5" y="8" width="2.5" height="8" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="16.5" y="8" width="2.5" height="8" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="7.5" y="11" width="9" height="2" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+      </>
+    ),
+    water: ( // מים
+      <>
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+    steps: ( // צעדים - footprint
+      <>
+        <ellipse cx="8" cy="8" rx="3" ry="4" fill={color} fillOpacity={fillOpacity}/>
+        <ellipse cx="8" cy="8" rx="3" ry="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="6" cy="3.5" r="1" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="3" cy="5.5" r="0.8" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <ellipse cx="16" cy="16" rx="3" ry="4" fill={color} fillOpacity={fillOpacity}/>
+        <ellipse cx="16" cy="16" rx="3" ry="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="18" cy="11.5" r="1" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="21" cy="13.5" r="0.8" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+      </>
+    ),
+    moon: ( // שינה
+      <>
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+    meal: ( // ארוחה - utensils
+      <>
+        <path d="M3 11h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M3 11h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M7 11V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M9 21v-4M15 21v-4" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
+      </>
+    ),
+    chart: ( // סטטיסטיקה - bar chart
+      <>
+        <rect x="3" y="13" width="4" height="8" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="10" y="3" width="4" height="18" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="17" y="9" width="4" height="12" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="3" y="13" width="4" height="8" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="10" y="3" width="4" height="18" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="17" y="9" width="4" height="12" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+      </>
+    ),
+    target: ( // יעד / dumbbell
+      <>
+        <circle cx="12" cy="12" r="10" fill={color} fillOpacity={fillOpacity}/>
+        <circle cx="12" cy="12" r="10" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="12" cy="12" r="6" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="12" cy="12" r="2" fill={accent}/>
+      </>
+    ),
+    play: ( // play button
+      <>
+        <polygon points="5 3 19 12 5 21 5 3" fill={color} fillOpacity={fillOpacity}/>
+        <polygon points="5 3 19 12 5 21 5 3" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
+      </>
+    ),
+    plus: ( // plus
+      <>
+        <line x1="12" y1="5" x2="12" y2="19" stroke={accent} strokeWidth={2.5} strokeLinecap="round"/>
+        <line x1="5" y1="12" x2="19" y2="12" stroke={accent} strokeWidth={2.5} strokeLinecap="round"/>
+      </>
+    ),
+    trash: ( // trash
+      <>
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+    sparkles: ( // AI / magic
+      <>
+        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
+        <path d="M19 13l.5 1.5 1.5.5-1.5.5L19 17l-.5-1.5-1.5-.5 1.5-.5z" fill={accent}/>
+        <path d="M5 17l.5 1.5 1.5.5-1.5.5L5 21l-.5-1.5-1.5-.5 1.5-.5z" fill={accent}/>
+      </>
+    ),
+    sun: ( // breakfast / morning
+      <>
+        <circle cx="12" cy="12" r="4" fill={color} fillOpacity={fillOpacity}/>
+        <circle cx="12" cy="12" r="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
+      </>
+    ),
+    plate: ( // lunch / dinner / plate
+      <>
+        <circle cx="12" cy="12" r="9" fill={color} fillOpacity={fillOpacity}/>
+        <circle cx="12" cy="12" r="9" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="12" cy="12" r="5" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+      </>
+    ),
+    cookie: ( // snack
+      <>
+        <path d="M21 12a9 9 0 1 1-9-9c0 1.5.5 3 2 3.5C13 8 13 9 13 10c0 1.5 1 2 2 2 0 1 .5 1.5 1.5 1.5 0-.5.5-1 1-1 .5 1.5 2 0 3.5-.5z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M21 12a9 9 0 1 1-9-9c0 1.5.5 3 2 3.5C13 8 13 9 13 10c0 1.5 1 2 2 2 0 1 .5 1.5 1.5 1.5 0-.5.5-1 1-1 .5 1.5 2 0 3.5-.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="9" cy="10" r="0.5" fill={accent}/>
+        <circle cx="13" cy="14" r="0.5" fill={accent}/>
+        <circle cx="8" cy="14" r="0.5" fill={accent}/>
+      </>
+    ),
+    arrowUp: ( // trend up
+      <>
+        <polyline points="18 15 12 9 6 15" fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+    bolt: ( // energy / lightning
+      <>
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={color} fillOpacity={fillOpacity}/>
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
+      </>
+    ),
+    yoga: ( // rest day / meditation
+      <>
+        <circle cx="12" cy="6" r="2.5" fill={color} fillOpacity={fillOpacity}/>
+        <circle cx="12" cy="6" r="2.5" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <path d="M12 9v6M9 12l3 3 3-3M6 18c2-2 4-2 6-2s4 0 6 2" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M12 9v6M9 12l3 3 3-3M6 18c2-2 4-2 6-2s4 0 6 2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+      </>
+    ),
+  };
+
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24">
+      {icons[name] || icons.target}
+    </svg>
+  );
+}
+
+/* ══════════════════════════════════════════════
    MAIN APP — מחובר ל-Supabase
 ══════════════════════════════════════════════ */
 export default function App({onLogout}){
@@ -1242,74 +1394,187 @@ export default function App({onLogout}){
             onTabChange={setTab} 
           />
           
-          {/* 🌟 Hero Calorie Card - with gradient mesh background */}
-          <section className="sappris-fade-in sappris-stagger-1" style={{
-            background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-            borderRadius: 22,
-            padding: 22,
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-          }}>
-            {/* Decorative circles */}
-            <div style={{position:'absolute',top:-30,left:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-            <div style={{position:'absolute',bottom:-20,right:-20,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
+          {/* ⭕ HERO RINGS - Apple Watch style 3 rings + score */}
+          {(() => {
+            const calPctRing = Math.min(100, calPct);
+            const proteinPctRing = Math.min(100, p.dailyProteinGoal ? prot/p.dailyProteinGoal*100 : 0);
+            const waterPctRing = Math.min(100, wPct);
+            const totalScore = Math.round((calPctRing + proteinPctRing + waterPctRing) / 3);
             
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:14,position:'relative'}}>
-              <div>
-                <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>קלוריות נותרו</p>
-                <p style={{margin:'4px 0 0',fontSize:42,fontWeight:800,color:'white',lineHeight:1,letterSpacing:'-0.03em'}}>{rem}</p>
-              </div>
-              <div style={{textAlign:'left',background:'rgba(255,255,255,0.15)',backdropFilter:'blur(10px)',padding:'8px 12px',borderRadius:12,border:'0.5px solid rgba(255,255,255,0.2)'}}>
-                <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.8)',fontWeight:500}}>נצרכו</p>
-                <p style={{margin:'2px 0 0',fontSize:15,fontWeight:700,color:'white',lineHeight:1}}>
-                  {cal} <span style={{fontSize:11,color:'rgba(255,255,255,0.7)',fontWeight:500}}>/ {p.dailyCalorieGoal}</span>
-                </p>
-              </div>
-            </div>
-            <div style={{height:8,background:'rgba(255,255,255,0.2)',borderRadius:99,overflow:'hidden',position:'relative'}}>
-              <div className="sappris-progress-fill" style={{
-                height:'100%', width:`${Math.min(100, calPct)}%`,
-                background:'linear-gradient(90deg, #FFD89E 0%, #FFFFFF 100%)',
-                borderRadius:99,
-              }}/>
-            </div>
-          </section>
-
-          {/* 🥗 Macros - beautiful grid with icons */}
-          <section className="sappris-fade-in sappris-stagger-2" style={{...S.card, padding:18}}>
-            <p style={{margin:'0 0 14px',fontSize:11,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>תזונה היום</p>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-              {[
-                ['חלבון', prot, p.dailyProteinGoal, '#E8784F', '#FFF3EF', '🍗'],
-                ['פחמ׳', carb, p.dailyCarbGoal, COLORS.primary, COLORS.primarySoft, '🌾'],
-                ['שומן', fat, p.dailyFatGoal, '#5B8FA8', '#E0EBF2', '🥑'],
-              ].map(([l, v, g, c, soft, emoji], i) => {
-                const pct = Math.min(100, g ? v/g*100 : 0);
-                return (
-                  <div key={l} style={{textAlign:'center'}}>
-                    <div className="sappris-icon-circle" style={{
-                      width:36,height:36,margin:'0 auto 8px',
-                      borderRadius:12,background:soft,
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      fontSize:18,
-                    }}>{emoji}</div>
-                    <p style={{margin:0,fontSize:18,fontWeight:700,color:c,letterSpacing:'-0.02em'}}>
-                      {v}<span style={{fontSize:10,color:COLORS.textMuted,fontWeight:500}}>/{g}g</span>
-                    </p>
-                    <div style={{height:4,background:soft,borderRadius:99,overflow:'hidden',margin:'6px 0 4px'}}>
-                      <div className="sappris-progress-fill" style={{height:'100%',width:`${pct}%`,background:c,borderRadius:99}}/>
-                    </div>
-                    <p style={{margin:0,fontSize:10,color:COLORS.textMuted,fontWeight:500}}>{l}</p>
+            const ringRadii = [75, 60, 45];
+            const ringCircumferences = ringRadii.map(r => 2 * Math.PI * r);
+            const ringDashOffsets = [
+              ringCircumferences[0] * (1 - calPctRing/100),
+              ringCircumferences[1] * (1 - proteinPctRing/100),
+              ringCircumferences[2] * (1 - waterPctRing/100),
+            ];
+            
+            return (
+              <section className="sappris-fade-in sappris-stagger-1" style={{
+                background: `linear-gradient(135deg, #1F4335 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
+                borderRadius: 24,
+                padding: '24px 20px 28px',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 12px 32px rgba(45, 95, 76, 0.25)',
+              }}>
+                {/* Decorative blurs */}
+                <div style={{position:'absolute',top:-100,right:-50,width:280,height:280,borderRadius:'50%',background:'radial-gradient(circle, rgba(125, 211, 168, 0.4), transparent 70%)',pointerEvents:'none'}}/>
+                <div style={{position:'absolute',bottom:-80,left:-40,width:220,height:220,borderRadius:'50%',background:'radial-gradient(circle, rgba(232, 120, 79, 0.25), transparent 70%)',pointerEvents:'none'}}/>
+                
+                {/* Top row: greeting + streak */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,position:'relative'}}>
+                  <div>
+                    <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.7)',fontWeight:500,letterSpacing:'0.05em',textTransform:'uppercase'}}>היום שלי</p>
+                    <h2 style={{margin:'2px 0 0',fontSize:18,fontWeight:700,color:'white',letterSpacing:'-0.01em'}}>בואי נתקדם 💚</h2>
                   </div>
-                );
-              })}
+                  <div className={p.streak > 0 ? 'sappris-streak-glow' : ''} style={{
+                    display:'flex',alignItems:'center',gap:6,
+                    background:'rgba(255,255,255,0.15)',
+                    backdropFilter:'blur(20px)',
+                    border:'0.5px solid rgba(255,255,255,0.2)',
+                    padding:'6px 12px',borderRadius:100,
+                  }}>
+                    <DuotoneIcon name="flame" size={14} color="#FFA47A" accentColor="#FFD89E"/>
+                    <span style={{fontSize:12,fontWeight:700,color:'white'}}>{p.streak} ימים</span>
+                  </div>
+                </div>
+                
+                {/* Rings + side stats */}
+                <div style={{display:'flex',alignItems:'center',gap:16,position:'relative'}}>
+                  
+                  {/* SVG Rings */}
+                  <div style={{position:'relative',width:180,height:180,flexShrink:0}}>
+                    <svg width="180" height="180" viewBox="0 0 180 180" style={{transform:'rotate(-90deg)'}}>
+                      <defs>
+                        <linearGradient id="ringG1" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#E8784F"/>
+                          <stop offset="100%" stopColor="#FFA47A"/>
+                        </linearGradient>
+                        <linearGradient id="ringG2" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#7DD3A8"/>
+                          <stop offset="100%" stopColor={COLORS.primary}/>
+                        </linearGradient>
+                        <linearGradient id="ringG3" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor="#5B8FA8"/>
+                          <stop offset="100%" stopColor="#7DABC4"/>
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Ring 1 - Calories (outer) */}
+                      <circle cx="90" cy="90" r="75" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
+                      <circle cx="90" cy="90" r="75" fill="none" stroke="url(#ringG1)" strokeWidth="11" strokeLinecap="round"
+                        strokeDasharray={ringCircumferences[0]} strokeDashoffset={ringDashOffsets[0]}
+                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'}}/>
+                      
+                      {/* Ring 2 - Protein (middle) */}
+                      <circle cx="90" cy="90" r="60" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
+                      <circle cx="90" cy="90" r="60" fill="none" stroke="url(#ringG2)" strokeWidth="11" strokeLinecap="round"
+                        strokeDasharray={ringCircumferences[1]} strokeDashoffset={ringDashOffsets[1]}
+                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s'}}/>
+                      
+                      {/* Ring 3 - Water (inner) */}
+                      <circle cx="90" cy="90" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
+                      <circle cx="90" cy="90" r="45" fill="none" stroke="url(#ringG3)" strokeWidth="11" strokeLinecap="round"
+                        strokeDasharray={ringCircumferences[2]} strokeDashoffset={ringDashOffsets[2]}
+                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s'}}/>
+                    </svg>
+                    
+                    {/* Score in center */}
+                    <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'white'}}>
+                      <p style={{margin:0,fontSize:9,color:'rgba(255,255,255,0.7)',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase'}}>ציון</p>
+                      <p style={{margin:'2px 0',fontSize:48,fontWeight:800,color:'white',letterSpacing:'-0.05em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
+                        {totalScore}<span style={{fontSize:18,color:'rgba(255,255,255,0.5)',fontWeight:600}}>/100</span>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Side stats */}
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}>
+                    {[
+                      ['קלוריות', `${cal}`, `/${p.dailyCalorieGoal}`, '#E8784F', `${Math.round(calPctRing)}%`],
+                      ['חלבון', `${prot}g`, `/${p.dailyProteinGoal}g`, COLORS.mint, `${Math.round(proteinPctRing)}%`],
+                      ['מים', `${water}`, `/${p.dailyWaterGoalMl}ml`, '#7DABC4', `${Math.round(waterPctRing)}%`],
+                    ].map(([label, val, total, color, pct]) => (
+                      <div key={label} style={{
+                        display:'flex',alignItems:'center',gap:8,
+                        padding:'8px 10px',
+                        background:'rgba(255,255,255,0.08)',
+                        backdropFilter:'blur(10px)',
+                        borderRadius:12,
+                        border:'0.5px solid rgba(255,255,255,0.1)',
+                      }}>
+                        <div style={{width:8,height:8,borderRadius:'50%',background:color,flexShrink:0,boxShadow:`0 0 8px ${color}`}}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <p style={{margin:0,fontSize:9,color:'rgba(255,255,255,0.6)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>{label}</p>
+                          <p style={{margin:'1px 0 0',fontSize:13,color:'white',fontWeight:700,lineHeight:1}}>{pct}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* 📊 2 Stat Cards - Calories + Workout */}
+          <div className="sappris-fade-in sappris-stagger-2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            {/* Calories card */}
+            <div className="sappris-card-hover" style={{
+              ...S.card,
+              padding:14,
+              cursor:'pointer',
+              position:'relative',
+              overflow:'hidden',
+            }} onClick={()=>setTab('eat')}>
+              <div style={{position:'absolute',top:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'#E8784F',opacity:0.06,filter:'blur(20px)'}}/>
+              <div style={{
+                width:32,height:32,borderRadius:10,
+                background:'linear-gradient(135deg, #FFE5D9, #FFD0B8)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                marginBottom:10,
+              }} className="sappris-icon-circle">
+                <DuotoneIcon name="flame" size={18} color="#E8784F" accentColor="#C85F3A"/>
+              </div>
+              <p style={{margin:0,fontSize:22,fontWeight:800,color:COLORS.text,letterSpacing:'-0.02em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
+                {cal}<span style={{fontSize:11,color:COLORS.textMuted,fontWeight:500}}>/{p.dailyCalorieGoal}</span>
+              </p>
+              <p style={{margin:'4px 0 0',fontSize:10,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>קלוריות</p>
+              <div style={{height:4,background:'#FFF3EF',borderRadius:4,overflow:'hidden',marginTop:8}}>
+                <div className="sappris-progress-fill" style={{height:'100%',width:`${Math.min(100,calPct)}%`,background:'linear-gradient(90deg, #E8784F, #FFA47A)',borderRadius:4}}/>
+              </div>
             </div>
-          </section>
+            
+            {/* Workout card */}
+            <div className="sappris-card-hover" style={{
+              ...S.card,
+              padding:14,
+              cursor:'pointer',
+              position:'relative',
+              overflow:'hidden',
+            }} onClick={()=>setTab('workout')}>
+              <div style={{position:'absolute',top:-20,left:-20,width:80,height:80,borderRadius:'50%',background:COLORS.primary,opacity:0.06,filter:'blur(20px)'}}/>
+              <div style={{
+                width:32,height:32,borderRadius:10,
+                background:'linear-gradient(135deg, #D4F0E2, #B0DEC4)',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                marginBottom:10,
+              }} className="sappris-icon-circle">
+                <DuotoneIcon name="workout" size={18} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+              </div>
+              <p style={{margin:0,fontSize:22,fontWeight:800,color:COLORS.text,letterSpacing:'-0.02em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
+                {done}<span style={{fontSize:11,color:COLORS.textMuted,fontWeight:500}}>/{exs.length}</span>
+              </p>
+              <p style={{margin:'4px 0 0',fontSize:10,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>אימון היום</p>
+              <div style={{height:4,background:COLORS.primarySoft,borderRadius:4,overflow:'hidden',marginTop:8}}>
+                <div className="sappris-progress-fill" style={{height:'100%',width:`${exs.length?(done/exs.length*100):0}%`,background:`linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryDark})`,borderRadius:4}}/>
+              </div>
+            </div>
+          </div>
 
           {/* 🧘 אינדיקטור יום מנוחה */}
           {isRestDay && (
-            <section className="sappris-fade-in sappris-stagger-3" style={{
+            <section className="sappris-fade-in" style={{
               background: `linear-gradient(135deg, ${COLORS.primarySoft} 0%, ${COLORS.peachSoft} 100%)`,
               border:'none',
               borderRadius:18,
@@ -1317,16 +1582,18 @@ export default function App({onLogout}){
               textAlign:'center',
               boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
             }}>
-              <div style={{fontSize:32,marginBottom:6}}>🧘‍♀️</div>
+              <div style={{width:48,height:48,margin:'0 auto 8px',borderRadius:14,background:'white',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <DuotoneIcon name="yoga" size={26} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+              </div>
               <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>היום יום מנוחה</p>
-              <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון 💚</p>
+              <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון</p>
             </section>
           )}
 
           {/* 💪 כרטיס האימון הבא */}
           {!isRestDay && <div className="sappris-fade-in sappris-stagger-3"><NextWorkoutCard clientId={profile.id} /></div>}
 
-          {/* 📊 סטטיסטיקות */}
+          {/* 📊 סטטיסטיקות - keep all existing components */}
           <div className="sappris-fade-in sappris-stagger-4"><StepsCard clientId={profile.id} /></div>
           <div className="sappris-fade-in sappris-stagger-5"><DailyScoreCard breakdown={dailyBreakdown} /></div>
           <div className="sappris-fade-in sappris-stagger-6"><SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} /></div>
@@ -1336,26 +1603,28 @@ export default function App({onLogout}){
             {/* Streak Card */}
             <div style={{
               ...S.card,
-              padding:16,
+              padding:14,
               background: `linear-gradient(135deg, #FFF8F3 0%, #FFE8DC 100%)`,
-              border:'0.5px solid #F5D0B5',
+              border:'0.5px solid rgba(232, 120, 79, 0.2)',
               transform: streakPulse ? 'scale(1.05)' : 'scale(1)',
               boxShadow: streakPulse ? '0 0 0 4px rgba(232, 120, 79, 0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
               transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
               position:'relative',
               overflow:'hidden',
             }}>
-              <div style={{position:'absolute',top:-10,left:-10,fontSize:60,opacity:0.15,filter:'blur(2px)'}}>🔥</div>
               <div style={{display:'flex',alignItems:'center',gap:10,position:'relative'}}>
                 <div className={p.streak > 0 ? 'sappris-streak-glow' : ''} style={{
                   background:'linear-gradient(135deg, #FFE8DC 0%, #FFD0B5 100%)',
-                  borderRadius:'50%',width:44,height:44,
-                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,
+                  borderRadius:'50%',width:42,height:42,
+                  display:'flex',alignItems:'center',justifyContent:'center',
                   boxShadow:'0 2px 8px rgba(232, 120, 79, 0.25)',
-                }}>🔥</div>
+                  flexShrink:0,
+                }}>
+                  <DuotoneIcon name="flame" size={22} color="#E8784F" accentColor="#C85F3A"/>
+                </div>
                 <div>
-                  <p style={{fontSize:24,fontWeight:800,color:'#C85F3A',margin:0,lineHeight:1,letterSpacing:'-0.02em'}}>{p.streak}</p>
-                  <p style={{fontSize:10,color:COLORS.textMuted,margin:'2px 0 0',fontWeight:600,letterSpacing:'0.03em',textTransform:'uppercase'}}>ימים רצופים</p>
+                  <p style={{fontSize:24,fontWeight:800,color:'#C85F3A',margin:0,lineHeight:1,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{p.streak}</p>
+                  <p style={{fontSize:9,color:COLORS.textMuted,margin:'2px 0 0',fontWeight:600,letterSpacing:'0.03em',textTransform:'uppercase'}}>ימים רצופים</p>
                 </div>
               </div>
             </div>
@@ -1363,15 +1632,15 @@ export default function App({onLogout}){
             {/* Water Card */}
             <div style={{
               ...S.card,
-              padding:16,
+              padding:14,
               background:`linear-gradient(135deg, #F0F7FB 0%, #E0EBF2 100%)`,
-              border:'0.5px solid #B5D4DC',
+              border:'0.5px solid rgba(91, 143, 168, 0.2)',
             }}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                <span style={{fontSize:20}}>💧</span>
-                <span style={{fontSize:11,color:'#4A7A94',fontWeight:600}}>{water}<span style={{opacity:0.7}}>/{p.dailyWaterGoalMl}</span></span>
+                <DuotoneIcon name="water" size={20} color="#5B8FA8" accentColor="#3D6B85"/>
+                <span style={{fontSize:11,color:'#4A7A94',fontWeight:700}}>{water}<span style={{opacity:0.7}}>/{p.dailyWaterGoalMl}</span></span>
               </div>
-              <div style={{height:6,background:'rgba(91, 143, 168, 0.15)',borderRadius:99,overflow:'hidden',marginBottom:10}}>
+              <div style={{height:5,background:'rgba(91, 143, 168, 0.15)',borderRadius:99,overflow:'hidden',marginBottom:10}}>
                 <div className="sappris-progress-fill" style={{height:'100%',width:`${wPct}%`,background:'linear-gradient(90deg, #5B8FA8, #7DABC4)',borderRadius:99}}/>
               </div>
               <div style={{display:'flex',gap:4}}>
@@ -1387,9 +1656,9 @@ export default function App({onLogout}){
                       background:'white',
                       color:'#4A7A94',
                       border:'0.5px solid rgba(91, 143, 168, 0.3)',
-                      padding:'6px 2px',
+                      padding:'5px 2px',
                       borderRadius:8,
-                      fontSize:11,
+                      fontSize:10,
                       fontWeight:700,
                       cursor:'pointer',
                       fontFamily:'inherit',
@@ -1415,11 +1684,13 @@ export default function App({onLogout}){
           {/* 🏆 אתגרים פעילים */}
           <ClientChallengesList clientId={profile.id} />
 
-          {/* 🍽️ today's meals - beautiful card */}
+          {/* 🍽️ today's meals - duotone icons */}
           <section style={{...S.card, padding:18}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <div style={{width:32,height:32,borderRadius:10,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🍽️</div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg, #D1FAE5, #A7F3D0)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <DuotoneIcon name="meal" size={16} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+                </div>
                 <h3 style={{margin:0,fontSize:15,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>הארוחות שלי היום</h3>
               </div>
               <div style={{display:'flex',gap:6}}>
@@ -1439,7 +1710,11 @@ export default function App({onLogout}){
                     cursor:'pointer',
                     fontFamily:'inherit',
                     boxShadow:'0 2px 8px rgba(45, 95, 76, 0.25)',
-                  }}>✨ AI</button>
+                    display:'flex',alignItems:'center',gap:4,
+                  }}>
+                  <DuotoneIcon name="sparkles" size={12} color="white" accentColor="white"/>
+                  AI
+                </button>
                 <button 
                   onClick={()=>setTab('eat')} 
                   className="sappris-btn-primary"
@@ -1449,13 +1724,13 @@ export default function App({onLogout}){
                     background:COLORS.primary,
                     color:'white',
                     border:'none',
-                    fontSize:18,
                     cursor:'pointer',
                     display:'flex',alignItems:'center',justifyContent:'center',
                     fontFamily:'inherit',
-                    lineHeight:1,
                     boxShadow:'0 2px 8px rgba(45, 95, 76, 0.3)',
-                  }}>+</button>
+                  }}>
+                  <DuotoneIcon name="plus" size={16} color="white" accentColor="white"/>
+                </button>
               </div>
             </div>
             {meals.length===0
@@ -1465,54 +1740,70 @@ export default function App({onLogout}){
                   color:COLORS.textMuted,
                   fontSize:13,
                 }}>
-                  <div style={{fontSize:36,marginBottom:8,opacity:0.5}}>🍽️</div>
+                  <div style={{width:48,height:48,margin:'0 auto 8px',borderRadius:14,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',opacity:0.6}}>
+                    <DuotoneIcon name="meal" size={24} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+                  </div>
                   <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text}}>עדיין לא רשמת אוכל</p>
                   <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.textMuted}}>לחצי על + להתחיל</p>
                 </div>
-              :meals.map((m,i)=>(
-                <div 
-                  key={m.id} 
-                  className="sappris-fade-in"
-                  style={{
-                    display:'flex',alignItems:'center',gap:12,
-                    padding:12,
-                    background:`linear-gradient(135deg, white 0%, ${COLORS.primarySoft} 200%)`,
-                    border:`0.5px solid ${COLORS.border}`,
-                    borderRadius:14,
-                    marginBottom:8,
-                    animationDelay:`${i*0.05}s`,
-                    transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                >
-                  <div style={{
-                    width:40,height:40,borderRadius:12,
-                    background:m.planKey==='breakfast'?'#FFF3D4':m.planKey==='lunch'?COLORS.primarySoft:m.planKey==='dinner'?'#E0EBF2':'#FFE8DC',
-                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,
-                  }}>{m.planKey==='breakfast'?'☀️':m.planKey==='lunch'?'🍽️':m.planKey==='dinner'?'🌙':'🍪'}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.name}</p>
-                    <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted,fontWeight:500}}>{m.cal} קק״ל · {m.time}</p>
-                  </div>
-                  <button 
-                    onClick={()=>removeMeal(m.id)} 
+              :meals.map((m,i)=>{
+                const mealConfig = {
+                  breakfast: { icon:'sun', bg:'linear-gradient(135deg, #FFF3D4, #FFE5A5)', color:'#D97706', accent:'#92400E' },
+                  lunch: { icon:'plate', bg:'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color:COLORS.primary, accent:COLORS.primaryDark },
+                  dinner: { icon:'moon', bg:'linear-gradient(135deg, #E0E7FF, #C7D2FE)', color:'#4F46E5', accent:'#3730A3' },
+                  snack: { icon:'cookie', bg:'linear-gradient(135deg, #FFE5D9, #FFD0B8)', color:'#E8784F', accent:'#C85F3A' },
+                };
+                const cfg = mealConfig[m.planKey] || mealConfig.snack;
+                return (
+                  <div 
+                    key={m.id} 
+                    className="sappris-fade-in"
                     style={{
-                      background:'transparent',
-                      border:'none',
-                      cursor:'pointer',
-                      fontSize:18,
-                      padding:6,
-                      borderRadius:8,
-                      transition:'all 0.15s',
+                      display:'flex',alignItems:'center',gap:12,
+                      padding:12,
+                      background:`linear-gradient(135deg, white 0%, ${COLORS.primarySoft} 200%)`,
+                      border:`0.5px solid ${COLORS.border}`,
+                      borderRadius:14,
+                      marginBottom:8,
+                      animationDelay:`${i*0.05}s`,
+                      transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
-                    onMouseEnter={(e)=>e.currentTarget.style.background='#FEE2E2'}
-                    onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
-                  >🗑️</button>
-                </div>
-              ))
+                  >
+                    <div style={{
+                      width:40,height:40,borderRadius:12,
+                      background:cfg.bg,
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      flexShrink:0,
+                    }}>
+                      <DuotoneIcon name={cfg.icon} size={20} color={cfg.color} accentColor={cfg.accent}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.name}</p>
+                      <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted,fontWeight:500}}>{m.cal} קק״ל · {m.time}</p>
+                    </div>
+                    <button 
+                      onClick={()=>removeMeal(m.id)} 
+                      style={{
+                        background:'transparent',
+                        border:'none',
+                        cursor:'pointer',
+                        padding:6,
+                        borderRadius:8,
+                        transition:'all 0.15s',
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                      }}
+                      onMouseEnter={(e)=>e.currentTarget.style.background='#FEE2E2'}
+                      onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
+                    >
+                      <DuotoneIcon name="trash" size={16} color="#DC2626" accentColor="#991B1B"/>
+                    </button>
+                  </div>
+                );
+              })
             }
           </section>
 
-          {/* 🎯 Quick Actions - beautiful gradient cards */}
+          {/* 🎯 Quick Actions - duotone icons */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <button 
               onClick={()=>setTab('workout')} 
@@ -1523,18 +1814,19 @@ export default function App({onLogout}){
                 textAlign:'center',
                 fontFamily:'inherit',
                 border:`0.5px solid ${COLORS.border}`,
-                background:done===exs.length?`linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`:'white',
+                background:done===exs.length&&exs.length>0?`linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`:'white',
                 padding:18,
               }}>
               <div style={{
                 width:44,height:44,
                 margin:'0 auto 8px',
                 borderRadius:14,
-                background:done===exs.length?COLORS.primary:COLORS.primarySoft,
+                background:done===exs.length&&exs.length>0?'linear-gradient(135deg, #D1FAE5, #A7F3D0)':COLORS.primarySoft,
                 display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:22,
                 transition:'all 0.3s',
-              }}>{done===exs.length?'✅':'💪'}</div>
+              }}>
+                <DuotoneIcon name="workout" size={22} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+              </div>
               <div style={{fontSize:14,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>אימון היום</div>
               <div style={{fontSize:11,color:COLORS.textMuted,marginTop:2,fontWeight:500}}>{done}/{exs.length} תרגילים</div>
             </button>
@@ -1554,10 +1846,11 @@ export default function App({onLogout}){
                 width:44,height:44,
                 margin:'0 auto 8px',
                 borderRadius:14,
-                background:'#E0EBF2',
+                background:'linear-gradient(135deg, #FCE7F3, #FBCFE8)',
                 display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:22,
-              }}>📊</div>
+              }}>
+                <DuotoneIcon name="chart" size={22} color="#DB2777" accentColor="#9D174D"/>
+              </div>
               <div style={{fontSize:14,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>סטטיסטיקות</div>
               <div style={{fontSize:11,color:'#2D8B5F',marginTop:2,fontWeight:600}}>↓{(p.startWeight-p.weight).toFixed(1)} ק״ג</div>
             </button>
