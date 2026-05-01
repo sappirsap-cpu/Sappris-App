@@ -655,177 +655,90 @@ export default function App({onLogout}){
       return;
     }
 
-    // טען פרופיל לקוחה
-    const { data: clientsData } = await supabase
-      .from('clients')
-      .select('*')
-      .eq('id', user.id)
-      .limit(1);
-    const clientData = clientsData?.[0];
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const todayStr = new Date().toISOString().slice(0, 10);
 
+    // ⚡ אופטימיזציה: 8 שאילתות במקביל במקום סדרתיות
+    const [
+      clientRes, schedMealsRes, mealLogsRes, weightRes,
+      waterRes, msgsRes, workoutSchedRes, sleepRest,
+    ] = await Promise.all([
+      supabase.from('clients').select('*').eq('id', user.id).limit(1),
+      supabase.from('client_schedule').select('*, meals(*)').eq('client_id', user.id).eq('day_of_week', dayOfWeek).not('meal_id', 'is', null).order('order_index'),
+      supabase.from('meal_logs').select('*').eq('client_id', user.id).gte('logged_at', todayStr).order('logged_at', { ascending: true }),
+      supabase.from('weight_logs').select('*').eq('client_id', user.id).order('logged_at', { ascending: true }),
+      supabase.from('water_logs').select('amount_ml').eq('client_id', user.id).gte('logged_at', todayStr),
+      supabase.from('messages').select('*').eq('to_id', user.id).order('sent_at', { ascending: true }),
+      supabase.from('client_schedule').select('*, workouts(*)').eq('client_id', user.id).eq('day_of_week', dayOfWeek).not('workout_id', 'is', null).order('order_index'),
+      Promise.all([getTodaySleep(user.id), isTodayRestDay(user.id)]),
+    ]);
+
+    // עיבוד והעברת תוצאות
+    const clientData = clientRes.data?.[0];
     if (clientData) setProfile(clientData);
 
-    // טען לוח שבועי של היום הנוכחי - תמיכה בכמה ארוחות
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0=ראשון, 6=שבת
-    
-    console.log('🔍 [DEBUG] Loading for client:', user.id);
-    console.log('🔍 [DEBUG] Day of week:', dayOfWeek);
-    
-    const { data: scheduleData, error: schedErr } = await supabase
-      .from('client_schedule')
-      .select('*, meals(*)')
-      .eq('client_id', user.id)
-      .eq('day_of_week', dayOfWeek)
-      .not('meal_id', 'is', null)
-      .order('order_index');
-    
-    console.log('🔍 [DEBUG] Meal schedule data:', scheduleData);
-    console.log('🔍 [DEBUG] Meal schedule error:', schedErr);
-    
-    const todayMeals = (scheduleData || [])
-      .map(s => s.meals)
-      .filter(Boolean);
-    
-    console.log('🔍 [DEBUG] Today meals extracted:', todayMeals);
-    
-    // עדכון debug info
-    setDebugInfo(prev => ({
-      ...prev,
-      userId: user.id.slice(0, 8) + '...',
-      dayOfWeek: ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][dayOfWeek],
-      scheduleRows: (scheduleData || []).length,
-      mealsFound: todayMeals.length,
-      mealError: schedErr ? (schedErr.message || JSON.stringify(schedErr)) : '',
-    }));
-    
+    const todayMeals = (schedMealsRes.data || []).map(s => s.meals).filter(Boolean);
     if (todayMeals.length > 0) {
-      const newPlan = { 
+      setPlan({
         meals: todayMeals.map(m => ({
-          name: m.name,
-          key: m.id,
-          items: m.items || [],
+          name: m.name, key: m.id, items: m.items || [],
           totalCal: Math.round(m.total_calories || 0),
           totalP: Math.round(m.total_protein_g || 0),
           totalC: Math.round(m.total_carbs_g || 0),
           totalF: Math.round(m.total_fat_g || 0),
         }))
-      };
-      setPlan(newPlan);
-      console.log('✅ [DEBUG] Plan set with', todayMeals.length, 'meals');
-    } else {
-      console.log('⚠️ [DEBUG] No meals found for today');
+      });
     }
 
-    // טען ארוחות של היום
-    const todayStr = new Date().toISOString().slice(0,10);
-    const { data: mealsData } = await supabase
-      .from('meal_logs')
-      .select('*')
-      .eq('client_id', user.id)
-      .gte('logged_at', todayStr)
-      .order('logged_at', { ascending: true });
-
-    if (mealsData) setMeals(mealsData.map(m => ({
-      id: m.id, name: m.name, cal: m.calories,
-      p: m.protein_g, c: m.carbs_g, f: m.fat_g,
-      planKey: m.meal_type,
-      time: new Date(m.logged_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
-    })));
-
-    // טען היסטוריית משקל
-    const { data: weightData } = await supabase
-      .from('weight_logs')
-      .select('*')
-      .eq('client_id', user.id)
-      .order('logged_at', { ascending: true });
-
-    if (weightData) setWeights(weightData.map(w => ({
-      id: w.id,
-      date: new Date(w.logged_at).toLocaleDateString('he-IL', {day:'numeric',month:'numeric'}),
-      w: w.weight,
-    })));
-
-    // טען שתייה של היום
-    const { data: waterData } = await supabase
-      .from('water_logs')
-      .select('amount_ml')
-      .eq('client_id', user.id)
-      .gte('logged_at', todayStr);
-
-    if (waterData) setWater(waterData.reduce((s,w)=>s+w.amount_ml, 0));
-
-    // טען שעות שינה של היום ובדוק אם היום הוא יום מנוחה
-    const [sleep, restDay] = await Promise.all([
-      getTodaySleep(user.id),
-      isTodayRestDay(user.id),
-    ]);
-    setSleepHours(sleep);
-    setIsRestDay(restDay);
-
-    // טען הודעות
-    const { data: msgsData } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('to_id', user.id)
-      .order('sent_at', { ascending: true });
-
-    if (msgsData) {
-      setMessages(msgsData.map(m => ({
-        id: m.id, from: 'coach', text: m.content,
-        time: new Date(m.sent_at).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}),
+    if (mealLogsRes.data) {
+      setMeals(mealLogsRes.data.map(m => ({
+        id: m.id, name: m.name, cal: m.calories,
+        p: m.protein_g, c: m.carbs_g, f: m.fat_g,
+        planKey: m.meal_type,
+        time: new Date(m.logged_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
       })));
-      setUnread(msgsData.filter(m => !m.read).length);
     }
 
-    // טען אימון של היום - תמיכה בכמה אימונים
-    const { data: workoutSched, error: woErr } = await supabase
-      .from('client_schedule')
-      .select('*, workouts(*)')
-      .eq('client_id', user.id)
-      .eq('day_of_week', dayOfWeek)
-      .not('workout_id', 'is', null)
-      .order('order_index');
-    
-    console.log('🔍 [DEBUG] Workout schedule data:', workoutSched);
-    console.log('🔍 [DEBUG] Workout schedule error:', woErr);
-    
-    // צרף את כל התרגילים מכל האימונים של היום
+    if (weightRes.data) {
+      setWeights(weightRes.data.map(w => ({
+        id: w.id,
+        date: new Date(w.logged_at).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+        w: w.weight,
+      })));
+    }
+
+    if (waterRes.data) setWater(waterRes.data.reduce((s, w) => s + w.amount_ml, 0));
+
+    if (msgsRes.data) {
+      setMessages(msgsRes.data.map(m => ({
+        id: m.id, from: 'coach', text: m.content,
+        time: new Date(m.sent_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }),
+      })));
+      setUnread(msgsRes.data.filter(m => !m.read).length);
+    }
+
     const allExercises = [];
     let exIdx = 0;
-    (workoutSched || []).forEach(s => {
+    (workoutSchedRes.data || []).forEach(s => {
       const w = s.workouts;
-      console.log('🔍 [DEBUG] Processing workout:', w);
       if (w?.exercises?.length) {
         w.exercises.forEach(ex => {
           allExercises.push({
             id: `ex-${exIdx++}`,
-            name: ex.name,
-            sets: ex.sets || 3,
-            reps: ex.reps || '10',
-            rest: ex.rest || 60,
-            weight: ex.weight,
-            icon: ex.icon || '💪',
-            videoUrl: ex.video_url,
-            notes: ex.notes,
-            workoutName: w.name,
-            done: false,
+            name: ex.name, sets: ex.sets || 3, reps: ex.reps || '10',
+            rest: ex.rest || 60, weight: ex.weight, icon: ex.icon || '💪',
+            videoUrl: ex.video_url, notes: ex.notes,
+            workoutName: w.name, done: false,
           });
         });
       }
     });
-    
-    console.log('🔍 [DEBUG] All exercises to show:', allExercises);
-    
-    // עדכון debug info - אימונים
-    setDebugInfo(prev => ({
-      ...prev,
-      workoutsFound: (workoutSched || []).filter(s => s.workouts).length,
-      exercisesFound: allExercises.length,
-      workoutError: woErr ? (woErr.message || JSON.stringify(woErr)) : '',
-    }));
-    
     if (allExercises.length > 0) setExs(allExercises);
+
+    const [sleep, restDay] = sleepRest;
+    setSleepHours(sleep);
+    setIsRestDay(restDay);
 
     setLoading(false);
   };
@@ -1598,7 +1511,6 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
       {reminders.map(r => (
         <div
           key={r.id}
-          onClick={r.onClick}
           style={{
             background: r.color,
             border: `1px solid ${r.textColor}33`,
@@ -1607,22 +1519,22 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            cursor: r.onClick ? 'pointer' : 'default',
           }}
         >
           <span style={{ fontSize: 20 }}>{r.icon}</span>
           <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: r.textColor }}>
             {r.text}
           </p>
-          {r.action && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: r.textColor }}>
-              {r.action} ←
-            </span>
-          )}
           <button
-            onClick={(e) => { e.stopPropagation(); setDismissed(prev => [...prev, r.id]); }}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, color: r.textColor, opacity: 0.6, padding: 2 }}
-          >✕</button>
+            onClick={() => setDismissed(prev => [...prev, r.id])}
+            style={{
+              background: 'rgba(255,255,255,0.4)', border: 'none',
+              cursor: 'pointer', fontSize: 14, fontWeight: 700,
+              color: r.textColor, padding: '4px 10px',
+              borderRadius: 8, fontFamily: 'inherit',
+              flexShrink: 0,
+            }}
+          >✕ סגור</button>
         </div>
       ))}
     </div>

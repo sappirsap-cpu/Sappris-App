@@ -1035,17 +1035,15 @@ export default function App({ onLogout }) {
         return;
       }
 
-      // טען פרופיל מאמנת
-      const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
-      if (coaches?.[0]) setCoachProfile(coaches[0]);
+      // ⚡ אופטימיזציה: 2 שאילתות מקבילות במקום סדרתיות
+      const [coachRes, clientsRes] = await Promise.all([
+        supabase.from('coaches').select('*').eq('id', user.id).limit(1),
+        supabase.from('clients').select('*').eq('coach_id', user.id).or('is_archived.is.null,is_archived.eq.false').order('full_name'),
+      ]);
+      const coaches = coachRes.data;
+      const clientsData = clientsRes.data;
 
-      // טען לקוחות (לא מארכיון)
-      const { data: clientsData } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('coach_id', user.id)
-        .or('is_archived.is.null,is_archived.eq.false')
-        .order('full_name');
+      if (coaches?.[0]) setCoachProfile(coaches[0]);
 
       if (clientsData) {
         const baseClients = clientsData.map(c => ({
@@ -1065,7 +1063,11 @@ export default function App({ onLogout }) {
           unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
         }));
 
-        // טען meal_logs של 7 הימים האחרונים לכל הלקוחות
+        // ⚡ הצג מיד את הלקוחות עם נתונים בסיסיים (האפליקציה מגיבה!)
+        setClients(baseClients);
+        setLoading(false);
+
+        // ⚡ ואז (ברקע) טען את ה-weekLog של 7 ימים אחרונים
         try {
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -1078,9 +1080,7 @@ export default function App({ onLogout }) {
 
           if (logs) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            const todayDayOfWeek = today.getDay(); // 0=ראשון
-
-            // קבץ לפי לקוחה
+            const todayDayOfWeek = today.getDay();
             const byClient = {};
             logs.forEach(l => {
               if (!byClient[l.client_id]) byClient[l.client_id] = new Set();
@@ -1092,37 +1092,32 @@ export default function App({ onLogout }) {
               }
             });
 
-            // עדכן weekLog ו-loggedToday לכל לקוחה
-            baseClients.forEach(c => {
+            // עדכון מיידי של ה-state
+            setClients(prev => prev.map(c => {
               const set = byClient[c.id] || new Set();
-              c.loggedToday = set.has(0);
-              // מציאת מתי דיווחה לאחרונה
+              const updated = { ...c, weekLog: [...c.weekLog] };
+              updated.loggedToday = set.has(0);
               const lastDay = [...set].sort((a, b) => a - b)[0];
-              c.lastLog = lastDay !== undefined ? lastDay : 99;
-              // weekLog: מציין לכל יום בשבוע (0=ראשון, 6=שבת)
+              updated.lastLog = lastDay !== undefined ? lastDay : 99;
               for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
                 const daysAgo = (todayDayOfWeek - dayOfWeek + 7) % 7;
-                if (daysAgo > todayDayOfWeek) {
-                  // היום הזה עדיין לא עבר השבוע
-                  c.weekLog[dayOfWeek] = 'none';
-                } else {
-                  c.weekLog[dayOfWeek] = set.has(daysAgo) ? 'logged' : 'missed';
-                }
+                if (daysAgo > todayDayOfWeek) updated.weekLog[dayOfWeek] = 'none';
+                else updated.weekLog[dayOfWeek] = set.has(daysAgo) ? 'logged' : 'missed';
               }
-            });
+              return updated;
+            }));
           }
         } catch (e) {
           console.error('weekLog load error:', e);
         }
-
-        setClients(baseClients);
+      } else {
+        setLoading(false);
       }
 
-      // טען הודעות בטעינה ראשונית
-      await loadMessages();
+      // טען הודעות ברקע (לא חוסם)
+      loadMessages();
     } catch (e) {
       console.error('loadAll error:', e);
-    } finally {
       setLoading(false);
     }
   };
