@@ -972,23 +972,15 @@ export default function App({onLogout}){
     }, {})
     : {};
 
-  // Memoized — חישובים יקרים שלא משתנים בכל רנדר
-  const { cal, prot, carb, fat, rem, calPct, wPct, done } = React.useMemo(() => {
-    let cal = 0, prot = 0, carb = 0, fat = 0;
-    for (const m of meals) {
-      cal += m.cal || 0;
-      prot += m.p || 0;
-      carb += m.c || 0;
-      fat += m.f || 0;
-    }
-    return {
-      cal, prot, carb, fat,
-      rem: Math.max(0, p.dailyCalorieGoal - cal),
-      calPct: Math.min(100, Math.round(cal / p.dailyCalorieGoal * 100)),
-      wPct: Math.min(100, Math.round(water / p.dailyWaterGoalMl * 100)),
-      done: exs.filter(e => e.done).length,
-    };
-  }, [meals, water, exs, p.dailyCalorieGoal, p.dailyWaterGoalMl]);
+  // חישובים — ללא useMemo כדי לא לפצל hooks בכל רנדר
+  const cal  = meals.reduce((s,m)=>s+(m.cal||0),0);
+  const prot = meals.reduce((s,m)=>s+(m.p||0),0);
+  const carb = meals.reduce((s,m)=>s+(m.c||0),0);
+  const fat  = meals.reduce((s,m)=>s+(m.f||0),0);
+  const rem  = Math.max(0, p.dailyCalorieGoal - cal);
+  const calPct = Math.min(100, Math.round(cal/p.dailyCalorieGoal*100));
+  const wPct   = Math.min(100, Math.round(water/p.dailyWaterGoalMl*100));
+  const done   = exs.filter(e=>e.done).length;
 
   const NAV=[
     {id:'home',label:'בית',icon:'home'},
