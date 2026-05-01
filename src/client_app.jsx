@@ -2754,15 +2754,14 @@ function SettingsScreen({profile,showToast,onLogout}){
   const [name, setName] = useState(profile.full_name || '');
   const [kosher, setKosher] = useState(profile.kosher || false);
   const [saving, setSaving] = useState(false);
-  const [isDark, setIsDark] = React.useState(
-    () => document.documentElement.getAttribute('data-theme') === 'dark'
+  const [theme, setThemeState] = React.useState(
+    () => document.documentElement.getAttribute('data-theme') || 'light'
   );
 
-  const toggleDark = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
-    try { localStorage.setItem('sappir-theme', next ? 'dark' : 'light'); } catch {}
+  const setTheme = (newTheme) => {
+    setThemeState(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    try { localStorage.setItem('sappir-theme', newTheme); } catch {}
   };
 
   const handleSave = async () => {
@@ -2835,18 +2834,127 @@ function SettingsScreen({profile,showToast,onLogout}){
           </button>
         </div>
 
-        {/* 🌙 Dark Mode Toggle */}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderTop:`0.5px solid ${COLORS.border}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <div style={{width:36,height:36,borderRadius:12,background:isDark?'#1A1816':COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,transition:'all 0.25s'}}>{isDark ? '🌙' : '☀️'}</div>
+        {/* 🎨 Theme Picker - 3 options */}
+        <div style={{padding:'14px 0',borderTop:`0.5px solid ${COLORS.border}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <div style={{width:36,height:36,borderRadius:12,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>🎨</div>
             <div>
-              <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.text}}>{isDark ? 'מצב לילה' : 'מצב יום'}</p>
-              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>{isDark ? 'נוח לעיניים בערב' : 'בהיר ומרענן'}</p>
+              <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.text}}>ערכת נושא</p>
+              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>בחרי את המראה שאת אוהבת</p>
             </div>
           </div>
-          <button onClick={toggleDark} style={{width:52,height:30,borderRadius:15,border:'none',cursor:'pointer',background:isDark?COLORS.primary:COLORS.border,position:'relative',transition:'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'}}>
-            <div style={{width:24,height:24,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',left:isDark?25:3,boxShadow:'0 2px 4px rgba(0,0,0,0.15)'}}/>
-          </button>
+          
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            {/* Light */}
+            <button 
+              onClick={()=>setTheme('light')}
+              style={{
+                background:theme==='light'?'white':COLORS.bg,
+                border:theme==='light'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
+                borderRadius:14,
+                padding:'14px 8px',
+                cursor:'pointer',
+                fontFamily:'inherit',
+                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                position:'relative',
+                boxShadow:theme==='light'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
+              }}
+            >
+              <div style={{
+                width:'100%',
+                height:36,
+                borderRadius:8,
+                background:'linear-gradient(135deg, #FDFCFA 0%, #F8F6F2 100%)',
+                border:`1px solid ${COLORS.border}`,
+                marginBottom:8,
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                fontSize:18,
+              }}>☀️</div>
+              <p style={{margin:0,fontSize:11,fontWeight:700,color:COLORS.text}}>בהיר</p>
+              {theme==='light' && (
+                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              )}
+            </button>
+            
+            {/* Dark */}
+            <button 
+              onClick={()=>setTheme('dark')}
+              style={{
+                background:theme==='dark'?'#0F0E0D':COLORS.bg,
+                border:theme==='dark'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
+                borderRadius:14,
+                padding:'14px 8px',
+                cursor:'pointer',
+                fontFamily:'inherit',
+                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                position:'relative',
+                boxShadow:theme==='dark'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
+              }}
+            >
+              <div style={{
+                width:'100%',
+                height:36,
+                borderRadius:8,
+                background:'linear-gradient(135deg, #0F0E0D 0%, #1F1D1B 100%)',
+                border:'1px solid #2F2D2A',
+                marginBottom:8,
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                fontSize:18,
+              }}>🌙</div>
+              <p style={{margin:0,fontSize:11,fontWeight:700,color:theme==='dark'?'white':COLORS.text}}>כהה</p>
+              {theme==='dark' && (
+                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              )}
+            </button>
+            
+            {/* Glass */}
+            <button 
+              onClick={()=>setTheme('glass')}
+              style={{
+                background:theme==='glass'?'#000':COLORS.bg,
+                border:theme==='glass'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
+                borderRadius:14,
+                padding:'14px 8px',
+                cursor:'pointer',
+                fontFamily:'inherit',
+                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                position:'relative',
+                boxShadow:theme==='glass'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
+                overflow:'hidden',
+              }}
+            >
+              <div style={{
+                width:'100%',
+                height:36,
+                borderRadius:8,
+                background:'#000',
+                marginBottom:8,
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                position:'relative',
+                overflow:'hidden',
+              }}>
+                <div style={{position:'absolute',top:-10,right:-10,width:30,height:30,borderRadius:'50%',background:'#4A9B76',filter:'blur(8px)',opacity:0.7}}/>
+                <div style={{position:'absolute',bottom:-5,left:-5,width:25,height:25,borderRadius:'50%',background:'#7DD3A8',filter:'blur(8px)',opacity:0.6}}/>
+                <span style={{position:'relative',fontSize:18,zIndex:1}}>✨</span>
+              </div>
+              <p style={{margin:0,fontSize:11,fontWeight:700,color:theme==='glass'?'white':COLORS.text}}>זוהר</p>
+              {theme==='glass' && (
+                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              )}
+            </button>
+          </div>
         </div>
 
         <button onClick={handleSave} disabled={saving} className="sappris-btn-primary" style={{...S.btn,marginTop:14,opacity:saving?0.6:1}}>
