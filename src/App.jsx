@@ -18,7 +18,7 @@ function AppLoadingFallback() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1F4335 0%, #2D5F4C 100%)',
+      background: 'linear-gradient(135deg, #8B72B5 0%, #B19CD9 100%)',
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{
@@ -46,9 +46,9 @@ function AppLoadingFallback() {
 }
 
 const COLORS = {
-  bg: '#FDFCFA', primary: '#2D5F4C', primaryDark: '#1F4335',
-  primarySoft: '#E8F2ED', accent: '#E8784F', accentDark: '#C85F3A',
-  text: '#1A1713', textMuted: '#6B6560', border: '#E6E2DD',
+  bg: '#F5F2FA', primary: '#B19CD9', primaryDark: '#8B72B5',
+  primarySoft: '#E8DFF5', accent: '#F4C2C2', accentDark: '#C88A8A',
+  text: '#2E2A3D', textMuted: '#756B85', border: '#DDD0EB',
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -386,346 +386,155 @@ function ClientLogin({ onCoachLogin }) {
   };
 
   return (
-    <div data-theme="dark" style={{
+    <div data-theme="light" style={{
       minHeight: '100vh', position: 'relative', overflow: 'hidden',
-      direction: 'rtl', fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
-      background: '#000',
+      direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
     }}>
-      {/* Animated background blobs */}
-      <div style={{
-        position: 'absolute', top: -120, right: -80,
-        width: 320, height: 320, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #2D5F4C, #4A9B76)',
-        filter: 'blur(70px)', opacity: 0.7,
-        animation: 'sappirisBlob1 15s ease-in-out infinite',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: -100, left: -100,
-        width: 380, height: 380, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #4A9B76, #7DD3A8)',
-        filter: 'blur(70px)', opacity: 0.6,
-        animation: 'sappirisBlob2 18s ease-in-out infinite',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', top: '40%', left: '20%',
-        width: 220, height: 220, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #E8784F, #F5956F)',
-        filter: 'blur(70px)', opacity: 0.4,
-        animation: 'sappirisBlob1 12s ease-in-out infinite reverse',
-        pointerEvents: 'none',
-      }} />
+      {/* תמונות רקע מתחלפות */}
+      {HERO_IMAGES.map((src, i) => (
+        <div key={i} style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${src})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: i === imgIdx ? 1 : 0,
+          transition: 'opacity 1.5s ease-in-out',
+          filter: 'brightness(0.55)',
+        }} />
+      ))}
 
-      {/* Grid overlay */}
+      {/* שכבת גוון סגול */}
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-        backgroundSize: '32px 32px',
-        pointerEvents: 'none',
+        background: `linear-gradient(135deg, rgba(139, 114, 181, 0.75) 0%, rgba(177, 156, 217, 0.55) 50%, rgba(46, 42, 61, 0.8) 100%)`,
       }} />
 
-      {/* Vignette */}
+      {/* תוכן */}
       <div style={{
-        position: 'absolute', inset: 0,
-        background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.5) 100%)',
-        pointerEvents: 'none',
-      }} />
-
-      {/* Content */}
-      <div style={{
-        position: 'relative', zIndex: 2, minHeight: '100vh',
-        display: 'flex', flexDirection: 'column', padding: '50px 28px 32px',
-        maxWidth: 420, margin: '0 auto',
+        position: 'relative', minHeight: '100vh',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}>
+        <div style={{ maxWidth: 380, width: '100%' }}>
 
-        {/* Live status pill */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '0.5px solid rgba(255,255,255,0.12)',
-          padding: '7px 14px', borderRadius: 100,
-          alignSelf: 'flex-end', marginBottom: 32,
-          animation: 'sappirisLoginSlideRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s backwards',
-        }}>
-          <div style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: '#4ADE80', boxShadow: '0 0 10px #4ADE80',
-            animation: 'sappirisLoginPulse 2s ease-in-out infinite',
-          }} />
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>מאמנת אישית בהישג יד</span>
-        </div>
-
-        {/* Logo + Brand */}
-        <div style={{
-          textAlign: 'center', marginBottom: 36,
-          animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) backwards',
-        }}>
-          <div style={{
-            display: 'inline-block', position: 'relative', marginBottom: 24,
-            animation: 'sappirisLoginFloat 4s ease-in-out infinite',
-          }}>
+          {/* לוגו */}
+          <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
             <div style={{
-              position: 'absolute', inset: -6,
-              background: 'linear-gradient(135deg, #4A9B76, #7DD3A8, #E8784F)',
-              borderRadius: 32, filter: 'blur(12px)', opacity: 0.7, zIndex: -1,
-            }} />
-            <div style={{
-              width: 110, height: 110, borderRadius: 28,
-              background: 'white',
+              width: 150, height: 150, margin: '0 auto 16px',
+              background: 'white', borderRadius: 24,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 32px rgba(0,0,0,0.4)',
-              padding: 12,
+              boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
             }}>
-              <img src="/logo.png" alt="Sappir Barak" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              <img src="/logo.png" alt="Sappir Barak" style={{ width: 108, objectFit: 'contain' }} />
             </div>
+            <h1 style={{
+              fontSize: 28, fontWeight: 800, color: 'white',
+              margin: '0 0 6px', textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              letterSpacing: '-0.5px',
+            }}>
+              Sappir Fitness
+            </h1>
+            <p style={{
+              fontSize: 15, color: 'rgba(255,255,255,0.95)',
+              margin: 0, textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              fontWeight: 500,
+            }}>
+              מוכנה להמשיך במסע? 💜
+            </p>
           </div>
 
-          <h1 style={{
-            margin: 0, fontSize: 42, fontWeight: 800, color: 'white',
-            letterSpacing: '-0.04em', lineHeight: 1,
-            background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.7) 100%)',
-            WebkitBackgroundClip: 'text', backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>Sappir Fitness</h1>
-          <p style={{
-            margin: '12px 0 0', fontSize: 14,
-            color: 'rgba(255,255,255,0.6)', fontWeight: 500,
-          }}>הדרך שלך לכושר ובריאות</p>
-        </div>
+          {/* כרטיס Glass */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            borderRadius: 24,
+            padding: 24,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            animation: 'fadeInUp 1s ease-out 0.2s both',
+          }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-        {/* Glass Login Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 28,
-          padding: '28px 24px',
-          marginBottom: 16,
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-          animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.2s backwards',
-        }}>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
-            <div style={{
-              width: 4, height: 20,
-              background: 'linear-gradient(180deg, #4A9B76, #7DD3A8)',
-              borderRadius: 4,
-            }} />
-            <h2 style={{
-              margin: 0, fontSize: 22, fontWeight: 700, color: 'white',
-              letterSpacing: '-0.02em',
-            }}>ברוכה השבה</h2>
-          </div>
-
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-            <div>
-              <label style={{
-                display: 'block', fontSize: 11, fontWeight: 600,
-                color: 'rgba(255,255,255,0.7)', marginBottom: 8,
-                letterSpacing: '0.05em', textTransform: 'uppercase',
-              }}>אימייל</label>
-              <div style={{ position: 'relative' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                  אימייל
+                </label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="sappris-login-input"
+                  style={glassInput}
                   disabled={loading}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 16,
-                    padding: '16px 50px 16px 18px',
-                    color: 'white', fontSize: 15,
-                    fontFamily: 'inherit', outline: 'none',
-                    direction: 'ltr', textAlign: 'right',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxSizing: 'border-box',
-                  }}
                 />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}>
-                  <rect width="20" height="16" x="2" y="4" rx="2"/>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
               </div>
-            </div>
 
-            <div>
-              <label style={{
-                display: 'block', fontSize: 11, fontWeight: 600,
-                color: 'rgba(255,255,255,0.7)', marginBottom: 8,
-                letterSpacing: '0.05em', textTransform: 'uppercase',
-              }}>סיסמה</label>
-              <div style={{ position: 'relative' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                  סיסמה
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="sappris-login-input"
+                  style={glassInput}
                   disabled={loading}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 16,
-                    padding: '16px 50px 16px 18px',
-                    color: 'white', fontSize: 15,
-                    fontFamily: 'inherit', outline: 'none',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxSizing: 'border-box',
-                  }}
                 />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}>
-                  <rect width="18" height="11" x="3" y="11" rx="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
               </div>
-            </div>
 
-            {error && (
-              <div style={{
-                background: 'rgba(220, 38, 38, 0.15)',
-                border: '1px solid rgba(220, 38, 38, 0.3)',
-                borderRadius: 12, padding: 12, fontSize: 12,
-                color: '#FCA5A5', backdropFilter: 'blur(10px)',
-              }}>{error}</div>
-            )}
+              {error && (
+                <div style={{
+                  background: 'rgba(232, 165, 165, 0.25)',
+                  border: '1px solid rgba(232, 165, 165, 0.5)',
+                  borderRadius: 10, padding: 10, fontSize: 12,
+                  color: 'white', backdropFilter: 'blur(10px)',
+                }}>
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="sappris-login-btn-primary"
-              style={{
-                width: '100%', marginTop: 8,
-                padding: 16, border: 'none', borderRadius: 16,
-                background: loading ? 'rgba(74, 155, 118, 0.5)' : 'linear-gradient(135deg, #4A9B76 0%, #2D5F4C 100%)',
-                color: 'white', fontSize: 15, fontWeight: 700,
+              <button type="submit" disabled={loading} style={{
+                width: '100%', marginTop: 6,
+                background: loading ? 'rgba(255,255,255,0.3)' : 'white',
+                color: loading ? 'rgba(255,255,255,0.7)' : COLORS.primaryDark,
+                border: 'none', padding: 14, borderRadius: 12,
+                fontSize: 15, fontWeight: 700,
                 cursor: loading ? 'default' : 'pointer',
                 fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                position: 'relative', overflow: 'hidden',
-                boxShadow: '0 0 30px rgba(74,155,118,0.4), 0 8px 24px rgba(45,95,76,0.3)',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+                transition: 'transform 0.15s',
               }}
-            >
-              <span>{loading ? 'מתחברת...' : 'כניסה'}</span>
-              {!loading && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 6l-6 6 6 6"/>
-                  <path d="M3 12h18"/>
-                </svg>
-              )}
+                onMouseDown={e => !loading && (e.currentTarget.style.transform = 'scale(0.98)')}
+                onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                {loading ? 'מתחברת...' : 'כניסה →'}
+              </button>
+            </form>
+          </div>
+
+          {/* קישור למאמנת */}
+          <div style={{ marginTop: 20, textAlign: 'center', animation: 'fadeInUp 1.2s ease-out 0.4s both' }}>
+            <button onClick={onCoachLogin} style={{
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'white', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+              padding: '10px 18px', borderRadius: 999,
+            }}>
+              כניסת מאמנת ←
             </button>
-          </form>
+          </div>
         </div>
-
-        {/* Coach login button */}
-        <button
-          onClick={onCoachLogin}
-          className="sappris-login-btn-secondary"
-          style={{
-            width: '100%', padding: 14, borderRadius: 16,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'white', fontSize: 13, fontWeight: 600,
-            fontFamily: 'inherit',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.3s backwards',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-            <circle cx="12" cy="8" r="5"/>
-            <path d="M20 21a8 8 0 0 0-16 0"/>
-          </svg>
-          <span>כניסת מאמנת</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5 }}>
-            <path d="M9 6l-6 6 6 6"/>
-          </svg>
-        </button>
-
       </div>
 
       <style>{`
-        @keyframes sappirisBlob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(40px, -60px) scale(1.1); }
-          66% { transform: translate(-30px, 40px) scale(0.9); }
-        }
-        @keyframes sappirisBlob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(-50px, 50px) scale(1.15); }
-        }
-        @keyframes sappirisLoginSlideUp {
+        @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes sappirisLoginSlideRight {
-          from { opacity: 0; transform: translateX(-20px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes sappirisLoginFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes sappirisLoginPulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(1.3); }
-        }
-        @keyframes sappirisLoginGlow {
-          0%, 100% { box-shadow: 0 0 30px rgba(74,155,118,0.4), 0 8px 24px rgba(45,95,76,0.3); }
-          50% { box-shadow: 0 0 50px rgba(74,155,118,0.6), 0 8px 24px rgba(45,95,76,0.4); }
-        }
-        @keyframes sappirisLoginShimmer {
-          0% { left: -100%; }
-          100% { left: 200%; }
-        }
-
-        .sappris-login-input:focus {
-          background: rgba(255,255,255,0.08) !important;
-          border-color: rgba(74,155,118,0.6) !important;
-          box-shadow: 0 0 0 4px rgba(74,155,118,0.15) !important;
-        }
-        .sappris-login-input::placeholder {
-          color: rgba(255,255,255,0.35);
-        }
-
-        .sappris-login-btn-primary {
-          animation: sappirisLoginGlow 3s ease-in-out infinite;
-        }
-        .sappris-login-btn-primary::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 50%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-          animation: sappirisLoginShimmer 3s ease-in-out infinite;
-        }
-        .sappris-login-btn-primary:hover:not(:disabled) {
-          transform: translateY(-2px);
-        }
-        .sappris-login-btn-primary:active:not(:disabled) {
-          transform: translateY(0);
-        }
-
-        .sappris-login-btn-secondary:hover {
-          background: rgba(255,255,255,0.1) !important;
-          border-color: rgba(255,255,255,0.25) !important;
-          transform: translateY(-1px);
-        }
+        input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
     </div>
   );
@@ -774,263 +583,147 @@ function CoachLogin({ onBack }) {
   };
 
   return (
-    <div data-theme="dark" style={{
-      minHeight: '100vh', position: 'relative', overflow: 'hidden',
-      direction: 'rtl', fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
-      background: '#000',
+    <div data-theme="light" style={{
+      minHeight: '100vh',
+      background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, #C5B3E0 100%)`,
+      padding: 20, direction: 'rtl',
+      fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'relative', overflow: 'hidden',
     }}>
-      {/* Animated background blobs */}
+
+      {/* עיגולי רקע דקורטיביים */}
       <div style={{
-        position: 'absolute', top: -120, right: -80,
-        width: 320, height: 320, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #2D5F4C, #4A9B76)',
-        filter: 'blur(70px)', opacity: 0.7,
-        animation: 'sappirisBlob1 15s ease-in-out infinite',
-        pointerEvents: 'none',
+        position: 'absolute', top: '-15%', right: '-15%',
+        width: 350, height: 350, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.08)',
       }} />
       <div style={{
-        position: 'absolute', bottom: -100, left: -100,
-        width: 380, height: 380, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #4A9B76, #7DD3A8)',
-        filter: 'blur(70px)', opacity: 0.6,
-        animation: 'sappirisBlob2 18s ease-in-out infinite',
-        pointerEvents: 'none',
+        position: 'absolute', bottom: '-10%', left: '-10%',
+        width: 280, height: 280, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.06)',
       }} />
 
-      {/* Grid overlay */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-        backgroundSize: '32px 32px',
-        pointerEvents: 'none',
-      }} />
+      <div style={{ maxWidth: 380, width: '100%', position: 'relative' }}>
 
-      {/* Vignette */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.5) 100%)',
-        pointerEvents: 'none',
-      }} />
+        {/* לוגו — בדיוק כמו צד מתאמנת */}
+        <div style={{ textAlign: 'center', marginBottom: 32, animation: 'fadeInUp 0.8s ease-out' }}>
+          <div style={{
+            width: 150, height: 150, margin: '0 auto 16px',
+            background: 'white', borderRadius: 24,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          }}>
+            <img src="/logo.png" alt="Sappir Barak" style={{ width: 108, objectFit: 'contain' }} />
+          </div>
+          <h1 style={{
+            fontSize: 28, fontWeight: 800, color: 'white',
+            margin: '0 0 6px', textShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            letterSpacing: '-0.5px',
+          }}>
+            Sappir Fitness
+          </h1>
+          <p style={{
+            fontSize: 15, color: 'rgba(255,255,255,0.95)',
+            margin: 0, textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            fontWeight: 500,
+          }}>
+            ברוכה הבאה ספיר 💜
+          </p>
+        </div>
 
-      {/* Content */}
-      <div style={{
-        position: 'relative', zIndex: 2, minHeight: '100vh',
-        display: 'flex', flexDirection: 'column', padding: '50px 28px 32px',
-        maxWidth: 420, margin: '0 auto',
-      }}>
-
-        {/* Coach pill */}
+        {/* כרטיס Glass — בדיוק כמו צד מתאמנת */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'rgba(232, 120, 79, 0.15)',
+          background: 'rgba(255, 255, 255, 0.15)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          border: '0.5px solid rgba(232, 120, 79, 0.3)',
-          padding: '7px 14px', borderRadius: 100,
-          alignSelf: 'flex-end', marginBottom: 32,
-          animation: 'sappirisLoginSlideRight 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s backwards',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          borderRadius: 24,
+          padding: 24,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          animation: 'fadeInUp 1s ease-out 0.2s both',
         }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E8784F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="8" r="5"/>
-            <path d="M20 21a8 8 0 0 0-16 0"/>
-          </svg>
-          <span style={{ fontSize: 11, color: '#FFA47A', fontWeight: 600 }}>מסך מאמנת</span>
-        </div>
-
-        {/* Logo + Brand */}
-        <div style={{
-          textAlign: 'center', marginBottom: 36,
-          animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) backwards',
-        }}>
-          <div style={{
-            display: 'inline-block', position: 'relative', marginBottom: 24,
-            animation: 'sappirisLoginFloat 4s ease-in-out infinite',
-          }}>
-            <div style={{
-              position: 'absolute', inset: -6,
-              background: 'linear-gradient(135deg, #4A9B76, #7DD3A8, #E8784F)',
-              borderRadius: 32, filter: 'blur(12px)', opacity: 0.7, zIndex: -1,
-            }} />
-            <div style={{
-              width: 110, height: 110, borderRadius: 28,
-              background: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 32px rgba(0,0,0,0.4)',
-              padding: 12,
-            }}>
-              <img src="/logo.png" alt="Sappir Barak" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            </div>
-          </div>
-
-          <h1 style={{
-            margin: 0, fontSize: 42, fontWeight: 800, color: 'white',
-            letterSpacing: '-0.04em', lineHeight: 1,
-            background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.7) 100%)',
-            WebkitBackgroundClip: 'text', backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}>Sappir Fitness</h1>
-          <p style={{
-            margin: '12px 0 0', fontSize: 14,
-            color: 'rgba(255,255,255,0.6)', fontWeight: 500,
-          }}>ברוכה הבאה ספיר 💚</p>
-        </div>
-
-        {/* Glass Login Card */}
-        <div style={{
-          background: 'rgba(255,255,255,0.06)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 28,
-          padding: '28px 24px',
-          marginBottom: 16,
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)',
-          animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.2s backwards',
-        }}>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
-            <div style={{
-              width: 4, height: 20,
-              background: 'linear-gradient(180deg, #4A9B76, #7DD3A8)',
-              borderRadius: 4,
-            }} />
-            <h2 style={{
-              margin: 0, fontSize: 22, fontWeight: 700, color: 'white',
-              letterSpacing: '-0.02em',
-            }}>כניסת מאמנת</h2>
-          </div>
-
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
             <div>
-              <label style={{
-                display: 'block', fontSize: 11, fontWeight: 600,
-                color: 'rgba(255,255,255,0.7)', marginBottom: 8,
-                letterSpacing: '0.05em', textTransform: 'uppercase',
-              }}>אימייל</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="sappirsap@gmail.com"
-                  className="sappris-login-input"
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 16,
-                    padding: '16px 50px 16px 18px',
-                    color: 'white', fontSize: 15,
-                    fontFamily: 'inherit', outline: 'none',
-                    direction: 'ltr', textAlign: 'right',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}>
-                  <rect width="20" height="16" x="2" y="4" rx="2"/>
-                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
-              </div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                אימייל
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="sappirsap@gmail.com"
+                style={glassInput}
+                disabled={loading}
+              />
             </div>
 
             <div>
-              <label style={{
-                display: 'block', fontSize: 11, fontWeight: 600,
-                color: 'rgba(255,255,255,0.7)', marginBottom: 8,
-                letterSpacing: '0.05em', textTransform: 'uppercase',
-              }}>סיסמה</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="sappris-login-input"
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 16,
-                    padding: '16px 50px 16px 18px',
-                    color: 'white', fontSize: 15,
-                    fontFamily: 'inherit', outline: 'none',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: 18, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }}>
-                  <rect width="18" height="11" x="3" y="11" rx="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 6, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.2)' }}>
+                סיסמה
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={glassInput}
+                disabled={loading}
+              />
             </div>
 
             {error && (
               <div style={{
-                background: 'rgba(220, 38, 38, 0.15)',
-                border: '1px solid rgba(220, 38, 38, 0.3)',
-                borderRadius: 12, padding: 12, fontSize: 12,
-                color: '#FCA5A5', backdropFilter: 'blur(10px)',
-              }}>{error}</div>
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 10, padding: 10, fontSize: 12, color: 'white',
+              }}>
+                {error}
+              </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="sappris-login-btn-primary"
-              style={{
-                width: '100%', marginTop: 8,
-                padding: 16, border: 'none', borderRadius: 16,
-                background: loading ? 'rgba(74, 155, 118, 0.5)' : 'linear-gradient(135deg, #4A9B76 0%, #2D5F4C 100%)',
-                color: 'white', fontSize: 15, fontWeight: 700,
-                cursor: loading ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                position: 'relative', overflow: 'hidden',
-                boxShadow: '0 0 30px rgba(74,155,118,0.4), 0 8px 24px rgba(45,95,76,0.3)',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-            >
-              <span>{loading ? 'מתחברת...' : 'כניסה'}</span>
-              {!loading && (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 6l-6 6 6 6"/>
-                  <path d="M3 12h18"/>
-                </svg>
-              )}
+            <button type="submit" disabled={loading} style={{
+              width: '100%', marginTop: 6,
+              background: loading ? 'rgba(255,255,255,0.3)' : 'white',
+              color: loading ? 'rgba(255,255,255,0.7)' : COLORS.primaryDark,
+              border: 'none', padding: 14, borderRadius: 12,
+              fontSize: 15, fontWeight: 700,
+              cursor: loading ? 'default' : 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+              transition: 'all 0.2s',
+            }}>
+              {loading ? 'מתחברת...' : 'כניסה'}
             </button>
           </form>
         </div>
 
-        {/* Back button */}
-        <button
-          onClick={onBack}
-          className="sappris-login-btn-secondary"
-          style={{
-            width: '100%', padding: 14, borderRadius: 16,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
+        {/* כפתור חזרה */}
+        <div style={{ marginTop: 24, textAlign: 'center' }}>
+          <button onClick={onBack} style={{
+            background: 'rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.25)',
             color: 'white', fontSize: 13, fontWeight: 600,
-            fontFamily: 'inherit',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            animation: 'sappirisLoginSlideUp 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.3s backwards',
+            cursor: 'pointer', fontFamily: 'inherit',
+            padding: '10px 20px', borderRadius: 24,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.2s',
           }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-            <path d="M15 6l6 6-6 6"/>
-          </svg>
-          <span>חזרה לכניסת מתאמנת</span>
-        </button>
-
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+          >
+            <span style={{ fontSize: 16 }}>←</span>
+            חזרה לכניסת מתאמנת
+          </button>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        input::placeholder { color: rgba(255,255,255,0.55); }
+      `}</style>
     </div>
   );
 }

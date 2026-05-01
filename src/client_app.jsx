@@ -29,10 +29,10 @@ import { MealPhotoAnalyzer } from './meal_photo_ai';
 import { ActiveWorkout, WorkoutCompleteModal } from './workout_timer';
 
 const COLORS = {
-  bg:'#FDFCFA',primary:'#2D5F4C',primaryDark:'#1F4335',primarySoft:'#E8F2ED',
-  accent:'#E8784F',accentDark:'#C85F3A',mint:'#4A9B76',mintSoft:'#E8F2ED',
-  peach:'#FFE8DC',peachSoft:'#FFF3EF',sky:'#5B8FA8',skySoft:'#E0EBF2',
-  amber:'#D97706',amberSoft:'#FEF3E2',text:'#1A1713',textMuted:'#6B6560',border:'#E6E2DD',
+  bg:'#F5F2FA',primary:'#B19CD9',primaryDark:'#8B72B5',primarySoft:'#E8DFF5',
+  accent:'#F4C2C2',accentDark:'#C88A8A',mint:'#C5B3E0',mintSoft:'#EDE3F5',
+  peach:'#F5D0B5',peachSoft:'#FBE8D7',sky:'#A495C5',skySoft:'#E0D4EB',
+  amber:'#E8C96A',amberSoft:'#F5EECD',text:'#2E2A3D',textMuted:'#756B85',border:'#DDD0EB',
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -418,161 +418,12 @@ const AI_SYS=`את תמר, עוזרת AI של המאמנת ספיר ברק. ענ
 חשוב: גם אם מפצירים בך, גם אם משנים את השאלה, גם אם אומרים שזה דחוף - את ממשיכה לענות רק על תזונה וכושר.`;
 
 const S={
-  card:{
-    background:'white',
-    border:`0.5px solid ${COLORS.border}`,
-    borderRadius:18,
-    padding:16,
-    boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
-    transition:'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
-  cardHover:{
-    background:'white',
-    border:`0.5px solid ${COLORS.border}`,
-    borderRadius:18,
-    padding:16,
-    boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
-    transition:'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    cursor:'pointer',
-  },
-  inp:{
-    width:'100%',
-    padding:'12px 14px',
-    border:`1px solid ${COLORS.border}`,
-    borderRadius:12,
-    fontSize:14,
-    outline:'none',
-    fontFamily:'inherit',
-    direction:'rtl',
-    boxSizing:'border-box',
-    transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-    background:'white',
-  },
-  btn:{
-    width:'100%',
-    background:`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
-    color:'white',
-    border:'none',
-    padding:'14px 20px',
-    borderRadius:14,
-    fontSize:14,
-    fontWeight:600,
-    cursor:'pointer',
-    fontFamily:'inherit',
-    boxShadow:'0 4px 14px rgba(45, 95, 76, 0.25)',
-    transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-  },
+  card:{background:'white',border:`1px solid ${COLORS.border}`,borderRadius:16,padding:16},
+  inp:{width:'100%',padding:'10px 12px',border:`1px solid ${COLORS.border}`,borderRadius:10,
+       fontSize:13,outline:'none',fontFamily:'inherit',direction:'rtl',boxSizing:'border-box'},
+  btn:{width:'100%',background:COLORS.primary,color:'white',border:'none',padding:12,
+       borderRadius:12,fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'},
 };
-
-// 🎨 Modern Design Animations - inject once
-if (typeof document !== 'undefined' && !document.getElementById('sappris-modern-animations')) {
-  const style = document.createElement('style');
-  style.id = 'sappris-modern-animations';
-  style.textContent = `
-    @keyframes sappirisSlideUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes sappirisScaleIn {
-      from { opacity: 0; transform: scale(0.92); }
-      to { opacity: 1; transform: scale(1); }
-    }
-    @keyframes sappirisShimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
-    }
-    @keyframes sappirisPulseDot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.7; }
-    }
-    @keyframes sappirisBounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-4px); }
-    }
-    @keyframes sappirisFillBar {
-      from { transform: scaleX(0); }
-      to { transform: scaleX(1); }
-    }
-    @keyframes sappirisGlow {
-      0%, 100% { box-shadow: 0 4px 14px rgba(45, 95, 76, 0.25); }
-      50% { box-shadow: 0 4px 20px rgba(45, 95, 76, 0.5); }
-    }
-    
-    .sappris-card-hover {
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .sappris-card-hover:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(45, 95, 76, 0.12) !important;
-    }
-    .sappris-card-hover:active {
-      transform: translateY(0);
-    }
-    
-    .sappris-icon-circle {
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .sappris-card-hover:hover .sappris-icon-circle {
-      transform: rotate(-8deg) scale(1.1);
-    }
-    
-    .sappris-progress-fill {
-      transform-origin: right;
-      animation: sappirisFillBar 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    
-    .sappris-fade-in {
-      animation: sappirisSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) backwards;
-    }
-    
-    .sappris-stagger-1 { animation-delay: 0.05s; }
-    .sappris-stagger-2 { animation-delay: 0.1s; }
-    .sappris-stagger-3 { animation-delay: 0.15s; }
-    .sappris-stagger-4 { animation-delay: 0.2s; }
-    .sappris-stagger-5 { animation-delay: 0.25s; }
-    .sappris-stagger-6 { animation-delay: 0.3s; }
-    .sappris-stagger-7 { animation-delay: 0.35s; }
-    .sappris-stagger-8 { animation-delay: 0.4s; }
-    
-    .sappris-input:focus {
-      border-color: ${COLORS.primary} !important;
-      box-shadow: 0 0 0 3px rgba(45, 95, 76, 0.1) !important;
-    }
-    
-    .sappris-btn-primary {
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-    .sappris-btn-primary:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(45, 95, 76, 0.4) !important;
-    }
-    .sappris-btn-primary:active:not(:disabled) {
-      transform: translateY(0);
-    }
-    
-    .sappris-pulse-dot {
-      animation: sappirisPulseDot 2s ease-in-out infinite;
-    }
-    
-    .sappris-shimmer-bg {
-      background: linear-gradient(90deg, ${COLORS.primarySoft} 0%, ${COLORS.border} 50%, ${COLORS.primarySoft} 100%);
-      background-size: 200% 100%;
-      animation: sappirisShimmer 2s infinite;
-    }
-    
-    .sappris-streak-glow {
-      animation: sappirisBounce 2s ease-in-out infinite;
-    }
-    
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 function useDnd(items,setItems){
   const di=useRef(null);
@@ -600,161 +451,6 @@ function useDnd(items,setItems){
     },
     onTouchEnd:()=>{di.current=null;},
   };
-}
-
-/* ══════════════════════════════════════════════
-   🎨 DUOTONE ICONS - Premium icon system
-══════════════════════════════════════════════ */
-function DuotoneIcon({ name, size = 22, color = '#2D5F4C', accentColor = null }) {
-  const accent = accentColor || color;
-  const fillOpacity = 0.25;
-  const strokeWidth = 1.8;
-  
-  const icons = {
-    flame: ( // קלוריות / streak
-      <>
-        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-    workout: ( // אימון - clean dumbbell
-      <>
-        <rect x="2" y="9" width="3" height="6" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="2" y="9" width="3" height="6" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="19" y="9" width="3" height="6" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="19" y="9" width="3" height="6" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="5" y="7" width="2.5" height="10" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="5" y="7" width="2.5" height="10" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="16.5" y="7" width="2.5" height="10" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="16.5" y="7" width="2.5" height="10" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <line x1="7.5" y1="12" x2="16.5" y2="12" stroke={accent} strokeWidth={strokeWidth + 0.5} strokeLinecap="round"/>
-      </>
-    ),
-    water: ( // מים
-      <>
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-    steps: ( // צעדים - shoe
-      <>
-        <path d="M2 17l1-4h4l3-2 5 1 4-1 3 1v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-1z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M2 17l1-4h4l3-2 5 1 4-1 3 1v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-1z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M7 13L8 9" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
-        <path d="M10 11L11 8" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
-        <path d="M14 11L15 9" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
-      </>
-    ),
-    moon: ( // שינה
-      <>
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-    meal: ( // ארוחה - bowl with food
-      <>
-        <ellipse cx="12" cy="14" rx="9" ry="2" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M3 14c0 4 4 7 9 7s9-3 9-7" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M3 14c0 4 4 7 9 7s9-3 9-7" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-        <ellipse cx="12" cy="14" rx="9" ry="2" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="9" cy="11" r="1.2" fill={accent}/>
-        <circle cx="13" cy="9.5" r="1" fill={accent}/>
-        <circle cx="15.5" cy="11.5" r="0.8" fill={accent}/>
-      </>
-    ),
-    chart: ( // סטטיסטיקה - bar chart
-      <>
-        <rect x="3" y="13" width="4" height="8" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="10" y="3" width="4" height="18" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="17" y="9" width="4" height="12" rx="1" fill={color} fillOpacity={fillOpacity}/>
-        <rect x="3" y="13" width="4" height="8" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="10" y="3" width="4" height="18" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="17" y="9" width="4" height="12" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-      </>
-    ),
-    target: ( // יעד / dumbbell
-      <>
-        <circle cx="12" cy="12" r="10" fill={color} fillOpacity={fillOpacity}/>
-        <circle cx="12" cy="12" r="10" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="12" cy="12" r="6" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="12" cy="12" r="2" fill={accent}/>
-      </>
-    ),
-    play: ( // play button
-      <>
-        <polygon points="5 3 19 12 5 21 5 3" fill={color} fillOpacity={fillOpacity}/>
-        <polygon points="5 3 19 12 5 21 5 3" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
-      </>
-    ),
-    plus: ( // plus
-      <>
-        <line x1="12" y1="5" x2="12" y2="19" stroke={accent} strokeWidth={2.5} strokeLinecap="round"/>
-        <line x1="5" y1="12" x2="19" y2="12" stroke={accent} strokeWidth={2.5} strokeLinecap="round"/>
-      </>
-    ),
-    trash: ( // trash
-      <>
-        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-    sparkles: ( // AI / magic
-      <>
-        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
-        <path d="M19 13l.5 1.5 1.5.5-1.5.5L19 17l-.5-1.5-1.5-.5 1.5-.5z" fill={accent}/>
-        <path d="M5 17l.5 1.5 1.5.5-1.5.5L5 21l-.5-1.5-1.5-.5 1.5-.5z" fill={accent}/>
-      </>
-    ),
-    sun: ( // breakfast / morning
-      <>
-        <circle cx="12" cy="12" r="4" fill={color} fillOpacity={fillOpacity}/>
-        <circle cx="12" cy="12" r="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
-      </>
-    ),
-    plate: ( // lunch / dinner / plate
-      <>
-        <circle cx="12" cy="12" r="9" fill={color} fillOpacity={fillOpacity}/>
-        <circle cx="12" cy="12" r="9" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="12" cy="12" r="5" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-      </>
-    ),
-    cookie: ( // snack
-      <>
-        <path d="M21 12a9 9 0 1 1-9-9c0 1.5.5 3 2 3.5C13 8 13 9 13 10c0 1.5 1 2 2 2 0 1 .5 1.5 1.5 1.5 0-.5.5-1 1-1 .5 1.5 2 0 3.5-.5z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M21 12a9 9 0 1 1-9-9c0 1.5.5 3 2 3.5C13 8 13 9 13 10c0 1.5 1 2 2 2 0 1 .5 1.5 1.5 1.5 0-.5.5-1 1-1 .5 1.5 2 0 3.5-.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="9" cy="10" r="0.5" fill={accent}/>
-        <circle cx="13" cy="14" r="0.5" fill={accent}/>
-        <circle cx="8" cy="14" r="0.5" fill={accent}/>
-      </>
-    ),
-    arrowUp: ( // trend up
-      <>
-        <polyline points="18 15 12 9 6 15" fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-    bolt: ( // energy / lightning
-      <>
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={color} fillOpacity={fillOpacity}/>
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinejoin="round"/>
-      </>
-    ),
-    yoga: ( // rest day / meditation
-      <>
-        <circle cx="12" cy="6" r="2.5" fill={color} fillOpacity={fillOpacity}/>
-        <circle cx="12" cy="6" r="2.5" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <path d="M12 9v6M9 12l3 3 3-3M6 18c2-2 4-2 6-2s4 0 6 2" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M12 9v6M9 12l3 3 3-3M6 18c2-2 4-2 6-2s4 0 6 2" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-      </>
-    ),
-  };
-
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24">
-      {icons[name] || icons.target}
-    </svg>
-  );
 }
 
 /* ══════════════════════════════════════════════
@@ -1295,50 +991,23 @@ export default function App({onLogout}){
   ];
 
   return(
-    <div className="client-main" style={{direction:'rtl',fontFamily:'"Heebo","Assistant","DM Sans",system-ui,-apple-system,sans-serif',
+    <div className="client-main" style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',
       background:COLORS.bg,minHeight:'100vh',paddingBottom:72,maxWidth:420,margin:'0 auto',
       position:'relative',color:COLORS.text}}>
 
       <ClientPullIndicator pulling={pulling} refreshing={refreshing} progress={pullProg} />
 
       {/* header */}
-      <header style={{
-        background:'rgba(255,255,255,0.95)',
-        backdropFilter:'blur(20px)',
-        WebkitBackdropFilter:'blur(20px)',
-        padding:'14px 18px',
-        display:'flex',
-        justifyContent:'space-between',
-        alignItems:'center',
-        borderBottom:`0.5px solid ${COLORS.border}`,
-        position:'sticky',
-        top:0,
-        zIndex:20,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.03)',
-      }}>
+      <header style={{background:'white',padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${COLORS.border}`,position:'sticky',top:0,zIndex:20}}>
         <div>
-          <p style={{fontSize:11,color:COLORS.textMuted,margin:0,fontWeight:500,letterSpacing:'0.03em',textTransform:'uppercase'}}>שלום,</p>
-          <h1 style={{fontSize:20,fontWeight:800,color:COLORS.text,margin:'2px 0 0',letterSpacing:'-0.02em'}}>{p.firstName} <span style={{color:COLORS.primary}}>💚</span></h1>
+          <p style={{fontSize:12,color:COLORS.textMuted,margin:0}}>שלום,</p>
+          <h1 style={{fontSize:18,fontWeight:700,color:COLORS.primaryDark,margin:0}}>{p.firstName} 💚</h1>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <button onClick={()=>setShowHeaderScanner(true)}
-            style={{
-              background:COLORS.primarySoft,
-              border:`0.5px solid ${COLORS.border}`,
-              borderRadius:12,
-              width:42,height:42,
-              cursor:'pointer',
-              fontFamily:'inherit',
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow:'0 2px 4px rgba(0,0,0,0.04)',
-            }}
-            onMouseEnter={(e)=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';}}
-            onMouseLeave={(e)=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 2px 4px rgba(0,0,0,0.04)';}}
+            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center'}}
             title="סרקי ברקוד">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.primary} strokeWidth="2.2" strokeLinecap="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.primaryDark} strokeWidth="2.2" strokeLinecap="round">
               <line x1="4" y1="6" x2="4" y2="18" />
               <line x1="7" y1="6" x2="7" y2="18" />
               <line x1="10" y1="6" x2="10" y2="18" strokeWidth="3" />
@@ -1348,38 +1017,9 @@ export default function App({onLogout}){
             </svg>
           </button>
           <button onClick={()=>{setTab('messages');setUnread(0);}}
-            style={{
-              background:COLORS.primarySoft,
-              border:`0.5px solid ${COLORS.border}`,
-              borderRadius:12,
-              width:42,height:42,
-              position:'relative',
-              cursor:'pointer',
-              fontSize:20,
-              fontFamily:'inherit',
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow:'0 2px 4px rgba(0,0,0,0.04)',
-            }}
-            onMouseEnter={(e)=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';}}
-            onMouseLeave={(e)=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='0 2px 4px rgba(0,0,0,0.04)';}}>
+            style={{background:COLORS.primarySoft,border:`1px solid ${COLORS.border}`,borderRadius:10,width:40,height:40,position:'relative',cursor:'pointer',fontSize:18,fontFamily:'inherit'}}>
             💬
-            {unread>0&&<span style={{
-              position:'absolute',top:-4,left:-4,
-              background:'#DC2626',
-              color:'white',
-              fontSize:10,
-              fontWeight:700,
-              borderRadius:999,
-              width:20,height:20,
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              boxShadow:'0 2px 6px rgba(220, 38, 38, 0.4)',
-              border:'1.5px solid white',
-            }}>{unread}</span>}
+            {unread>0&&<span style={{position:'absolute',top:-4,left:-4,background:COLORS.accentDark,color:'white',fontSize:10,fontWeight:700,borderRadius:999,width:18,height:18,display:'flex',alignItems:'center',justifyContent:'center'}}>{unread}</span>}
           </button>
         </div>
       </header>
@@ -1397,285 +1037,100 @@ export default function App({onLogout}){
             onTabChange={setTab} 
           />
           
-          {/* ⭕ HERO RINGS - Apple Watch style 3 rings + score */}
-          {(() => {
-            const calPctRing = Math.min(100, calPct);
-            const proteinPctRing = Math.min(100, p.dailyProteinGoal ? prot/p.dailyProteinGoal*100 : 0);
-            const waterPctRing = Math.min(100, wPct);
-            const totalScore = Math.round((calPctRing + proteinPctRing + waterPctRing) / 3);
-            
-            const ringRadii = [75, 60, 45];
-            const ringCircumferences = ringRadii.map(r => 2 * Math.PI * r);
-            const ringDashOffsets = [
-              ringCircumferences[0] * (1 - calPctRing/100),
-              ringCircumferences[1] * (1 - proteinPctRing/100),
-              ringCircumferences[2] * (1 - waterPctRing/100),
-            ];
-            
-            return (
-              <section className="sappris-fade-in sappris-stagger-1" style={{
-                background: `linear-gradient(135deg, #1F4335 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-                borderRadius: 24,
-                padding: '24px 20px 28px',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 12px 32px rgba(45, 95, 76, 0.25)',
-              }}>
-                {/* Decorative blurs */}
-                <div style={{position:'absolute',top:-100,right:-50,width:280,height:280,borderRadius:'50%',background:'radial-gradient(circle, rgba(125, 211, 168, 0.4), transparent 70%)',pointerEvents:'none'}}/>
-                <div style={{position:'absolute',bottom:-80,left:-40,width:220,height:220,borderRadius:'50%',background:'radial-gradient(circle, rgba(232, 120, 79, 0.25), transparent 70%)',pointerEvents:'none'}}/>
-                
-                {/* Top row: greeting + streak */}
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,position:'relative'}}>
-                  <div>
-                    <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.7)',fontWeight:500,letterSpacing:'0.05em',textTransform:'uppercase'}}>היום שלי</p>
-                    <h2 style={{margin:'2px 0 0',fontSize:18,fontWeight:700,color:'white',letterSpacing:'-0.01em'}}>בואי נתקדם 💚</h2>
-                  </div>
-                  <div className={p.streak > 0 ? 'sappris-streak-glow' : ''} style={{
-                    display:'flex',alignItems:'center',gap:6,
-                    background:'rgba(255,255,255,0.15)',
-                    backdropFilter:'blur(20px)',
-                    border:'0.5px solid rgba(255,255,255,0.2)',
-                    padding:'6px 12px',borderRadius:100,
-                  }}>
-                    <DuotoneIcon name="flame" size={14} color="#FFA47A" accentColor="#FFD89E"/>
-                    <span style={{fontSize:12,fontWeight:700,color:'white'}}>{p.streak} ימים</span>
-                  </div>
-                </div>
-                
-                {/* Rings + side stats */}
-                <div style={{display:'flex',alignItems:'center',gap:16,position:'relative'}}>
-                  
-                  {/* SVG Rings */}
-                  <div style={{position:'relative',width:180,height:180,flexShrink:0}}>
-                    <svg width="180" height="180" viewBox="0 0 180 180" style={{transform:'rotate(-90deg)'}}>
-                      <defs>
-                        <linearGradient id="ringG1" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#E8784F"/>
-                          <stop offset="100%" stopColor="#FFA47A"/>
-                        </linearGradient>
-                        <linearGradient id="ringG2" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#7DD3A8"/>
-                          <stop offset="100%" stopColor={COLORS.primary}/>
-                        </linearGradient>
-                        <linearGradient id="ringG3" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#5B8FA8"/>
-                          <stop offset="100%" stopColor="#7DABC4"/>
-                        </linearGradient>
-                      </defs>
-                      
-                      {/* Ring 1 - Calories (outer) */}
-                      <circle cx="90" cy="90" r="75" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
-                      <circle cx="90" cy="90" r="75" fill="none" stroke="url(#ringG1)" strokeWidth="13" strokeLinecap="round"
-                        strokeDasharray={ringCircumferences[0]} strokeDashoffset={ringDashOffsets[0]}
-                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'}}/>
-                      
-                      {/* Ring 2 - Protein (middle) */}
-                      <circle cx="90" cy="90" r="60" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
-                      <circle cx="90" cy="90" r="60" fill="none" stroke="url(#ringG2)" strokeWidth="13" strokeLinecap="round"
-                        strokeDasharray={ringCircumferences[1]} strokeDashoffset={ringDashOffsets[1]}
-                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s'}}/>
-                      
-                      {/* Ring 3 - Water (inner) */}
-                      <circle cx="90" cy="90" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
-                      <circle cx="90" cy="90" r="45" fill="none" stroke="url(#ringG3)" strokeWidth="13" strokeLinecap="round"
-                        strokeDasharray={ringCircumferences[2]} strokeDashoffset={ringDashOffsets[2]}
-                        style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s'}}/>
-                    </svg>
-                    
-                    {/* Score in center */}
-                    <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',color:'white'}}>
-                      <p style={{margin:0,fontSize:9,color:'rgba(255,255,255,0.7)',fontWeight:600,letterSpacing:'0.1em',textTransform:'uppercase'}}>ציון</p>
-                      <p style={{margin:'2px 0',fontSize:48,fontWeight:800,color:'white',letterSpacing:'-0.05em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
-                        {totalScore}<span style={{fontSize:18,color:'rgba(255,255,255,0.5)',fontWeight:600}}>/100</span>
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Side stats */}
-                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:8}}>
-                    {[
-                      ['קלוריות', `${cal}`, `/${p.dailyCalorieGoal}`, '#E8784F', `${Math.round(calPctRing)}%`],
-                      ['חלבון', `${prot}g`, `/${p.dailyProteinGoal}g`, COLORS.mint, `${Math.round(proteinPctRing)}%`],
-                      ['מים', `${water}`, `/${p.dailyWaterGoalMl}ml`, '#7DABC4', `${Math.round(waterPctRing)}%`],
-                    ].map(([label, val, total, color, pct]) => (
-                      <div key={label} style={{
-                        display:'flex',alignItems:'center',gap:8,
-                        padding:'8px 10px',
-                        background:'rgba(255,255,255,0.08)',
-                        backdropFilter:'blur(10px)',
-                        borderRadius:12,
-                        border:'0.5px solid rgba(255,255,255,0.1)',
-                      }}>
-                        <div style={{width:8,height:8,borderRadius:'50%',background:color,flexShrink:0,boxShadow:`0 0 8px ${color}`}}/>
-                        <div style={{flex:1,minWidth:0}}>
-                          <p style={{margin:0,fontSize:9,color:'rgba(255,255,255,0.6)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>{label}</p>
-                          <p style={{margin:'1px 0 0',fontSize:13,color:'white',fontWeight:700,lineHeight:1}}>{pct}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
-          })()}
+          {/* calorie bar — מלבני, קומפקטי */}
+          <section style={{...S.card, padding: 16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:10}}>
+              <div>
+                <p style={{margin:0,fontSize:11,color:COLORS.textMuted,fontWeight:600}}>קלוריות נותרו</p>
+                <p style={{margin:'2px 0 0',fontSize:32,fontWeight:700,color:COLORS.text,lineHeight:1}}>{rem}</p>
+              </div>
+              <div style={{textAlign:'left'}}>
+                <p style={{margin:0,fontSize:11,color:COLORS.textMuted}}>נצרכו</p>
+                <p style={{margin:'2px 0 0',fontSize:16,fontWeight:700,color:COLORS.primaryDark,lineHeight:1}}>
+                  {cal} <span style={{fontSize:11,color:COLORS.textMuted,fontWeight:400}}>/ {p.dailyCalorieGoal}</span>
+                </p>
+              </div>
+            </div>
+            <div style={{height:10,background:COLORS.primarySoft,borderRadius:5,overflow:'hidden'}}>
+              <div style={{
+                height:'100%', width:`${Math.min(100, calPct)}%`,
+                background:`linear-gradient(90deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
+                borderRadius:5, transition:'width 0.4s ease',
+              }}/>
+            </div>
+          </section>
 
-          {/* 📊 2 Stat Cards - Calories + Workout */}
-          <div className="sappris-fade-in sappris-stagger-2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            {/* Calories card */}
-            <div className="sappris-card-hover" style={{
-              ...S.card,
-              padding:14,
-              cursor:'pointer',
-              position:'relative',
-              overflow:'hidden',
-            }} onClick={()=>setTab('eat')}>
-              <div style={{position:'absolute',top:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'#E8784F',opacity:0.06,filter:'blur(20px)'}}/>
-              <div style={{
-                width:32,height:32,borderRadius:10,
-                background:'linear-gradient(135deg, #FFE5D9, #FFD0B8)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                marginBottom:10,
-              }} className="sappris-icon-circle">
-                <DuotoneIcon name="flame" size={18} color="#E8784F" accentColor="#C85F3A"/>
-              </div>
-              <p style={{margin:0,fontSize:22,fontWeight:800,color:COLORS.text,letterSpacing:'-0.02em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
-                {cal}<span style={{fontSize:11,color:COLORS.textMuted,fontWeight:500}}>/{p.dailyCalorieGoal}</span>
-              </p>
-              <p style={{margin:'4px 0 0',fontSize:10,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>קלוריות</p>
-              <div style={{height:4,background:'#FFF3EF',borderRadius:4,overflow:'hidden',marginTop:8}}>
-                <div className="sappris-progress-fill" style={{height:'100%',width:`${Math.min(100,calPct)}%`,background:'linear-gradient(90deg, #E8784F, #FFA47A)',borderRadius:4}}/>
-              </div>
+          {/* macros */}
+          <section style={S.card}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,textAlign:'center'}}>
+              {[['חלבון',prot,p.dailyProteinGoal,'#B88968'],['פחמ׳',carb,p.dailyCarbGoal,COLORS.primaryDark],['שומן',fat,p.dailyFatGoal,COLORS.sky]].map(([l,v,g,c])=>(
+                <div key={l}>
+                  <p style={{margin:0,fontSize:15,fontWeight:700,color:c}}>{v}<span style={{fontSize:10,color:COLORS.textMuted}}>/{g}g</span></p>
+                  <div style={{height:4,background:COLORS.primarySoft,borderRadius:99,overflow:'hidden',margin:'4px 0 2px'}}>
+                    <div style={{height:'100%',width:`${Math.min(100,g?v/g*100:0)}%`,background:c}}/>
+                  </div>
+                  <p style={{margin:0,fontSize:10,color:COLORS.textMuted}}>{l}</p>
+                </div>
+              ))}
             </div>
-            
-            {/* Workout card */}
-            <div className="sappris-card-hover" style={{
-              ...S.card,
-              padding:14,
-              cursor:'pointer',
-              position:'relative',
-              overflow:'hidden',
-            }} onClick={()=>setTab('workout')}>
-              <div style={{position:'absolute',top:-20,left:-20,width:80,height:80,borderRadius:'50%',background:COLORS.primary,opacity:0.06,filter:'blur(20px)'}}/>
-              <div style={{
-                width:32,height:32,borderRadius:10,
-                background:'linear-gradient(135deg, #D4F0E2, #B0DEC4)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                marginBottom:10,
-              }} className="sappris-icon-circle">
-                <DuotoneIcon name="workout" size={18} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
-              </div>
-              <p style={{margin:0,fontSize:22,fontWeight:800,color:COLORS.text,letterSpacing:'-0.02em',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>
-                {done}<span style={{fontSize:11,color:COLORS.textMuted,fontWeight:500}}>/{exs.length}</span>
-              </p>
-              <p style={{margin:'4px 0 0',fontSize:10,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>אימון היום</p>
-              <div style={{height:4,background:COLORS.primarySoft,borderRadius:4,overflow:'hidden',marginTop:8}}>
-                <div className="sappris-progress-fill" style={{height:'100%',width:`${exs.length?(done/exs.length*100):0}%`,background:`linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryDark})`,borderRadius:4}}/>
-              </div>
-            </div>
-          </div>
+          </section>
 
           {/* 🧘 אינדיקטור יום מנוחה */}
           {isRestDay && (
-            <section className="sappris-fade-in" style={{
-              background: `linear-gradient(135deg, ${COLORS.primarySoft} 0%, ${COLORS.peachSoft} 100%)`,
-              border:'none',
-              borderRadius:18,
-              padding:18,
-              textAlign:'center',
-              boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
-            }}>
-              <div style={{width:48,height:48,margin:'0 auto 8px',borderRadius:14,background:'white',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <DuotoneIcon name="yoga" size={26} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
-              </div>
-              <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>היום יום מנוחה</p>
-              <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון</p>
+            <section style={{...S.card, background: 'linear-gradient(135deg, #E8DFF5 0%, #F4C2C2 100%)', border: 'none', padding: 14, textAlign: 'center'}}>
+              <div style={{fontSize: 28, marginBottom: 4}}>🧘‍♀️</div>
+              <p style={{margin: 0, fontSize: 13, fontWeight: 700, color: COLORS.primaryDark}}>היום יום מנוחה</p>
+              <p style={{margin: '2px 0 0', fontSize: 11, color: COLORS.text}}>תני לגוף להתאושש — זה חלק מהאימון 💜</p>
             </section>
           )}
 
-          {/* 💪 כרטיס האימון הבא */}
-          {!isRestDay && <div className="sappris-fade-in sappris-stagger-3"><NextWorkoutCard clientId={profile.id} /></div>}
+          {/* 💪 כרטיס האימון הבא — הועבר למעלה */}
+          {!isRestDay && <NextWorkoutCard clientId={profile.id} />}
 
-          {/* 📊 סטטיסטיקות - keep all existing components */}
-          <div className="sappris-fade-in sappris-stagger-4"><StepsCard clientId={profile.id} /></div>
-          <div className="sappris-fade-in sappris-stagger-5"><DailyScoreCard breakdown={dailyBreakdown} /></div>
-          <div className="sappris-fade-in sappris-stagger-6"><SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} /></div>
+          {/* 📊 סטטיסטיקות — צעדים, שינה, ציון יומי */}
+          <StepsCard clientId={profile.id} />
+          <DailyScoreCard breakdown={dailyBreakdown} />
+          <SleepCard clientId={profile.id} onUpdate={(h) => setSleepHours(h)} />
 
-          {/* 🔥 Streak & 💧 Water - beautiful side-by-side cards */}
-          <div className="sappris-fade-in sappris-stagger-7" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            {/* Streak Card */}
+          {/* streak + water */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <div style={{
-              ...S.card,
-              padding:14,
-              background: `linear-gradient(135deg, #FFF8F3 0%, #FFE8DC 100%)`,
-              border:'0.5px solid rgba(232, 120, 79, 0.2)',
+              ...S.card, borderColor: COLORS.peach, padding: 14,
+              display: 'flex', alignItems: 'center', gap: 10,
               transform: streakPulse ? 'scale(1.05)' : 'scale(1)',
-              boxShadow: streakPulse ? '0 0 0 4px rgba(232, 120, 79, 0.3)' : '0 2px 8px rgba(0,0,0,0.04)',
+              boxShadow: streakPulse ? '0 0 0 4px rgba(245, 208, 181, 0.4)' : 'none',
               transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              position:'relative',
-              overflow:'hidden',
             }}>
-              <div style={{display:'flex',alignItems:'center',gap:10,position:'relative'}}>
-                <div className={p.streak > 0 ? 'sappris-streak-glow' : ''} style={{
-                  background:'linear-gradient(135deg, #FFE8DC 0%, #FFD0B5 100%)',
-                  borderRadius:'50%',width:42,height:42,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  boxShadow:'0 2px 8px rgba(232, 120, 79, 0.25)',
-                  flexShrink:0,
-                }}>
-                  <DuotoneIcon name="flame" size={22} color="#E8784F" accentColor="#C85F3A"/>
-                </div>
-                <div>
-                  <p style={{fontSize:24,fontWeight:800,color:'#C85F3A',margin:0,lineHeight:1,letterSpacing:'-0.02em',fontVariantNumeric:'tabular-nums'}}>{p.streak}</p>
-                  <p style={{fontSize:9,color:COLORS.textMuted,margin:'2px 0 0',fontWeight:600,letterSpacing:'0.03em',textTransform:'uppercase'}}>ימים רצופים</p>
-                </div>
+              <div style={{
+                background: COLORS.peachSoft, borderRadius: '50%', width: 42, height: 42,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
+                animation: streakPulse ? 'streakBounce 0.6s ease-out' : 'none',
+              }}>🔥</div>
+              <div>
+                <p style={{fontSize:22,fontWeight:700,color:'#B88968',margin:0,lineHeight:1}}>{p.streak}</p>
+                <p style={{fontSize:11,color:COLORS.textMuted,margin:'2px 0 0'}}>ימים רצופים</p>
               </div>
             </div>
-
-            {/* Water Card */}
-            <div style={{
-              ...S.card,
-              padding:14,
-              background:`linear-gradient(135deg, #F0F7FB 0%, #E0EBF2 100%)`,
-              border:'0.5px solid rgba(91, 143, 168, 0.2)',
-            }}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                <DuotoneIcon name="water" size={20} color="#5B8FA8" accentColor="#3D6B85"/>
-                <span style={{fontSize:11,color:'#4A7A94',fontWeight:700}}>{water}<span style={{opacity:0.7}}>/{p.dailyWaterGoalMl}</span></span>
+            <div style={{...S.card,borderColor:COLORS.sky,padding:14}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                <span>💧</span>
+                <span style={{fontSize:11,color:COLORS.textMuted}}>{water}/{p.dailyWaterGoalMl}</span>
               </div>
-              <div style={{height:5,background:'rgba(91, 143, 168, 0.15)',borderRadius:99,overflow:'hidden',marginBottom:10}}>
-                <div className="sappris-progress-fill" style={{height:'100%',width:`${wPct}%`,background:'linear-gradient(90deg, #5B8FA8, #7DABC4)',borderRadius:99}}/>
+              <div style={{height:6,background:COLORS.skySoft,borderRadius:99,overflow:'hidden',marginBottom:8}}>
+                <div style={{height:'100%',width:`${wPct}%`,background:COLORS.sky,transition:'width 0.3s'}}/>
               </div>
               <div style={{display:'flex',gap:4}}>
                 {[200,330,500].map(ml=>(
-                  <button 
-                    key={ml} 
-                    onClick={()=>addWater(ml)}
-                    onMouseDown={(e)=>{e.currentTarget.style.transform='scale(0.95)';}}
-                    onMouseUp={(e)=>{e.currentTarget.style.transform='scale(1)';}}
-                    onMouseLeave={(e)=>{e.currentTarget.style.transform='scale(1)';}}
-                    style={{
-                      flex:1,
-                      background:'white',
-                      color:'#4A7A94',
-                      border:'0.5px solid rgba(91, 143, 168, 0.3)',
-                      padding:'5px 2px',
-                      borderRadius:8,
-                      fontSize:10,
-                      fontWeight:700,
-                      cursor:'pointer',
-                      fontFamily:'inherit',
-                      transition:'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >+{ml}</button>
+                  <button key={ml} onClick={()=>addWater(ml)}
+                    style={{flex:1,background:COLORS.skySoft,color:'#4A7A94',border:'none',padding:'4px 2px',borderRadius:6,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>+{ml}</button>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="sappris-fade-in sappris-stagger-8"><BadgesCard clientId={profile.id} /></div>
+          <BadgesCard clientId={profile.id} />
 
-          {/* 📸 תזכורת תמונת התקדמות */}
+          {/* 📸 תזכורת תמונת התקדמות (כל שבועיים) */}
           <PhotoReminderBanner clientId={profile.id} onTakePhoto={() => setShowPhotoGallery(true)} />
 
           {/* 📝 טופס משוב ממתין */}
@@ -1687,175 +1142,41 @@ export default function App({onLogout}){
           {/* 🏆 אתגרים פעילים */}
           <ClientChallengesList clientId={profile.id} />
 
-          {/* 🍽️ today's meals - duotone icons */}
-          <section style={{...S.card, padding:18}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-              <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg, #D1FAE5, #A7F3D0)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <DuotoneIcon name="meal" size={16} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
-                </div>
-                <h3 style={{margin:0,fontSize:15,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>הארוחות שלי היום</h3>
-              </div>
+          {/* today's meals */}
+          <section style={S.card}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+              <h3 style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.primaryDark}}>🍽️ מה אכלתי היום</h3>
               <div style={{display:'flex',gap:6}}>
-                <button 
-                  onClick={()=>setShowAILogger(true)} 
-                  title="רישום מהיר עם AI" 
-                  className="sappris-btn-primary"
-                  style={{
-                    height:32,
-                    padding:'0 12px',
-                    borderRadius:16,
-                    background:`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.mint} 100%)`,
-                    color:'white',
-                    border:'none',
-                    fontSize:11,
-                    fontWeight:700,
-                    cursor:'pointer',
-                    fontFamily:'inherit',
-                    boxShadow:'0 2px 8px rgba(45, 95, 76, 0.25)',
-                    display:'flex',alignItems:'center',gap:4,
-                  }}>
-                  <DuotoneIcon name="sparkles" size={12} color="white" accentColor="white"/>
-                  AI
-                </button>
-                <button 
-                  onClick={()=>setTab('eat')} 
-                  className="sappris-btn-primary"
-                  style={{
-                    width:32,height:32,
-                    borderRadius:'50%',
-                    background:COLORS.primary,
-                    color:'white',
-                    border:'none',
-                    cursor:'pointer',
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    fontFamily:'inherit',
-                    boxShadow:'0 2px 8px rgba(45, 95, 76, 0.3)',
-                  }}>
-                  <DuotoneIcon name="plus" size={16} color="white" accentColor="white"/>
-                </button>
+                <button onClick={()=>setShowAILogger(true)} title="רישום מהיר עם AI" style={{height:28,padding:'0 10px',borderRadius:14,background:'linear-gradient(135deg,#B19CD9 0%,#F4C2C2 100%)',color:'white',border:'none',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>✨ AI</button>
+                <button onClick={()=>setTab('eat')} style={{width:28,height:28,borderRadius:'50%',background:COLORS.primary,color:'white',border:'none',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit',lineHeight:1}}>+</button>
               </div>
             </div>
             {meals.length===0
-              ?<div style={{
-                  textAlign:'center',
-                  padding:'24px 0',
-                  color:COLORS.textMuted,
-                  fontSize:13,
-                }}>
-                  <div style={{width:48,height:48,margin:'0 auto 8px',borderRadius:14,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',opacity:0.6}}>
-                    <DuotoneIcon name="meal" size={24} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
+              ?<div style={{textAlign:'center',padding:'20px 0',color:COLORS.textMuted,fontSize:13}}>🍽️ עדיין לא רשמת אוכל<br/><span style={{fontSize:11}}>לחצי + להתחיל</span></div>
+              :meals.map(m=>(
+                <div key={m.id} style={{display:'flex',alignItems:'center',gap:10,padding:8,background:COLORS.mintSoft,borderRadius:10,marginBottom:6}}>
+                  <span style={{fontSize:18}}>{m.planKey==='breakfast'?'☀️':m.planKey==='lunch'?'🍽️':m.planKey==='dinner'?'🌙':'🍪'}</span>
+                  <div style={{flex:1}}>
+                    <p style={{margin:0,fontSize:13,fontWeight:600}}>{m.name}</p>
+                    <p style={{margin:'1px 0 0',fontSize:11,color:COLORS.textMuted}}>{m.cal} קק״ל · {m.time}</p>
                   </div>
-                  <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text}}>עדיין לא רשמת אוכל</p>
-                  <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.textMuted}}>לחצי על + להתחיל</p>
+                  <button onClick={()=>removeMeal(m.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:16,color:COLORS.accentDark}}>🗑️</button>
                 </div>
-              :meals.map((m,i)=>{
-                const mealConfig = {
-                  breakfast: { icon:'sun', bg:'linear-gradient(135deg, #FFF3D4, #FFE5A5)', color:'#D97706', accent:'#92400E' },
-                  lunch: { icon:'plate', bg:'linear-gradient(135deg, #D1FAE5, #A7F3D0)', color:COLORS.primary, accent:COLORS.primaryDark },
-                  dinner: { icon:'moon', bg:'linear-gradient(135deg, #E0E7FF, #C7D2FE)', color:'#4F46E5', accent:'#3730A3' },
-                  snack: { icon:'cookie', bg:'linear-gradient(135deg, #FFE5D9, #FFD0B8)', color:'#E8784F', accent:'#C85F3A' },
-                };
-                const cfg = mealConfig[m.planKey] || mealConfig.snack;
-                return (
-                  <div 
-                    key={m.id} 
-                    className="sappris-fade-in"
-                    style={{
-                      display:'flex',alignItems:'center',gap:12,
-                      padding:12,
-                      background:`linear-gradient(135deg, white 0%, ${COLORS.primarySoft} 200%)`,
-                      border:`0.5px solid ${COLORS.border}`,
-                      borderRadius:14,
-                      marginBottom:8,
-                      animationDelay:`${i*0.05}s`,
-                      transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
-                  >
-                    <div style={{
-                      width:40,height:40,borderRadius:12,
-                      background:cfg.bg,
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      flexShrink:0,
-                    }}>
-                      <DuotoneIcon name={cfg.icon} size={20} color={cfg.color} accentColor={cfg.accent}/>
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.name}</p>
-                      <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted,fontWeight:500}}>{m.cal} קק״ל · {m.time}</p>
-                    </div>
-                    <button 
-                      onClick={()=>removeMeal(m.id)} 
-                      style={{
-                        background:'transparent',
-                        border:'none',
-                        cursor:'pointer',
-                        padding:6,
-                        borderRadius:8,
-                        transition:'all 0.15s',
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                      }}
-                      onMouseEnter={(e)=>e.currentTarget.style.background='#FEE2E2'}
-                      onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}
-                    >
-                      <DuotoneIcon name="trash" size={16} color="#DC2626" accentColor="#991B1B"/>
-                    </button>
-                  </div>
-                );
-              })
+              ))
             }
           </section>
 
-          {/* 🎯 Quick Actions - duotone icons */}
+          {/* quick actions */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <button 
-              onClick={()=>setTab('workout')} 
-              className="sappris-card-hover"
-              style={{
-                ...S.card,
-                cursor:'pointer',
-                textAlign:'center',
-                fontFamily:'inherit',
-                border:`0.5px solid ${COLORS.border}`,
-                background:done===exs.length&&exs.length>0?`linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`:'white',
-                padding:18,
-              }}>
-              <div style={{
-                width:44,height:44,
-                margin:'0 auto 8px',
-                borderRadius:14,
-                background:done===exs.length&&exs.length>0?'linear-gradient(135deg, #D1FAE5, #A7F3D0)':COLORS.primarySoft,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                transition:'all 0.3s',
-              }}>
-                <DuotoneIcon name="workout" size={22} color={COLORS.primary} accentColor={COLORS.primaryDark}/>
-              </div>
-              <div style={{fontSize:14,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>אימון היום</div>
-              <div style={{fontSize:11,color:COLORS.textMuted,marginTop:2,fontWeight:500}}>{done}/{exs.length} תרגילים</div>
+            <button onClick={()=>setTab('workout')} style={{...S.card,cursor:'pointer',textAlign:'center',fontFamily:'inherit',border:`1px solid ${COLORS.border}`}}>
+              <div style={{fontSize:24,marginBottom:4}}>{done===exs.length?'✅':'💪'}</div>
+              <div style={{fontSize:13,fontWeight:600,color:COLORS.primaryDark}}>אימון היום</div>
+              <div style={{fontSize:11,color:COLORS.textMuted}}>{done}/{exs.length} תרגילים</div>
             </button>
-
-            <button 
-              onClick={()=>setTab('stats')} 
-              className="sappris-card-hover"
-              style={{
-                ...S.card,
-                cursor:'pointer',
-                textAlign:'center',
-                fontFamily:'inherit',
-                border:`0.5px solid ${COLORS.border}`,
-                padding:18,
-              }}>
-              <div style={{
-                width:44,height:44,
-                margin:'0 auto 8px',
-                borderRadius:14,
-                background:'linear-gradient(135deg, #FCE7F3, #FBCFE8)',
-                display:'flex',alignItems:'center',justifyContent:'center',
-              }}>
-                <DuotoneIcon name="chart" size={22} color="#DB2777" accentColor="#9D174D"/>
-              </div>
-              <div style={{fontSize:14,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>סטטיסטיקות</div>
-              <div style={{fontSize:11,color:'#2D8B5F',marginTop:2,fontWeight:600}}>↓{(p.startWeight-p.weight).toFixed(1)} ק״ג</div>
+            <button onClick={()=>setTab('stats')} style={{...S.card,cursor:'pointer',textAlign:'center',fontFamily:'inherit',border:`1px solid ${COLORS.border}`}}>
+              <div style={{fontSize:24,marginBottom:4}}>📊</div>
+              <div style={{fontSize:13,fontWeight:600,color:COLORS.primaryDark}}>סטטיסטיקות</div>
+              <div style={{fontSize:11,color:COLORS.textMuted}}>↓{(p.startWeight-p.weight).toFixed(1)} ק״ג</div>
             </button>
           </div>
         </main>
@@ -2071,47 +1392,11 @@ export default function App({onLogout}){
       )}
       {chat&&<AIChat profile={p} onClose={()=>setChat(false)}/>}
 
-      <nav style={{
-        position:'fixed',
-        bottom:0,
-        left:0,right:0,
-        maxWidth:420,
-        margin:'0 auto',
-        background:'rgba(255,255,255,0.95)',
-        backdropFilter:'blur(20px)',
-        WebkitBackdropFilter:'blur(20px)',
-        borderTop:`0.5px solid ${COLORS.border}`,
-        display:'flex',
-        justifyContent:'space-around',
-        padding:'8px 4px 12px',
-        zIndex:25,
-        boxShadow:'0 -4px 20px rgba(0,0,0,0.04)',
-      }}>
+      <nav style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:420,margin:'0 auto',background:'white',borderTop:`1px solid ${COLORS.border}`,display:'flex',justifyContent:'space-around',padding:'8px 0 10px',zIndex:25}}>
         {NAV.map(t=>(
-          <button 
-            key={t.id} 
-            onClick={()=>setTab(t.id)}
-            style={{
-              background:tab===t.id?`linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`:'transparent',
-              border:'none',
-              cursor:'pointer',
-              fontFamily:'inherit',
-              padding:'8px 12px',
-              display:'flex',
-              flexDirection:'column',
-              alignItems:'center',
-              gap:3,
-              minWidth:48,
-              borderRadius:12,
-              transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-            }}>
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontFamily:'inherit',padding:4,display:'flex',flexDirection:'column',alignItems:'center',gap:3,minWidth:48}}>
             <NavIcon name={t.icon} active={tab===t.id}/>
-            <span style={{
-              fontSize:10,
-              color:tab===t.id?COLORS.primaryDark:'#9B9B9B',
-              fontWeight:tab===t.id?700:500,
-              letterSpacing:'-0.01em',
-            }}>{t.label}</span>
+            <span style={{fontSize:10,color:tab===t.id?COLORS.primaryDark:'#9B9B9B',fontWeight:tab===t.id?600:500}}>{t.label}</span>
           </button>
         ))}
       </nav>
@@ -2137,13 +1422,12 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
     if (!hasBreakfast && !dismissed.includes('breakfast')) {
       reminders.push({
         id: 'breakfast',
-        iconName: 'sun', iconColor: '#D97706', iconAccent: '#92400E',
+        icon: '🍳',
         text: 'שכחת לרשום ארוחת בוקר?',
         action: 'רשמי עכשיו',
-        bg: 'linear-gradient(135deg, #FFF9E5, #FEF3C7)',
-        border: '#FDE68A',
-        textColor: '#92400E',
-        onClick: () => onTabChange('eat'),
+        color: '#FFF3CD',
+        textColor: '#856404',
+        onClick: () => onTabChange('log'),
       });
     }
   }
@@ -2158,13 +1442,12 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
     if (!hasLunch && !dismissed.includes('lunch')) {
       reminders.push({
         id: 'lunch',
-        iconName: 'plate', iconColor: '#059669', iconAccent: '#047857',
+        icon: '🥗',
         text: 'שכחת לרשום ארוחת צהריים?',
         action: 'רשמי',
-        bg: 'linear-gradient(135deg, #FFF9E5, #FEF3C7)',
-        border: '#FDE68A',
-        textColor: '#92400E',
-        onClick: () => onTabChange('eat'),
+        color: '#FFF3CD',
+        textColor: '#856404',
+        onClick: () => onTabChange('log'),
       });
     }
   }
@@ -2173,30 +1456,29 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
   if (hour >= 14 && water < 1000 && !dismissed.includes('water')) {
     reminders.push({
       id: 'water',
-      iconName: 'water', iconColor: '#5B8FA8', iconAccent: '#3D6B85',
+      icon: '💧',
       text: `שתית רק ${water} מ״ל היום. זמן למים!`,
       action: '+ 250 מ״ל',
-      bg: 'linear-gradient(135deg, #F0F7FB, #DBEAFE)',
-      border: '#BFDBFE',
-      textColor: '#1E40AF',
-      onClick: () => onTabChange('eat'),
+      color: '#D1ECF1',
+      textColor: '#0C5460',
+      onClick: () => onTabChange('log'),
     });
   }
   
   // ⚖️ לא עדכנת משקל השבוע
   const lastWeight = weights[weights.length - 1];
   if (lastWeight) {
+    // משקל אחרון - בדוק אם יותר משבוע (אם יש תאריך עם שנה זה אמין יותר)
     const weekInMs = 7 * 24 * 60 * 60 * 1000;
     const lastWeightTime = new Date(lastWeight.date + '/' + now.getFullYear()).getTime();
     if (!isNaN(lastWeightTime) && (now.getTime() - lastWeightTime) > weekInMs && !dismissed.includes('weight')) {
       reminders.push({
         id: 'weight',
-        iconName: 'chart', iconColor: '#7C3AED', iconAccent: '#5B21B6',
+        icon: '⚖️',
         text: 'לא עדכנת משקל השבוע',
         action: 'עדכני',
-        bg: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)',
-        border: '#C4B5FD',
-        textColor: '#5B21B6',
+        color: '#E8DFF5',
+        textColor: '#5D4B85',
         onClick: () => onTabChange('stats'),
       });
     }
@@ -2206,62 +1488,45 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
   if (plan?.meals?.length > 0 && meals.length >= plan.meals.length && !dismissed.includes('great')) {
     reminders.push({
       id: 'great',
-      iconName: 'sparkles', iconColor: '#059669', iconAccent: '#047857',
+      icon: '🎉',
       text: 'כל הכבוד! סימנת את כל הארוחות היום!',
       action: null,
-      bg: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
-      border: '#6EE7B7',
-      textColor: '#065F46',
+      color: '#D4EDDA',
+      textColor: '#155724',
     });
   }
   
   if (reminders.length === 0) return null;
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {reminders.map(r => (
         <div
           key={r.id}
           style={{
-            background: r.bg,
-            border: `0.5px solid ${r.border}`,
-            borderRadius: 14,
-            padding: '12px 14px',
+            background: r.color,
+            border: `1px solid ${r.textColor}33`,
+            borderRadius: 12,
+            padding: '10px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
           }}
         >
-          <div style={{
-            width:32,height:32,borderRadius:10,
-            background:'rgba(255,255,255,0.6)',
-            display:'flex',alignItems:'center',justifyContent:'center',
-            flexShrink:0,
-          }}>
-            <DuotoneIcon name={r.iconName} size={18} color={r.iconColor} accentColor={r.iconAccent}/>
-          </div>
-          <p style={{ flex: 1, margin: 0, fontSize: 12.5, fontWeight: 600, color: r.textColor }}>
+          <span style={{ fontSize: 20 }}>{r.icon}</span>
+          <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: r.textColor }}>
             {r.text}
           </p>
           <button
             onClick={() => setDismissed(prev => [...prev, r.id])}
-            aria-label="סגור"
             style={{
-              background: 'rgba(255,255,255,0.6)', border: 'none',
-              cursor: 'pointer',
-              padding: 6,
+              background: 'rgba(255,255,255,0.4)', border: 'none',
+              cursor: 'pointer', fontSize: 14, fontWeight: 700,
+              color: r.textColor, padding: '4px 10px',
               borderRadius: 8, fontFamily: 'inherit',
               flexShrink: 0,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              width:28,height:28,
             }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={r.textColor} strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+          >✕ סגור</button>
         </div>
       ))}
     </div>
@@ -2284,120 +1549,60 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
   };
 
   return(
-    <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
-      {/* 🌟 Hero Header */}
-      <div className="sappris-fade-in sappris-stagger-1" style={{
-        background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-        borderRadius: 22,
-        padding: 22,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-      }}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-        <div style={{position:'absolute',bottom:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
-        <div style={{position:'relative'}}>
-          <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>יומן תזונה</p>
-          <h2 style={{margin:'4px 0 0',fontSize:26,fontWeight:800,color:'white',letterSpacing:'-0.02em'}}>🥗 מה אכלתי היום</h2>
-        </div>
-      </div>
-
-      {/* Stats Card */}
-      <section className="sappris-fade-in sappris-stagger-2" style={{...S.card, padding:18}}>
-        <p style={{margin:'0 0 14px',fontSize:11,color:COLORS.textMuted,fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>סיכום יומי</p>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10,textAlign:'center'}}>
-          {[
-            ['קק״ל',cal,profile.dailyCalorieGoal,COLORS.primary,COLORS.primarySoft,'🔥'],
-            ['חלבון',prot,profile.dailyProteinGoal,'#E8784F','#FFF3EF','🍗'],
-            ['פחמ׳',carb,profile.dailyCarbGoal,'#A66D2D','#F4E8D0','🌾'],
-            ['שומן',fat,profile.dailyFatGoal,'#5B8FA8','#E0EBF2','🥑']
-          ].map(([l,v,g,c,soft,emoji])=>(
+    <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
+      <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>🥗 יומן תזונה</h2>
+      <section style={S.card}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:8,textAlign:'center'}}>
+          {[['קק״ל',cal,profile.dailyCalorieGoal,COLORS.primaryDark],['חלבון',prot,profile.dailyProteinGoal,'#B88968'],['פחמ׳',carb,profile.dailyCarbGoal,COLORS.primaryDark],['שומן',fat,profile.dailyFatGoal,COLORS.sky]].map(([l,v,g,c])=>(
             <div key={l}>
-              <div className="sappris-icon-circle" style={{
-                width:32,height:32,margin:'0 auto 6px',
-                borderRadius:10,background:soft,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:16,
-              }}>{emoji}</div>
-              <p style={{margin:0,fontSize:14,fontWeight:700,color:c,letterSpacing:'-0.01em'}}>{v}<span style={{fontSize:9,color:COLORS.textMuted,fontWeight:500}}>/{g}{l!=='קק״ל'?'g':''}</span></p>
-              <p style={{margin:'2px 0 0',fontSize:10,color:COLORS.textMuted,fontWeight:500}}>{l}</p>
+              <p style={{margin:0,fontSize:12,fontWeight:700,color:c,lineHeight:1.2}}>{v}/{g}{l!=='קק״ל'?'g':''}</p>
+              <p style={{margin:'2px 0 0',fontSize:10,color:COLORS.textMuted}}>{l}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Mode Tabs */}
-      <div className="sappris-fade-in sappris-stagger-3" style={{
-        display:'flex',gap:4,
-        background:'white',
-        border:`0.5px solid ${COLORS.border}`,
-        borderRadius:14,
-        padding:5,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
-      }}>
+      <div style={{display:'flex',gap:4,background:'white',border:`1px solid ${COLORS.border}`,borderRadius:10,padding:4}}>
         {[['plan','📋 תפריט'],['drag','👆 גרירה'],['custom','✏️ ידני']].map(([id,lbl])=>(
-          <button 
-            key={id} 
-            onClick={()=>setMode(id)} 
-            style={{
-              flex:1,
-              background:mode===id?`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`:'transparent',
-              color:mode===id?'white':COLORS.text,
-              border:'none',
-              borderRadius:10,
-              padding:'10px 4px',
-              fontSize:12,
-              fontWeight:600,
-              cursor:'pointer',
-              fontFamily:'inherit',
-              transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow:mode===id?'0 2px 8px rgba(45, 95, 76, 0.25)':'none',
-            }}
-          >{lbl}</button>
+          <button key={id} onClick={()=>setMode(id)} style={{flex:1,background:mode===id?COLORS.primary:'transparent',color:mode===id?'white':COLORS.text,border:'none',borderRadius:8,padding:'8px 4px',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>{lbl}</button>
         ))}
       </div>
 
       {mode==='plan'&&(
-        <div className="sappris-fade-in"><ClientMealPlanView
+        <ClientMealPlanView
           clientId={profile.id}
           onLogMeal={() => {
+            // טריגר רענון ארוחות אחרי לוג
             window.location.hash = '#refreshMeals';
             setTimeout(() => { window.location.hash = ''; }, 100);
           }}
-        /></div>
+        />
       )}
 
       {mode==='drag'&&(
-        <div className="sappris-fade-in" style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
           <FoodSearchAndLibrary basket={basket} addToBasket={addToBasket} />
           <section onDragOver={e=>e.preventDefault()} onDrop={e=>{const food=FOOD_LIB.find(f=>f.id===e.dataTransfer.getData('fid'));if(food)addToBasket(food);}}
-            style={{
-              ...S.card,
-              minHeight:110,
-              borderStyle:'dashed',
-              borderColor:COLORS.primary,
-              borderWidth:'2px',
-              background:`linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`,
-            }}>
-            <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700,color:COLORS.primaryDark,display:'flex',alignItems:'center',gap:6}}>🍽️ הארוחה שלי</h4>
+            style={{...S.card,minHeight:110,borderStyle:'dashed',borderColor:COLORS.primary,background:COLORS.primarySoft}}>
+            <h4 style={{margin:'0 0 8px',fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>🍽️ הארוחה שלי</h4>
             {basket.length===0
               ?<p style={{textAlign:'center',color:COLORS.textMuted,fontSize:12,padding:'16px 0'}}>גרורי פריטים לכאן</p>
               :(
                 <>
                   {basket.map((food,i)=>(
                     <div key={food.id} ref={el=>bRefs.current[i]=el} draggable onDragStart={()=>dnd.onDragStart(i)} onDragOver={e=>dnd.onDragOver(e,i)} onDrop={dnd.onDrop} onTouchStart={e=>dnd.onTouchStart(e,i)} onTouchMove={e=>dnd.onTouchMove(e,bRefs)} onTouchEnd={dnd.onTouchEnd}
-                      style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'white',borderRadius:12,marginBottom:6,cursor:'grab',boxShadow:'0 2px 4px rgba(0,0,0,0.04)',border:`0.5px solid ${COLORS.border}`}}>
-                      <span style={{fontSize:14,color:COLORS.textMuted}}>⠿</span><span style={{fontSize:18}}>{food.icon}</span>
-                      <p style={{margin:0,fontSize:13,fontWeight:600,flex:1}}>{food.name}</p>
-                      <span style={{fontSize:11,color:COLORS.textMuted,fontWeight:500}}>{food.cal} קק״ל</span>
-                      <button onClick={()=>setBasket(p=>p.filter(f=>f.id!==food.id))} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:14,color:'#DC2626',padding:4,borderRadius:6}}>✕</button>
+                      style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',background:'white',borderRadius:8,marginBottom:6,cursor:'grab'}}>
+                      <span style={{fontSize:14,color:COLORS.textMuted}}>⠿</span><span>{food.icon}</span>
+                      <p style={{margin:0,fontSize:12,fontWeight:600,flex:1}}>{food.name}</p>
+                      <span style={{fontSize:11,color:COLORS.textMuted}}>{food.cal} קק״ל</span>
+                      <button onClick={()=>setBasket(p=>p.filter(f=>f.id!==food.id))} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:14,color:COLORS.accentDark}}>✕</button>
                     </div>
                   ))}
-                  <div style={{borderTop:`1px dashed ${COLORS.border}`,marginTop:10,paddingTop:10,fontSize:12,color:COLORS.text,display:'flex',justifyContent:'space-between',fontWeight:600}}>
-                    <span>סה״כ: <strong>{basket.reduce((s,f)=>s+f.cal,0)}</strong> קק״ל</span>
-                    <span>חלבון: <strong>{basket.reduce((s,f)=>s+f.p,0)}</strong>g</span>
+                  <div style={{borderTop:`1px dashed ${COLORS.border}`,marginTop:8,paddingTop:8,fontSize:12,color:COLORS.textMuted,display:'flex',justifyContent:'space-between'}}>
+                    <span>סה״כ: {basket.reduce((s,f)=>s+f.cal,0)} קק״ל</span>
+                    <span>חלבון: {basket.reduce((s,f)=>s+f.p,0)}g</span>
                   </div>
-                  <button onClick={confirmBasket} className="sappris-btn-primary" style={{...S.btn,marginTop:12,fontSize:14}}>✅ רשמי ארוחה זו</button>
+                  <button onClick={confirmBasket} style={{...S.btn,marginTop:10,fontSize:13}}>✅ רשמי ארוחה זו</button>
                 </>
               )
             }
@@ -2405,43 +1610,18 @@ function LogScreen({profile,meals,cal,prot,carb,fat,todayPlan,onPlan,onCustom,on
         </div>
       )}
 
-      {mode==='custom'&&<div className="sappris-fade-in"><CustomMealForm onLog={onCustom}/></div>}
+      {mode==='custom'&&<CustomMealForm onLog={onCustom}/>}
 
       {meals.length>0&&(
-        <section className="sappris-fade-in" style={{...S.card, padding:18}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{width:30,height:30,borderRadius:10,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>✅</div>
-              <h4 style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.text}}>רשמתי היום</h4>
-            </div>
-            <span style={{
-              background:COLORS.primarySoft,
-              color:COLORS.primaryDark,
-              padding:'4px 10px',
-              borderRadius:20,
-              fontSize:11,
-              fontWeight:700,
-            }}>{meals.length}</span>
-          </div>
-          {meals.map((m,i)=>(
-            <div key={m.id} className="sappris-fade-in" style={{
-              display:'flex',
-              justifyContent:'space-between',
-              alignItems:'center',
-              padding:'12px',
-              background:`linear-gradient(135deg, white 0%, ${COLORS.primarySoft} 200%)`,
-              border:`0.5px solid ${COLORS.border}`,
-              borderRadius:12,
-              marginBottom:8,
-              animationDelay:`${i*0.05}s`,
-            }}>
+        <section style={S.card}>
+          <h4 style={{margin:'0 0 10px',fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>✅ רשמתי היום ({meals.length})</h4>
+          {meals.map(m=>(
+            <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${COLORS.border}`}}>
               <div>
-                <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text}}>{m.name}</p>
-                <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted,fontWeight:500}}>{m.time} · {m.cal} קק״ל</p>
+                <p style={{margin:0,fontSize:13,fontWeight:600}}>{m.name}</p>
+                <p style={{margin:'2px 0 0',fontSize:10,color:COLORS.textMuted}}>{m.time} · {m.cal} קק״ל</p>
               </div>
-              <button onClick={()=>onRemove(m.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:18,padding:6,borderRadius:8,transition:'all 0.15s'}}
-                onMouseEnter={(e)=>e.currentTarget.style.background='#FEE2E2'}
-                onMouseLeave={(e)=>e.currentTarget.style.background='transparent'}>🗑️</button>
+              <button onClick={()=>onRemove(m.id)} style={{background:'transparent',border:'none',cursor:'pointer',fontSize:16,color:COLORS.accentDark}}>🗑️</button>
             </div>
           ))}
         </section>
@@ -2495,99 +1675,50 @@ function WorkoutScreen({exs,setExs,onToggle,onFinish,done,showToast,onStartGuide
   };
 
   return(
-    <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
-      {/* 🏋️ Hero Header */}
-      <div className="sappris-fade-in sappris-stagger-1" style={{
-        background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-        borderRadius: 22,
-        padding: 22,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-      }}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-        <div style={{position:'absolute',bottom:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
-        <div style={{position:'relative',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div>
-            <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>אימון היום</p>
-            <h2 style={{margin:'4px 0 0',fontSize:26,fontWeight:800,color:'white',letterSpacing:'-0.02em'}}>💪 בואי נזיז גוף</h2>
-          </div>
-          <button 
-            onClick={()=>setShowLib(s=>!s)}
-            className="sappris-btn-primary"
-            style={{
-              background:'rgba(255,255,255,0.2)',
-              backdropFilter:'blur(10px)',
-              color:'white',
-              border:'0.5px solid rgba(255,255,255,0.3)',
-              padding:'10px 16px',
-              borderRadius:12,
-              fontSize:13,
-              fontWeight:700,
-              cursor:'pointer',
-              fontFamily:'inherit',
-            }}>
-            {showLib?'✕ סגור':'+ תרגיל'}
-          </button>
+    <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>💪 אימון היום</h2>
+          <p style={{margin:'2px 0 0',fontSize:12,color:COLORS.textMuted}}>גרורי לשינוי סדר · ⠿ = גרור</p>
         </div>
+        <button onClick={()=>setShowLib(s=>!s)} style={{background:COLORS.primary,color:'white',border:'none',padding:'8px 14px',borderRadius:10,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+          {showLib?'✕ סגור':'+ תרגיל'}
+        </button>
       </div>
 
       {/* 🏋️ כפתור אימון מובנה עם טיימר */}
       {exs.length > 0 && onStartGuided && (
-        <button 
-          onClick={onStartGuided}
-          className="sappris-fade-in sappris-stagger-2 sappris-btn-primary"
-          style={{
-            width: '100%',
-            background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
-            color: 'white', border: 'none', padding: '16px',
-            borderRadius: '14px', fontSize: '15px', fontWeight: 700,
-            cursor: 'pointer', fontFamily: 'inherit',
-            boxShadow: '0 6px 20px rgba(45, 95, 76, 0.35)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          }}>
-          <span style={{ fontSize: 22 }}>🏋️</span>
+        <button onClick={onStartGuided} style={{
+          width: '100%',
+          background: 'linear-gradient(135deg, #B19CD9 0%, #8B72B5 100%)',
+          color: 'white', border: 'none', padding: '14px',
+          borderRadius: '12px', fontSize: '14px', fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'inherit',
+          boxShadow: '0 4px 12px rgba(139, 114, 181, 0.3)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>🏋️</span>
           התחילי אימון מובנה (עם טיימר מנוחה)
         </button>
       )}
 
-      {/* Progress Card */}
-      <section className="sappris-fade-in sappris-stagger-3" style={{...S.card, padding:18}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <div style={{width:32,height:32,borderRadius:10,background:done===total&&total>0?COLORS.primary:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,transition:'all 0.3s'}}>{done===total&&total>0?'✅':'🎯'}</div>
-            <span style={{fontSize:14,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>התקדמות</span>
-          </div>
-          <span style={{
-            fontSize:14,fontWeight:800,color:COLORS.primaryDark,
-            background:COLORS.primarySoft,
-            padding:'4px 12px',borderRadius:20,
-            letterSpacing:'-0.01em',
-          }}>{done}/{total}</span>
+      <section style={S.card}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:600}}>התקדמות</span>
+          <span style={{fontSize:13,fontWeight:700,color:COLORS.primaryDark}}>{done}/{total}</span>
         </div>
         <div style={{height:10,background:COLORS.primarySoft,borderRadius:99,overflow:'hidden'}}>
-          <div className="sappris-progress-fill" style={{
-            height:'100%',
-            width:`${pct}%`,
-            background:done===total&&total>0?`linear-gradient(90deg, ${COLORS.mint}, ${COLORS.primary})`:`linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryDark})`,
-            borderRadius:99,
-          }}/>
+          <div style={{height:'100%',width:`${pct}%`,background:done===total?COLORS.mint:COLORS.primary,transition:'width 0.3s'}}/>
         </div>
       </section>
 
       {timerOn&&(
-        <section className="sappris-fade-in" style={{
-          ...S.card,
-          background:`linear-gradient(135deg, #FEF3E2 0%, #F4E8D0 100%)`,
-          borderColor:'#F0C674',
-          textAlign:'center',
-          padding:20,
-        }}>
-          <p style={{margin:'0 0 6px',fontSize:11,color:'#8B6914',fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase'}}>⏱️ מנוחה</p>
-          <p style={{margin:0,fontSize:48,fontWeight:800,color:'#8B6914',fontFamily:'ui-monospace, monospace',letterSpacing:'-0.02em',lineHeight:1}}>
+        <section style={{...S.card,background:COLORS.amberSoft,borderColor:COLORS.amber,textAlign:'center'}}>
+          <p style={{margin:'0 0 4px',fontSize:11,color:'#8B6914',fontWeight:600}}>⏱️ מנוחה</p>
+          <p style={{margin:0,fontSize:36,fontWeight:700,color:'#8B6914',fontFamily:'monospace'}}>
             {String(Math.floor(timer/60)).padStart(2,'0')}:{String(timer%60).padStart(2,'0')}
           </p>
-          <button onClick={()=>{setTimerOn(false);setTimer(0);}} style={{marginTop:12,background:'white',border:'1px solid #8B6914',color:'#8B6914',padding:'8px 20px',borderRadius:10,fontSize:12,fontWeight:700,cursor:'pointer',fontFamily:'inherit',transition:'all 0.2s'}}>דלגי</button>
+          <button onClick={()=>{setTimerOn(false);setTimer(0);}} style={{marginTop:6,background:'transparent',border:'1px solid #8B6914',color:'#8B6914',padding:'4px 14px',borderRadius:8,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>דלגי</button>
         </section>
       )}
 
@@ -2776,65 +1907,15 @@ function StatsScreen({weights,profile,onLog,onDel,onOpenPhotos}){
   };
 
   return(
-    <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
-      {/* 📊 Hero Header */}
-      <div className="sappris-fade-in sappris-stagger-1" style={{
-        background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-        borderRadius: 22,
-        padding: 22,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-      }}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-        <div style={{position:'absolute',bottom:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
-        <div style={{position:'relative'}}>
-          <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>התקדמות</p>
-          <h2 style={{margin:'4px 0 0',fontSize:26,fontWeight:800,color:'white',letterSpacing:'-0.02em'}}>📊 הסטטיסטיקות שלי</h2>
-          <div style={{display:'flex',alignItems:'center',gap:12,marginTop:14}}>
-            <div style={{flex:1,background:'rgba(255,255,255,0.15)',backdropFilter:'blur(10px)',padding:'10px 12px',borderRadius:12,border:'0.5px solid rgba(255,255,255,0.2)'}}>
-              <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.8)',fontWeight:500}}>נוכחי</p>
-              <p style={{margin:'2px 0 0',fontSize:18,fontWeight:800,color:'white',lineHeight:1,letterSpacing:'-0.02em'}}>{profile.weight}<span style={{fontSize:11,opacity:0.8,fontWeight:500}}> ק״ג</span></p>
-            </div>
-            <div style={{flex:1,background:'rgba(255,255,255,0.15)',backdropFilter:'blur(10px)',padding:'10px 12px',borderRadius:12,border:'0.5px solid rgba(255,255,255,0.2)'}}>
-              <p style={{margin:0,fontSize:10,color:'rgba(255,255,255,0.8)',fontWeight:500}}>יעד</p>
-              <p style={{margin:'2px 0 0',fontSize:18,fontWeight:800,color:'white',lineHeight:1,letterSpacing:'-0.02em'}}>{profile.target}<span style={{fontSize:11,opacity:0.8,fontWeight:500}}> ק״ג</span></p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Weight Update Card */}
-      <section className="sappris-fade-in sappris-stagger-2" style={{...S.card, padding:18}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-          <div style={{width:32,height:32,borderRadius:10,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⚖️</div>
-          <h4 style={{margin:0,fontSize:15,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>עדכני משקל</h4>
-        </div>
+    <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
+      <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>📊 התקדמות</h2>
+      <section style={S.card}>
+        <h4 style={{margin:'0 0 10px',fontSize:14,fontWeight:700}}>⚖️ עדכן משקל</h4>
         <div style={{display:'flex',gap:10}}>
-          <input 
-            type="number" 
-            value={nw} 
-            onChange={e=>setNw(e.target.value)} 
-            placeholder={`${profile.weight}`} 
-            className="sappris-input"
-            style={{...S.inp,flex:1,direction:'ltr',textAlign:'right',fontSize:15}}/>
-          <ClientSpringButton 
-            onClick={()=>{if(nw){onLog(nw);setNw('');}}} 
-            haptic="success" 
-            className="sappris-btn-primary"
-            style={{
-              background:`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`,
-              color:'white',
-              border:'none',
-              padding:'12px 24px',
-              borderRadius:12,
-              fontSize:14,
-              fontWeight:700,
-              cursor:'pointer',
-              fontFamily:'inherit',
-              boxShadow:'0 4px 12px rgba(45, 95, 76, 0.25)',
-            }}>שמרי</ClientSpringButton>
+          <input type="number" value={nw} onChange={e=>setNw(e.target.value)} placeholder={`${profile.weight}`} style={{...S.inp,flex:1,direction:'ltr',textAlign:'right'}}/>
+          <ClientSpringButton onClick={()=>{if(nw){onLog(nw);setNw('');}}} haptic="success" style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>שמור</ClientSpringButton>
         </div>
+        <p style={{margin:'6px 0 0',fontSize:11,color:COLORS.textMuted}}>נוכחי: {profile.weight} ק״ג · יעד: {profile.target} ק״ג</p>
       </section>
 
       {/* 📊 דוח שבועי */}
@@ -2962,104 +2043,28 @@ function MessagesScreen({messages,onSend,userId}){
   const send=()=>{if(!txt.trim())return;onSend(txt.trim());setTxt('');};
   const sendVoice = (voice) => onSend(null, voice);
   return(
-    <main style={{padding:14,display:'flex',flexDirection:'column',height:'calc(100vh - 160px)',gap:14}}>
-      {/* 💬 Hero Header */}
-      <div className="sappris-fade-in sappris-stagger-1" style={{
-        background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-        borderRadius: 22,
-        padding: 20,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-      }}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-        <div style={{position:'relative',display:'flex',alignItems:'center',gap:12}}>
-          <div style={{width:48,height:48,borderRadius:14,background:'rgba(255,255,255,0.2)',backdropFilter:'blur(10px)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,border:'0.5px solid rgba(255,255,255,0.2)'}}>👩‍🏫</div>
-          <div>
-            <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>שיחה</p>
-            <h2 style={{margin:'2px 0 0',fontSize:22,fontWeight:800,color:'white',letterSpacing:'-0.02em'}}>💬 ספיר ברק</h2>
-          </div>
-        </div>
-      </div>
-
-      <section ref={ref} className="sappris-fade-in sappris-stagger-2" style={{
-        ...S.card,
-        flex:1,
-        overflowY:'auto',
-        padding:14,
-        display:'flex',
-        flexDirection:'column',
-        gap:10,
-      }}>
-        {messages.length===0&&(
-          <div style={{textAlign:'center',color:COLORS.textMuted,fontSize:13,margin:'auto 0'}}>
-            <div style={{fontSize:48,marginBottom:8,opacity:0.5}}>💬</div>
-            <p style={{margin:0,fontSize:14,fontWeight:600,color:COLORS.text}}>עדיין אין הודעות</p>
-            <p style={{margin:'4px 0 0',fontSize:12,color:COLORS.textMuted}}>שלחי הודעה כדי להתחיל שיחה</p>
-          </div>
-        )}
-        {messages.map((m,i)=>{
+    <main style={{padding:14,display:'flex',flexDirection:'column',height:'calc(100vh - 160px)',gap:12}}>
+      <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>💬 שיחה עם ספיר</h2>
+      <section ref={ref} style={{...S.card,flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:8}}>
+        {messages.length===0&&<p style={{textAlign:'center',color:COLORS.textMuted,fontSize:13,margin:'auto 0'}}>עדיין אין הודעות</p>}
+        {messages.map(m=>{
           const isMe = m.from === 'client';
           const isVoice = m.message_type === 'voice' || m.audio_url;
           return (
-            <div key={m.id} className="sappris-fade-in" style={{
-              maxWidth:'82%',
-              padding:'12px 14px',
-              borderRadius:isMe?'16px 16px 4px 16px':'16px 16px 16px 4px',
-              fontSize:14,
-              lineHeight:1.5,
-              alignSelf:isMe?'flex-end':'flex-start',
-              background:isMe?`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`:'white',
-              color:isMe?'white':COLORS.text,
-              boxShadow:isMe?'0 2px 8px rgba(45, 95, 76, 0.2)':'0 2px 6px rgba(0,0,0,0.06)',
-              border:isMe?'none':`0.5px solid ${COLORS.border}`,
-              animationDelay:`${i*0.03}s`,
-            }}>
+            <div key={m.id} style={{maxWidth:'82%',padding:'9px 12px',borderRadius:14,fontSize:13,lineHeight:1.5,alignSelf:isMe?'flex-end':'flex-start',background:isMe?COLORS.primary:COLORS.primarySoft,color:isMe?'white':COLORS.text}}>
               {isVoice
                 ? <VoiceMessagePlayer url={m.audio_url} duration={m.audio_duration_sec} isFromMe={isMe}/>
                 : <p style={{margin:0}}>{m.text}</p>
               }
-              <p style={{margin:'4px 0 0',fontSize:10,opacity:0.7,fontWeight:500}}>{m.time}</p>
+              <p style={{margin:'3px 0 0',fontSize:10,opacity:0.7}}>{m.time}</p>
             </div>
           );
         })}
       </section>
-
-      <div className="sappris-fade-in sappris-stagger-3" style={{
-        display:'flex',
-        gap:8,
-        background:'white',
-        padding:8,
-        borderRadius:14,
-        border:`0.5px solid ${COLORS.border}`,
-        boxShadow:'0 2px 8px rgba(0,0,0,0.04)',
-      }}>
+      <div style={{display:'flex',gap:6}}>
         <VoiceRecorderButton userId={userId} onSend={sendVoice} />
-        <input 
-          value={txt} 
-          onChange={e=>setTxt(e.target.value)} 
-          onKeyDown={e=>e.key==='Enter'&&send()} 
-          placeholder="כתבי הודעה..." 
-          className="sappris-input"
-          style={{...S.inp,flex:1,border:'none',background:'transparent',padding:'10px 12px'}}/>
-        <ClientSpringButton 
-          onClick={send} 
-          haptic="success" 
-          disabled={!txt.trim()} 
-          className="sappris-btn-primary"
-          style={{
-            background:txt.trim()?`linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)`:COLORS.primarySoft,
-            color:txt.trim()?'white':COLORS.textMuted,
-            border:'none',
-            padding:'10px 20px',
-            borderRadius:10,
-            fontSize:14,
-            fontWeight:700,
-            cursor:txt.trim()?'pointer':'default',
-            opacity:txt.trim()?1:0.6,
-            fontFamily:'inherit',
-            boxShadow:txt.trim()?'0 2px 8px rgba(45, 95, 76, 0.25)':'none',
-          }}>שלחי</ClientSpringButton>
+        <input value={txt} onChange={e=>setTxt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} placeholder="כתבי הודעה..." style={{...S.inp,flex:1}}/>
+        <ClientSpringButton onClick={send} haptic="success" disabled={!txt.trim()} style={{background:COLORS.primary,color:'white',border:'none',padding:'10px 18px',borderRadius:10,fontSize:13,fontWeight:600,cursor:txt.trim()?'pointer':'default',opacity:txt.trim()?1:0.4,fontFamily:'inherit'}}>שלחי</ClientSpringButton>
       </div>
     </main>
   );
@@ -3070,14 +2075,15 @@ function SettingsScreen({profile,showToast,onLogout}){
   const [name, setName] = useState(profile.full_name || '');
   const [kosher, setKosher] = useState(profile.kosher || false);
   const [saving, setSaving] = useState(false);
-  const [theme, setThemeState] = React.useState(
-    () => document.documentElement.getAttribute('data-theme') || 'light'
+  const [isDark, setIsDark] = React.useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
 
-  const setTheme = (newTheme) => {
-    setThemeState(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    try { localStorage.setItem('sappir-theme', newTheme); } catch {}
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    try { localStorage.setItem('sappir-theme', next ? 'dark' : 'light'); } catch {}
   };
 
   const handleSave = async () => {
@@ -3101,206 +2107,51 @@ function SettingsScreen({profile,showToast,onLogout}){
   };
 
   return(
-    <main style={{padding:14,display:'flex',flexDirection:'column',gap:14}}>
-      {/* ⚙️ Hero Header */}
-      <div className="sappris-fade-in sappris-stagger-1" style={{
-        background: `linear-gradient(135deg, ${COLORS.primaryDark} 0%, ${COLORS.primary} 50%, ${COLORS.mint} 100%)`,
-        borderRadius: 22,
-        padding: 22,
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 24px rgba(45, 95, 76, 0.18)',
-      }}>
-        <div style={{position:'absolute',top:-30,right:-30,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,0.08)'}}/>
-        <div style={{position:'absolute',bottom:-20,left:-20,width:80,height:80,borderRadius:'50%',background:'rgba(255,255,255,0.06)'}}/>
-        <div style={{position:'relative'}}>
-          <p style={{margin:0,fontSize:11,color:'rgba(255,255,255,0.85)',fontWeight:600,letterSpacing:'0.05em',textTransform:'uppercase'}}>הגדרות</p>
-          <h2 style={{margin:'4px 0 0',fontSize:26,fontWeight:800,color:'white',letterSpacing:'-0.02em'}}>⚙️ הפרופיל שלי</h2>
-        </div>
-      </div>
-
-      {/* Profile Card */}
-      <section className="sappris-fade-in sappris-stagger-2" style={{...S.card, padding:18}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-          <div style={{width:32,height:32,borderRadius:10,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>👤</div>
-          <h4 style={{margin:0,fontSize:15,fontWeight:700,color:COLORS.text,letterSpacing:'-0.01em'}}>פרטים אישיים</h4>
-        </div>
-
+    <main style={{padding:14,display:'flex',flexDirection:'column',gap:12}}>
+      <h2 style={{margin:0,fontSize:18,fontWeight:700,color:COLORS.primaryDark}}>⚙️ הגדרות</h2>
+      <section style={S.card}>
+        <h4 style={{margin:'0 0 14px',fontSize:14,fontWeight:700}}>פרטים אישיים</h4>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
           <div>
-            <p style={{margin:'0 0 6px',fontSize:11,fontWeight:600,color:COLORS.textMuted,letterSpacing:'0.03em',textTransform:'uppercase'}}>שם</p>
-            <input value={name} onChange={(e)=>setName(e.target.value)} className="sappris-input" style={S.inp}/>
+            <p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>שם</p>
+            <input value={name} onChange={(e)=>setName(e.target.value)} style={S.inp}/>
           </div>
           <div>
-            <p style={{margin:'0 0 6px',fontSize:11,fontWeight:600,color:COLORS.textMuted,letterSpacing:'0.03em',textTransform:'uppercase'}}>אימייל</p>
-            <input value={profile.email||''} disabled style={{...S.inp,direction:'ltr',textAlign:'right',background:COLORS.bg,color:COLORS.textMuted,cursor:'not-allowed'}}/>
+            <p style={{margin:'0 0 4px',fontSize:12,fontWeight:600}}>אימייל</p>
+            <input value={profile.email||''} disabled style={{...S.inp,direction:'ltr',textAlign:'right',background:'#F8F6FB',color:COLORS.textMuted}}/>
           </div>
         </div>
-
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderTop:`0.5px solid ${COLORS.border}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <div style={{width:36,height:36,borderRadius:12,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>✡️</div>
-            <div>
-              <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.text}}>כשר</p>
-              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>מתכונים כשרים בלבד</p>
-            </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
+          <div>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>כשר</p>
+            <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>מתכונים כשרים בלבד</p>
           </div>
-          <button onClick={handleKosherToggle} style={{width:52,height:30,borderRadius:15,border:'none',cursor:'pointer',background:kosher?COLORS.primary:COLORS.border,position:'relative',transition:'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'}}>
-            <div style={{width:24,height:24,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',left:kosher?25:3,boxShadow:'0 2px 4px rgba(0,0,0,0.15)'}}/>
+          <button onClick={handleKosherToggle} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:kosher?COLORS.primary:COLORS.border,position:'relative',transition:'background 0.2s'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'all 0.2s',...(kosher?{left:3,right:'auto'}:{right:3,left:'auto'})}}/>
           </button>
         </div>
 
-        {/* 🎨 Theme Picker - 3 options */}
-        <div style={{padding:'14px 0',borderTop:`0.5px solid ${COLORS.border}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-            <div style={{width:36,height:36,borderRadius:12,background:COLORS.primarySoft,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>🎨</div>
-            <div>
-              <p style={{margin:0,fontSize:14,fontWeight:700,color:COLORS.text}}>ערכת נושא</p>
-              <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>בחרי את המראה שאת אוהבת</p>
-            </div>
+        {/* 🌙 Dark Mode Toggle */}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:`1px solid ${COLORS.border}`}}>
+          <div>
+            <p style={{margin:0,fontSize:14,fontWeight:700}}>{isDark ? '🌙 מצב כהה' : '☀️ מצב בהיר'}</p>
+            <p style={{margin:'2px 0 0',fontSize:11,color:COLORS.textMuted}}>לחצי לשינוי מצב תצוגה</p>
           </div>
-          
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-            {/* Light */}
-            <button 
-              onClick={()=>setTheme('light')}
-              style={{
-                background:theme==='light'?'white':COLORS.bg,
-                border:theme==='light'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
-                borderRadius:14,
-                padding:'14px 8px',
-                cursor:'pointer',
-                fontFamily:'inherit',
-                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                position:'relative',
-                boxShadow:theme==='light'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
-              }}
-            >
-              <div style={{
-                width:'100%',
-                height:36,
-                borderRadius:8,
-                background:'linear-gradient(135deg, #FDFCFA 0%, #F8F6F2 100%)',
-                border:`1px solid ${COLORS.border}`,
-                marginBottom:8,
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                fontSize:18,
-              }}>☀️</div>
-              <p style={{margin:0,fontSize:11,fontWeight:700,color:COLORS.text}}>בהיר</p>
-              {theme==='light' && (
-                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              )}
-            </button>
-            
-            {/* Dark */}
-            <button 
-              onClick={()=>setTheme('dark')}
-              style={{
-                background:theme==='dark'?'#0F0E0D':COLORS.bg,
-                border:theme==='dark'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
-                borderRadius:14,
-                padding:'14px 8px',
-                cursor:'pointer',
-                fontFamily:'inherit',
-                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                position:'relative',
-                boxShadow:theme==='dark'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
-              }}
-            >
-              <div style={{
-                width:'100%',
-                height:36,
-                borderRadius:8,
-                background:'linear-gradient(135deg, #0F0E0D 0%, #1F1D1B 100%)',
-                border:'1px solid #2F2D2A',
-                marginBottom:8,
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                fontSize:18,
-              }}>🌙</div>
-              <p style={{margin:0,fontSize:11,fontWeight:700,color:theme==='dark'?'white':COLORS.text}}>כהה</p>
-              {theme==='dark' && (
-                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              )}
-            </button>
-            
-            {/* Glass */}
-            <button 
-              onClick={()=>setTheme('glass')}
-              style={{
-                background:theme==='glass'?'#000':COLORS.bg,
-                border:theme==='glass'?`2px solid ${COLORS.primary}`:`0.5px solid ${COLORS.border}`,
-                borderRadius:14,
-                padding:'14px 8px',
-                cursor:'pointer',
-                fontFamily:'inherit',
-                transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                position:'relative',
-                boxShadow:theme==='glass'?'0 4px 12px rgba(45, 95, 76, 0.2)':'none',
-                overflow:'hidden',
-              }}
-            >
-              <div style={{
-                width:'100%',
-                height:36,
-                borderRadius:8,
-                background:'#000',
-                marginBottom:8,
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                position:'relative',
-                overflow:'hidden',
-              }}>
-                <div style={{position:'absolute',top:-10,right:-10,width:30,height:30,borderRadius:'50%',background:'#4A9B76',filter:'blur(8px)',opacity:0.7}}/>
-                <div style={{position:'absolute',bottom:-5,left:-5,width:25,height:25,borderRadius:'50%',background:'#7DD3A8',filter:'blur(8px)',opacity:0.6}}/>
-                <span style={{position:'relative',fontSize:18,zIndex:1}}>✨</span>
-              </div>
-              <p style={{margin:0,fontSize:11,fontWeight:700,color:theme==='glass'?'white':COLORS.text}}>זוהר</p>
-              {theme==='glass' && (
-                <div style={{position:'absolute',top:6,left:6,width:14,height:14,borderRadius:'50%',background:COLORS.primary,display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-              )}
-            </button>
-          </div>
+          <button onClick={toggleDark} style={{width:48,height:28,borderRadius:14,border:'none',cursor:'pointer',background:isDark?COLORS.primaryDark:'#C0B0D8',position:'relative',transition:'background 0.25s'}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'white',position:'absolute',top:3,transition:'left 0.25s cubic-bezier(0.34,1.56,0.64,1)',left:isDark?22:3}}/>
+          </button>
         </div>
 
-        <button onClick={handleSave} disabled={saving} className="sappris-btn-primary" style={{...S.btn,marginTop:14,opacity:saving?0.6:1}}>
-          {saving?'שומרת...':'💾 שמרי שינויים'}
+        <button onClick={handleSave} disabled={saving} style={{...S.btn,marginTop:14,opacity:saving?0.6:1}}>
+          {saving?'שומרת...':'שמור שינויים'}
         </button>
       </section>
 
       {/* 🔔 הגדרות תזכורות */}
-      <div className="sappris-fade-in sappris-stagger-3"><NotificationSettings /></div>
+      <NotificationSettings />
 
-      {/* Logout */}
-      <section className="sappris-fade-in sappris-stagger-4" style={{...S.card, padding:18, background:'#FEF5F5', border:'0.5px solid #FCA5A5'}}>
-        <button 
-          onClick={onLogout} 
-          style={{
-            width:'100%',
-            background:'white',
-            color:'#DC2626',
-            border:'1px solid #FCA5A5',
-            padding:'14px',
-            borderRadius:12,
-            fontSize:14,
-            fontWeight:700,
-            cursor:'pointer',
-            fontFamily:'inherit',
-            transition:'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-          onMouseEnter={(e)=>{e.currentTarget.style.background='#FEE2E2';e.currentTarget.style.transform='translateY(-1px)';}}
-          onMouseLeave={(e)=>{e.currentTarget.style.background='white';e.currentTarget.style.transform='translateY(0)';}}
-        >🚪 התנתקי</button>
+      <section style={S.card}>
+        <button onClick={onLogout} style={{width:'100%',background:'white',color:'#C88A8A',border:'1px solid #E8A5A5',padding:12,borderRadius:12,fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>🚪 התנתקי</button>
       </section>
     </main>
   );

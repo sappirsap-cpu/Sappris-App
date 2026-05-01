@@ -20,99 +20,47 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 /* ─── CSS Variables ─── */
 const LIGHT = `
   :root {
-    --bg:           #FDFCFA;
+    --bg:           #F5F2FA;
     --card:         #FFFFFF;
-    --primary:      #2D5F4C;
-    --primary-dark: #1F4335;
-    --primary-soft: #E8F2ED;
-    --text:         #1A1713;
-    --text-muted:   #6B6560;
-    --border:       #E6E2DD;
+    --primary:      #B19CD9;
+    --primary-dark: #8B72B5;
+    --primary-soft: #E8DFF5;
+    --text:         #2E2A3D;
+    --text-muted:   #756B85;
+    --border:       #DDD0EB;
     --header-bg:    #FFFFFF;
-    --input-bg:     #FAFAF9;
+    --input-bg:     #FFFFFF;
     --nav-bg:       #FFFFFF;
-    --green:        #2D8B5F;
-    --green-soft:   #E6F7EF;
-    --amber:        #D97706;
-    --amber-soft:   #FEF3E2;
-    --red:          #DC2626;
-    --red-soft:     #FEE2E2;
-    --shadow:       rgba(0,0,0,0.06);
+    --green:        #6BAF8A;
+    --green-soft:   #E0F2EB;
+    --amber:        #E8B84B;
+    --amber-soft:   #FDF3D7;
+    --red:          #C88A8A;
+    --red-soft:     #FADDDD;
+    --shadow:       rgba(0,0,0,0.08);
   }
 `;
 
 const DARK = `
   :root[data-theme="dark"] {
-    --bg:           #0F0E0D;
-    --card:         #1F1D1B;
-    --primary:      #4A9B76;
-    --primary-dark: #357254;
-    --primary-soft: #1A2621;
-    --text:         #F5F3F0;
-    --text-muted:   #B0ABA5;
-    --border:       #2F2D2A;
-    --header-bg:    #1A1816;
-    --input-bg:     #252321;
-    --nav-bg:       #1A1816;
-    --green:        #3DA876;
-    --green-soft:   #152820;
-    --amber:        #F59E0B;
-    --amber-soft:   #2A1F0A;
-    --red:          #EF4444;
-    --red-soft:     #2A1414;
-    --shadow:       rgba(0,0,0,0.5);
-  }
-  
-  /* Glass theme - dark with animated blobs background */
-  :root[data-theme="glass"] {
-    --bg:           transparent;
-    --card:         rgba(255,255,255,0.06);
-    --primary:      #4A9B76;
-    --primary-dark: #357254;
-    --primary-soft: rgba(74, 155, 118, 0.15);
-    --text:         #F5F3F0;
-    --text-muted:   rgba(245, 243, 240, 0.65);
-    --border:       rgba(255,255,255,0.12);
-    --header-bg:    rgba(0,0,0,0.4);
-    --input-bg:     rgba(255,255,255,0.05);
-    --nav-bg:       rgba(0,0,0,0.6);
-    --green:        #3DA876;
-    --green-soft:   rgba(61, 168, 118, 0.15);
-    --amber:        #F59E0B;
-    --amber-soft:   rgba(245, 158, 11, 0.15);
-    --red:          #EF4444;
-    --red-soft:     rgba(239, 68, 68, 0.15);
-    --shadow:       rgba(0,0,0,0.5);
-  }
-  
-  /* Animated background for glass theme */
-  :root[data-theme="glass"] body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -2;
-    background: #000;
-    pointer-events: none;
-  }
-  :root[data-theme="glass"] body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background-image: 
-      radial-gradient(circle at 80% 20%, rgba(74, 155, 118, 0.4), transparent 40%),
-      radial-gradient(circle at 20% 80%, rgba(125, 211, 168, 0.3), transparent 40%),
-      radial-gradient(circle at 50% 50%, rgba(232, 120, 79, 0.15), transparent 40%),
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
-    pointer-events: none;
-    animation: sappirisGlassBg 20s ease-in-out infinite;
-  }
-  
-  @keyframes sappirisGlassBg {
-    0%, 100% { background-position: 80% 20%, 20% 80%, 50% 50%, 0 0, 0 0; }
-    50% { background-position: 70% 30%, 30% 70%, 60% 40%, 0 0, 0 0; }
+    --bg:           #12101E;
+    --card:         #1E1A2E;
+    --primary:      #C5B3E0;
+    --primary-dark: #A08DC5;
+    --primary-soft: #2D2645;
+    --text:         #EDE3F5;
+    --text-muted:   #9B8BAD;
+    --border:       #3D3560;
+    --header-bg:    #1A1628;
+    --input-bg:     #252235;
+    --nav-bg:       #1A1628;
+    --green:        #7BC49A;
+    --green-soft:   #1A3028;
+    --amber:        #E8C96A;
+    --amber-soft:   #2E2510;
+    --red:          #D4A0A0;
+    --red-soft:     #3A1A1A;
+    --shadow:       rgba(0,0,0,0.35);
   }
 `;
 
@@ -131,16 +79,14 @@ function injectThemeStyles() {
 }
 
 /* ─── Context ─── */
-const ThemeCtx = createContext({ theme: 'light', setTheme: () => {}, toggle: () => {} });
+const ThemeCtx = createContext({ theme: 'light', toggle: () => {} });
 export const useTheme = () => useContext(ThemeCtx);
 
-const VALID_THEMES = ['light', 'dark', 'glass'];
-
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => {
+  const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('sappir-theme');
-      if (VALID_THEMES.includes(saved)) return saved;
+      if (saved === 'dark' || saved === 'light') return saved;
       return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } catch { return 'light'; }
   });
@@ -154,16 +100,10 @@ export function ThemeProvider({ children }) {
     try { localStorage.setItem('sappir-theme', theme); } catch {}
   }, [theme]);
 
-  const setTheme = (newTheme) => {
-    if (VALID_THEMES.includes(newTheme)) {
-      setThemeState(newTheme);
-    }
-  };
-
-  const toggle = () => setThemeState(t => t === 'light' ? 'dark' : 'light');
+  const toggle = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
   return (
-    <ThemeCtx.Provider value={{ theme, setTheme, toggle, isDark: theme === 'dark' || theme === 'glass', isGlass: theme === 'glass' }}>
+    <ThemeCtx.Provider value={{ theme, toggle, isDark: theme === 'dark' }}>
       {children}
     </ThemeCtx.Provider>
   );
