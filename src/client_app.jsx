@@ -617,14 +617,17 @@ function DuotoneIcon({ name, size = 22, color = '#2D5F4C', accentColor = null })
         <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
       </>
     ),
-    workout: ( // אימון / משקולת
+    workout: ( // אימון - clean dumbbell
       <>
-        <path d="M6.5 6.5L9 4M17.5 17.5L20 15M14.5 9.5l-5 5M3 12l1-1M21 12l-1 1" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" fill="none"/>
-        <rect x="2" y="10" width="3" height="4" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="19" y="10" width="3" height="4" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="5" y="8" width="2.5" height="8" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="16.5" y="8" width="2.5" height="8" rx="0.5" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <rect x="7.5" y="11" width="9" height="2" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="2" y="9" width="3" height="6" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="2" y="9" width="3" height="6" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="19" y="9" width="3" height="6" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="19" y="9" width="3" height="6" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="5" y="7" width="2.5" height="10" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="5" y="7" width="2.5" height="10" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <rect x="16.5" y="7" width="2.5" height="10" rx="1" fill={color} fillOpacity={fillOpacity}/>
+        <rect x="16.5" y="7" width="2.5" height="10" rx="1" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <line x1="7.5" y1="12" x2="16.5" y2="12" stroke={accent} strokeWidth={strokeWidth + 0.5} strokeLinecap="round"/>
       </>
     ),
     water: ( // מים
@@ -633,16 +636,13 @@ function DuotoneIcon({ name, size = 22, color = '#2D5F4C', accentColor = null })
         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
       </>
     ),
-    steps: ( // צעדים - footprint
+    steps: ( // צעדים - shoe
       <>
-        <ellipse cx="8" cy="8" rx="3" ry="4" fill={color} fillOpacity={fillOpacity}/>
-        <ellipse cx="8" cy="8" rx="3" ry="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="6" cy="3.5" r="1" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="3" cy="5.5" r="0.8" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <ellipse cx="16" cy="16" rx="3" ry="4" fill={color} fillOpacity={fillOpacity}/>
-        <ellipse cx="16" cy="16" rx="3" ry="4" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="18" cy="11.5" r="1" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
-        <circle cx="21" cy="13.5" r="0.8" fill={color} fillOpacity={fillOpacity} stroke={accent} strokeWidth={strokeWidth}/>
+        <path d="M2 17l1-4h4l3-2 5 1 4-1 3 1v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-1z" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M2 17l1-4h4l3-2 5 1 4-1 3 1v3a3 3 0 0 1-3 3H5a3 3 0 0 1-3-1z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M7 13L8 9" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
+        <path d="M10 11L11 8" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
+        <path d="M14 11L15 9" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
       </>
     ),
     moon: ( // שינה
@@ -651,12 +651,15 @@ function DuotoneIcon({ name, size = 22, color = '#2D5F4C', accentColor = null })
         <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
       </>
     ),
-    meal: ( // ארוחה - utensils
+    meal: ( // ארוחה - bowl with food
       <>
-        <path d="M3 11h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill={color} fillOpacity={fillOpacity}/>
-        <path d="M3 11h18v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M7 11V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M9 21v-4M15 21v-4" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round"/>
+        <ellipse cx="12" cy="14" rx="9" ry="2" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M3 14c0 4 4 7 9 7s9-3 9-7" fill={color} fillOpacity={fillOpacity}/>
+        <path d="M3 14c0 4 4 7 9 7s9-3 9-7" fill="none" stroke={accent} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"/>
+        <ellipse cx="12" cy="14" rx="9" ry="2" fill="none" stroke={accent} strokeWidth={strokeWidth}/>
+        <circle cx="9" cy="11" r="1.2" fill={accent}/>
+        <circle cx="13" cy="9.5" r="1" fill={accent}/>
+        <circle cx="15.5" cy="11.5" r="0.8" fill={accent}/>
       </>
     ),
     chart: ( // סטטיסטיקה - bar chart
@@ -1292,7 +1295,7 @@ export default function App({onLogout}){
   ];
 
   return(
-    <div className="client-main" style={{direction:'rtl',fontFamily:'system-ui,-apple-system,"Segoe UI",sans-serif',
+    <div className="client-main" style={{direction:'rtl',fontFamily:'"Heebo","Assistant","DM Sans",system-ui,-apple-system,sans-serif',
       background:COLORS.bg,minHeight:'100vh',paddingBottom:72,maxWidth:420,margin:'0 auto',
       position:'relative',color:COLORS.text}}>
 
@@ -1462,20 +1465,20 @@ export default function App({onLogout}){
                       </defs>
                       
                       {/* Ring 1 - Calories (outer) */}
-                      <circle cx="90" cy="90" r="75" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
-                      <circle cx="90" cy="90" r="75" fill="none" stroke="url(#ringG1)" strokeWidth="11" strokeLinecap="round"
+                      <circle cx="90" cy="90" r="75" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
+                      <circle cx="90" cy="90" r="75" fill="none" stroke="url(#ringG1)" strokeWidth="13" strokeLinecap="round"
                         strokeDasharray={ringCircumferences[0]} strokeDashoffset={ringDashOffsets[0]}
                         style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)'}}/>
                       
                       {/* Ring 2 - Protein (middle) */}
-                      <circle cx="90" cy="90" r="60" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
-                      <circle cx="90" cy="90" r="60" fill="none" stroke="url(#ringG2)" strokeWidth="11" strokeLinecap="round"
+                      <circle cx="90" cy="90" r="60" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
+                      <circle cx="90" cy="90" r="60" fill="none" stroke="url(#ringG2)" strokeWidth="13" strokeLinecap="round"
                         strokeDasharray={ringCircumferences[1]} strokeDashoffset={ringDashOffsets[1]}
                         style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.1s'}}/>
                       
                       {/* Ring 3 - Water (inner) */}
-                      <circle cx="90" cy="90" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="11"/>
-                      <circle cx="90" cy="90" r="45" fill="none" stroke="url(#ringG3)" strokeWidth="11" strokeLinecap="round"
+                      <circle cx="90" cy="90" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="13"/>
+                      <circle cx="90" cy="90" r="45" fill="none" stroke="url(#ringG3)" strokeWidth="13" strokeLinecap="round"
                         strokeDasharray={ringCircumferences[2]} strokeDashoffset={ringDashOffsets[2]}
                         style={{transition:'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1) 0.2s'}}/>
                     </svg>
@@ -2134,12 +2137,13 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
     if (!hasBreakfast && !dismissed.includes('breakfast')) {
       reminders.push({
         id: 'breakfast',
-        icon: '🍳',
+        iconName: 'sun', iconColor: '#D97706', iconAccent: '#92400E',
         text: 'שכחת לרשום ארוחת בוקר?',
         action: 'רשמי עכשיו',
-        color: '#FFF3CD',
-        textColor: '#856404',
-        onClick: () => onTabChange('log'),
+        bg: 'linear-gradient(135deg, #FFF9E5, #FEF3C7)',
+        border: '#FDE68A',
+        textColor: '#92400E',
+        onClick: () => onTabChange('eat'),
       });
     }
   }
@@ -2154,12 +2158,13 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
     if (!hasLunch && !dismissed.includes('lunch')) {
       reminders.push({
         id: 'lunch',
-        icon: '🥗',
+        iconName: 'plate', iconColor: '#059669', iconAccent: '#047857',
         text: 'שכחת לרשום ארוחת צהריים?',
         action: 'רשמי',
-        color: '#FFF3CD',
-        textColor: '#856404',
-        onClick: () => onTabChange('log'),
+        bg: 'linear-gradient(135deg, #FFF9E5, #FEF3C7)',
+        border: '#FDE68A',
+        textColor: '#92400E',
+        onClick: () => onTabChange('eat'),
       });
     }
   }
@@ -2168,29 +2173,30 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
   if (hour >= 14 && water < 1000 && !dismissed.includes('water')) {
     reminders.push({
       id: 'water',
-      icon: '💧',
+      iconName: 'water', iconColor: '#5B8FA8', iconAccent: '#3D6B85',
       text: `שתית רק ${water} מ״ל היום. זמן למים!`,
       action: '+ 250 מ״ל',
-      color: '#D1ECF1',
-      textColor: '#0C5460',
-      onClick: () => onTabChange('log'),
+      bg: 'linear-gradient(135deg, #F0F7FB, #DBEAFE)',
+      border: '#BFDBFE',
+      textColor: '#1E40AF',
+      onClick: () => onTabChange('eat'),
     });
   }
   
   // ⚖️ לא עדכנת משקל השבוע
   const lastWeight = weights[weights.length - 1];
   if (lastWeight) {
-    // משקל אחרון - בדוק אם יותר משבוע (אם יש תאריך עם שנה זה אמין יותר)
     const weekInMs = 7 * 24 * 60 * 60 * 1000;
     const lastWeightTime = new Date(lastWeight.date + '/' + now.getFullYear()).getTime();
     if (!isNaN(lastWeightTime) && (now.getTime() - lastWeightTime) > weekInMs && !dismissed.includes('weight')) {
       reminders.push({
         id: 'weight',
-        icon: '⚖️',
+        iconName: 'chart', iconColor: '#7C3AED', iconAccent: '#5B21B6',
         text: 'לא עדכנת משקל השבוע',
         action: 'עדכני',
-        color: '#E8DFF5',
-        textColor: '#5D4B85',
+        bg: 'linear-gradient(135deg, #EDE9FE, #DDD6FE)',
+        border: '#C4B5FD',
+        textColor: '#5B21B6',
         onClick: () => onTabChange('stats'),
       });
     }
@@ -2200,45 +2206,62 @@ function ReminderBanner({ meals, water, weights, plan, onTabChange }) {
   if (plan?.meals?.length > 0 && meals.length >= plan.meals.length && !dismissed.includes('great')) {
     reminders.push({
       id: 'great',
-      icon: '🎉',
+      iconName: 'sparkles', iconColor: '#059669', iconAccent: '#047857',
       text: 'כל הכבוד! סימנת את כל הארוחות היום!',
       action: null,
-      color: '#D4EDDA',
-      textColor: '#155724',
+      bg: 'linear-gradient(135deg, #D1FAE5, #A7F3D0)',
+      border: '#6EE7B7',
+      textColor: '#065F46',
     });
   }
   
   if (reminders.length === 0) return null;
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {reminders.map(r => (
         <div
           key={r.id}
           style={{
-            background: r.color,
-            border: `1px solid ${r.textColor}33`,
-            borderRadius: 12,
-            padding: '10px 14px',
+            background: r.bg,
+            border: `0.5px solid ${r.border}`,
+            borderRadius: 14,
+            padding: '12px 14px',
             display: 'flex',
             alignItems: 'center',
             gap: 10,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
           }}
         >
-          <span style={{ fontSize: 20 }}>{r.icon}</span>
-          <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: r.textColor }}>
+          <div style={{
+            width:32,height:32,borderRadius:10,
+            background:'rgba(255,255,255,0.6)',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            flexShrink:0,
+          }}>
+            <DuotoneIcon name={r.iconName} size={18} color={r.iconColor} accentColor={r.iconAccent}/>
+          </div>
+          <p style={{ flex: 1, margin: 0, fontSize: 12.5, fontWeight: 600, color: r.textColor }}>
             {r.text}
           </p>
           <button
             onClick={() => setDismissed(prev => [...prev, r.id])}
+            aria-label="סגור"
             style={{
-              background: 'rgba(255,255,255,0.4)', border: 'none',
-              cursor: 'pointer', fontSize: 14, fontWeight: 700,
-              color: r.textColor, padding: '4px 10px',
+              background: 'rgba(255,255,255,0.6)', border: 'none',
+              cursor: 'pointer',
+              padding: 6,
               borderRadius: 8, fontFamily: 'inherit',
               flexShrink: 0,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              width:28,height:28,
             }}
-          >✕ סגור</button>
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={r.textColor} strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
       ))}
     </div>
