@@ -10,444 +10,6 @@ import { VoiceRecorderButton, VoiceMessagePlayer } from './voice_messages';
 import { BroadcastsManager } from './voice_broadcasts';
 import { ScheduleEditor } from './smart_reminders';
 import { CoachFeedbackInsights, TriggerFeedbackButton } from './feedback';
-import { CoachWorkoutBank, CoachMealPlanEditor } from './flexible_plans';
-import { ModularPage, registerWidget, WIDGET_REGISTRY } from './widgets';
-import { ExercisePicker } from './exercise_library';
-import { BarcodeScanner } from './barcode_scanner';
-import { UnifiedFoodSearch, MoHImportButton } from './food_sources';
-
-
-// ═══════════════════════════════════════════════════════════════
-// 🌙 DARK MODE — CSS overrides
-// ═══════════════════════════════════════════════════════════════
-if (typeof document !== 'undefined' && !document.getElementById('coach-dark-mode')) {
-  const s = document.createElement('style');
-  s.id = 'coach-dark-mode';
-  s.textContent = `
-    /* ============= DARK MODE — כל האפליקציה ============= */
-    /* על body כולו ועל root, כדי לכסות שטחים לבנים בהגדרות וכו׳ */
-    [data-theme="dark"] body, [data-theme="dark"] #root, [data-theme="dark"] html {
-      background: #12101E !important;
-    }
-    [data-theme="dark"] .coach-main {
-      background: #12101E !important;
-      color: #F0E8FA !important;
-    }
-
-    /* רקעים לבנים → כהים */
-    [data-theme="dark"] .coach-main [style*="background: white"],
-    [data-theme="dark"] .coach-main [style*="background:white"],
-    [data-theme="dark"] .coach-main [style*="background: '#fff'"],
-    [data-theme="dark"] .coach-main [style*="background: #fff"],
-    [data-theme="dark"] .coach-main [style*="background:#fff"],
-    [data-theme="dark"] .coach-main [style*="background: #FFFFFF"],
-    [data-theme="dark"] .coach-main [style*="background:#FFFFFF"],
-    [data-theme="dark"] .coach-main [style*="background:'white'"] {
-      background-color: #1E1A2E !important;
-    }
-
-    /* רקע עיקרי */
-    [data-theme="dark"] .coach-main [style*="background: #F5F2FA"],
-    [data-theme="dark"] .coach-main [style*="background:#F5F2FA"],
-    [data-theme="dark"] .coach-main [style*="background: #F8F6FB"],
-    [data-theme="dark"] .coach-main [style*="background:#F8F6FB"] {
-      background-color: #12101E !important;
-    }
-
-    /* רקע סגול בהיר → סגול כהה */
-    [data-theme="dark"] .coach-main [style*="background: #E8DFF5"],
-    [data-theme="dark"] .coach-main [style*="background:#E8DFF5"],
-    [data-theme="dark"] .coach-main [style*="background: #EDE3F5"],
-    [data-theme="dark"] .coach-main [style*="background:#EDE3F5"],
-    [data-theme="dark"] .coach-main [style*="background: #E0D4EB"],
-    [data-theme="dark"] .coach-main [style*="background:#E0D4EB"] {
-      background-color: #2D2645 !important;
-    }
-
-    /* טקסטים — בהירים מאוד לקריאות מקסימלית */
-    [data-theme="dark"] .coach-main [style*="color: #2E2A3D"],
-    [data-theme="dark"] .coach-main [style*="color:#2E2A3D"] {
-      color: #F5F0FF !important;
-    }
-    [data-theme="dark"] .coach-main [style*="color: #756B85"],
-    [data-theme="dark"] .coach-main [style*="color:#756B85"] {
-      color: #C0B5D5 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="color: #8B72B5"],
-    [data-theme="dark"] .coach-main [style*="color:#8B72B5"] {
-      color: #E8D5FF !important;
-    }
-    [data-theme="dark"] .coach-main [style*="color: #B19CD9"],
-    [data-theme="dark"] .coach-main [style*="color:#B19CD9"] {
-      color: #E5D2FF !important;
-    }
-    [data-theme="dark"] .coach-main [style*="color: black"],
-    [data-theme="dark"] .coach-main [style*="color:black"],
-    [data-theme="dark"] .coach-main [style*="color: #000"],
-    [data-theme="dark"] .coach-main [style*="color:#000"] {
-      color: #F5F0FF !important;
-    }
-    [data-theme="dark"] .coach-main [style*="color: #9B9B9B"],
-    [data-theme="dark"] .coach-main [style*="color:#9B9B9B"],
-    [data-theme="dark"] .coach-main [style*="color: #666"],
-    [data-theme="dark"] .coach-main [style*="color:#666"],
-    [data-theme="dark"] .coach-main [style*="color: #555"],
-    [data-theme="dark"] .coach-main [style*="color:#555"] {
-      color: #C0B5D5 !important;
-    }
-    /* כל טקסט אפור בכל גוון */
-    [data-theme="dark"] .coach-main [style*="color: #444"] { color: #F0E8FA !important; }
-    [data-theme="dark"] .coach-main [style*="color: #888"] { color: #C0B5D5 !important; }
-    [data-theme="dark"] .coach-main [style*="color: #999"] { color: #C0B5D5 !important; }
-    [data-theme="dark"] .coach-main [style*="color: #AAA"] { color: #B0A5C5 !important; }
-
-    /* גבולות */
-    [data-theme="dark"] .coach-main [style*="1px solid #DDD0EB"],
-    [data-theme="dark"] .coach-main [style*="1px solid #E0D4EB"],
-    [data-theme="dark"] .coach-main [style*="1px solid rgba(0,0,0,0.1)"],
-    [data-theme="dark"] .coach-main [style*="1px solid #ECEAEC"],
-    [data-theme="dark"] .coach-main [style*="1px solid #E5E5E5"],
-    [data-theme="dark"] .coach-main [style*="1px solid #EEE"] {
-      border-color: #3D3560 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="borderTop: 1px solid"] {
-      border-top-color: #3D3560 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="borderBottom: 1px solid"] {
-      border-bottom-color: #3D3560 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="borderLeft: 1px solid"] {
-      border-left-color: #3D3560 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="borderRight: 1px solid"] {
-      border-right-color: #3D3560 !important;
-    }
-
-    /* Inputs */
-    [data-theme="dark"] .coach-main input,
-    [data-theme="dark"] .coach-main textarea,
-    [data-theme="dark"] .coach-main select {
-      background: #2A2540 !important;
-      color: #F5F0FF !important;
-      border-color: #4D4470 !important;
-    }
-    [data-theme="dark"] .coach-main input::placeholder,
-    [data-theme="dark"] .coach-main textarea::placeholder {
-      color: #8E84A8 !important;
-    }
-    [data-theme="dark"] .coach-main input:disabled {
-      background: #1A1626 !important;
-      color: #8E84A8 !important;
-    }
-
-    /* כפתורי primary */
-    [data-theme="dark"] .coach-main [style*="background: #B19CD9"],
-    [data-theme="dark"] .coach-main [style*="background:#B19CD9"] {
-      background-color: #C5B3E0 !important;
-      color: #1E1A2E !important;
-    }
-    [data-theme="dark"] .coach-main [style*="background: #8B72B5"],
-    [data-theme="dark"] .coach-main [style*="background:#8B72B5"] {
-      background-color: #A693C5 !important;
-    }
-
-    /* רקעי warning/error/success — ניטרליזציה */
-    [data-theme="dark"] .coach-main [style*="background: #FADDDD"],
-    [data-theme="dark"] .coach-main [style*="background:#FADDDD"] {
-      background-color: #3A1F1F !important;
-    }
-    [data-theme="dark"] .coach-main [style*="background: #FDF3D7"],
-    [data-theme="dark"] .coach-main [style*="background:#FDF3D7"] {
-      background-color: #2E2510 !important;
-    }
-    [data-theme="dark"] .coach-main [style*="background: #E0F2EB"],
-    [data-theme="dark"] .coach-main [style*="background:#E0F2EB"] {
-      background-color: #1A3028 !important;
-    }
-
-    /* ============= SIDEBAR בlilac dark ============= */
-    [data-theme="dark"] nav {
-      background: #1E1A2E !important;
-      border-color: #3D3560 !important;
-    }
-    [data-theme="dark"] nav button[style*="background: #E8DFF5"],
-    [data-theme="dark"] nav button[style*="background:#E8DFF5"] {
-      background-color: #2D2645 !important;
-    }
-  `;
-  document.head.appendChild(s);
-}
-
-// ═══════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════
-// 🎭 PAGE TRANSITIONS — מעבר מסכים חלק
-// ═══════════════════════════════════════════════════════════════
-
-// הוסף פעם אחת ל-<head> את ה-keyframes
-if (typeof document !== 'undefined' && !document.getElementById('coach-transitions')) {
-  const s = document.createElement('style');
-  s.id = 'coach-transitions';
-  s.textContent = `
-    @keyframes slideInRight {
-      from { opacity: 0; transform: translateX(28px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes slideInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeInScale {
-      from { opacity: 0; transform: scale(0.97); }
-      to   { opacity: 1; transform: scale(1); }
-    }
-    @keyframes tabFadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes shimmer {
-      0%   { background-position: 200% center; }
-      100% { background-position: -200% center; }
-    }
-    @keyframes toastIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(0.94); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-    }
-    @keyframes toastOut {
-      from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-      to   { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.94); }
-    }
-    @keyframes springPress {
-      0%   { transform: scale(1); }
-      35%  { transform: scale(0.92); }
-      65%  { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    @keyframes pullSpin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(s);
-}
-
-/**
- * AnimatedScreen — עוטף כל sub-view / טאב לאנימציית כניסה
- * direction: 'right' | 'up' | 'fade'
- */
-function AnimatedScreen({ children, direction = 'right', duration = 180 }) {
-  // הסרת ה-opacity:0 הראשוני שגרם לפלאש לבן
-  // במקום זה - mount מיידי עם אנימציה עדינה
-  return (
-    <div style={{
-      animation: `${({ right: 'slideInRight', up: 'slideInUp', fade: 'fadeInScale' })[direction] || 'slideInRight'} ${duration}ms cubic-bezier(0.25,0.46,0.45,0.94)`,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 🍞 TOAST SYSTEM — הודעות עם סוגים וצבעים
-// ═══════════════════════════════════════════════════════════════
-
-const TOAST_TYPES = {
-  success: { bg: '#E0F2EB', border: '#6BAF8A', icon: '✅', color: '#3D7A5E' },
-  error:   { bg: '#FADDDD', border: '#C88A8A', icon: '❌', color: '#8B4040' },
-  info:    { bg: '#E8DFF5', border: '#B19CD9', icon: '💜', color: '#8B72B5' },
-  saved:   { bg: '#E8DFF5', border: '#B19CD9', icon: '💾', color: '#8B72B5' },
-  sent:    { bg: '#E0F2EB', border: '#6BAF8A', icon: '📤', color: '#3D7A5E' },
-  warning: { bg: '#FDF3D7', border: '#E8B84B', icon: '⚠️', color: '#7A5C1E' },
-};
-
-function detectToastType(msg) {
-  if (!msg) return 'info';
-  if (msg.startsWith('✅') || msg.startsWith('🎉') || msg.startsWith('🔥')) return 'success';
-  if (msg.startsWith('❌'))  return 'error';
-  if (msg.startsWith('⚠️')) return 'warning';
-  if (msg.startsWith('💾') || msg.startsWith('📋')) return 'saved';
-  if (msg.startsWith('📤') || msg.startsWith('💜') || msg.startsWith('💬')) return 'sent';
-  return 'info';
-}
-
-function RichToast({ message, type, onDone }) {
-  const [exiting, setExiting] = React.useState(false);
-  const s = TOAST_TYPES[type] || TOAST_TYPES.info;
-  React.useEffect(() => {
-    const t1 = setTimeout(() => setExiting(true), 2200);
-    const t2 = setTimeout(onDone, 2520);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
-  return (
-    <div style={{
-      position: 'fixed', bottom: 88, left: '50%',
-      background: s.bg, border: `1px solid ${s.border}`,
-      borderRadius: 999, padding: '10px 18px',
-      display: 'flex', alignItems: 'center', gap: 8,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
-      fontSize: 13, fontWeight: 600, color: s.color,
-      whiteSpace: 'nowrap', zIndex: 200, direction: 'rtl',
-      animation: exiting
-        ? 'toastOut 0.32s ease forwards'
-        : 'toastIn 0.36s cubic-bezier(0.34,1.56,0.64,1) forwards',
-    }}>
-      <span style={{ fontSize: 15 }}>{s.icon}</span>
-      <span>{message}</span>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 🌀 SPRING BUTTON
-// ═══════════════════════════════════════════════════════════════
-
-function SpringButton({ onClick, children, style = {}, haptic = 'light', disabled = false, ...rest }) {
-  const [anim, setAnim] = React.useState(false);
-  const handleClick = React.useCallback((e) => {
-    if (disabled) return;
-    try {
-      const patterns = { light: [8], medium: [15], success: [8, 40, 8], error: [20, 30, 20] };
-      navigator.vibrate?.(patterns[haptic] || [8]);
-    } catch {}
-    setAnim(true);
-    setTimeout(() => setAnim(false), 400);
-    onClick?.(e);
-  }, [onClick, disabled, haptic]);
-  return (
-    <button {...rest} disabled={disabled} onClick={handleClick} style={{
-      ...style,
-      animation: anim ? 'springPress 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards' : 'none',
-      opacity: disabled ? 0.5 : (style.opacity ?? 1),
-      cursor: disabled ? 'default' : 'pointer',
-    }}>
-      {children}
-    </button>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// 💀 SKELETON SCREENS
-// ═══════════════════════════════════════════════════════════════
-
-function Shimmer({ w = '100%', h = 14, r = 8, style = {} }) {
-  return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#EDE3F5 25%,#F5F2FA 50%,#EDE3F5 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.6s ease-in-out infinite', flexShrink: 0, ...style }} />;
-}
-
-function DashboardSkeleton() {
-  return (
-    <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-        {[0,1,2].map(i => (
-          <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14 }}>
-            <Shimmer w="40%" h={22} r={6} style={{ margin: '0 auto 6px' }} />
-            <Shimmer w="60%" h={10} r={5} style={{ margin: '0 auto' }} />
-          </div>
-        ))}
-      </div>
-      <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
-        <Shimmer w="35%" h={13} r={6} style={{ marginBottom: 12 }} />
-        {[0,1,2].map(i => (
-          <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: i < 2 ? `1px solid ${COLORS.border}` : 'none' }}>
-            <Shimmer w={20} h={20} r={10} />
-            <div style={{ flex: 1 }}>
-              <Shimmer w="70%" h={11} r={5} style={{ marginBottom: 4 }} />
-              <Shimmer w="30%" h={9} r={4} />
-            </div>
-          </div>
-        ))}
-      </div>
-      {[0,1,2].map(i => (
-        <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 14 }}>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
-            <Shimmer w={40} h={40} r={20} />
-            <div style={{ flex: 1 }}>
-              <Shimmer w="55%" h={13} r={6} style={{ marginBottom: 6 }} />
-              <Shimmer w="40%" h={10} r={5} />
-            </div>
-            <Shimmer w={32} h={32} r={8} />
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[0,1,2,3,4,5,6].map(j => <Shimmer key={j} w={32} h={18} r={4} />)}
-          </div>
-        </div>
-      ))}
-    </main>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// ↓ PULL TO REFRESH
-// ═══════════════════════════════════════════════════════════════
-
-function usePullToRefresh(onRefresh, threshold = 65) {
-  const [pulling, setPulling]       = React.useState(false);
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [progress, setProgress]     = React.useState(0);
-  const startY = React.useRef(null);
-
-  React.useEffect(() => {
-    const onStart = (e) => {
-      if ((window.scrollY || document.documentElement.scrollTop) > 5) return;
-      startY.current = e.touches[0].clientY;
-    };
-    const onMove = (e) => {
-      if (startY.current === null || refreshing) return;
-      const delta = e.touches[0].clientY - startY.current;
-      if (delta <= 0) { startY.current = null; return; }
-      const pct = Math.min(delta / threshold, 1.3);
-      setProgress(pct);
-      if (pct > 0.15) setPulling(true);
-    };
-    const onEnd = async (e) => {
-      if (startY.current === null) return;
-      const delta = e.changedTouches[0].clientY - startY.current;
-      startY.current = null;
-      setPulling(false);
-      setProgress(0);
-      if (delta >= threshold && !refreshing) {
-        try { navigator.vibrate?.([15]); } catch {}
-        setRefreshing(true);
-        try { await onRefresh(); } catch {}
-        setRefreshing(false);
-      }
-    };
-    window.addEventListener('touchstart', onStart, { passive: true });
-    window.addEventListener('touchmove',  onMove,  { passive: true });
-    window.addEventListener('touchend',   onEnd,   { passive: true });
-    return () => {
-      window.removeEventListener('touchstart', onStart);
-      window.removeEventListener('touchmove',  onMove);
-      window.removeEventListener('touchend',   onEnd);
-    };
-  }, [onRefresh, refreshing, threshold]);
-
-  return { pulling, refreshing, progress };
-}
-
-function PullIndicator({ pulling, refreshing, progress }) {
-  if (!pulling && !refreshing) return null;
-  const r = 11, circ = 2 * Math.PI * r;
-  return (
-    <div style={{ position: 'fixed', top: 66, left: '50%', transform: 'translateX(-50%)', zIndex: 50, background: 'white', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.14)', border: `1px solid ${COLORS.border}` }}>
-      {refreshing ? (
-        <svg width={24} height={24} viewBox="0 0 24 24" style={{ animation: 'pullSpin 0.8s linear infinite' }}>
-          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2.2} strokeDasharray={`${circ * 0.75} ${circ * 0.25}`} />
-        </svg>
-      ) : (
-        <svg width={24} height={24} viewBox="0 0 24 24">
-          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.border} strokeWidth={1.5} />
-          <circle cx={12} cy={12} r={r} fill="none" stroke={COLORS.primary} strokeWidth={2.2}
-            strokeDasharray={`${circ * Math.min(progress, 1)} ${circ}`}
-            strokeLinecap="round" transform="rotate(-90 12 12)" />
-        </svg>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
 
 // 📊 רישום אירועי פעילות לתובנות AI
 async function logEvent(type, durationMs, metadata) {
@@ -890,11 +452,9 @@ export default function App({ onLogout }) {
   const [subView, setSubView] = useState(null);
   const [selectedClient, setSelectedClient] = useState(null);
   const [messageText, setMessageText] = useState('');
+  const [toast, setToast] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifs, setShowNotifs] = useState(false);
-  const [showHeaderScanner, setShowHeaderScanner] = useState(false);
-  const [scannerResult, setScannerResult] = useState(null);
-  const [scannerLookingUp, setScannerLookingUp] = useState(false);
   const [chatMessages, setChatMessages] = useState({}); // { clientId: [messages] }
 
   // טען נתונים מ-Supabase
@@ -1028,107 +588,49 @@ export default function App({ onLogout }) {
   };
 
   const loadAll = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      // ⚡ אופטימיזציה: 2 שאילתות מקבילות במקום סדרתיות
-      const [coachRes, clientsRes] = await Promise.all([
-        supabase.from('coaches').select('*').eq('id', user.id).limit(1),
-        supabase.from('clients').select('*').eq('coach_id', user.id).or('is_archived.is.null,is_archived.eq.false').order('full_name'),
-      ]);
-      const coaches = coachRes.data;
-      const clientsData = clientsRes.data;
+    // טען פרופיל מאמנת
+    const { data: coaches } = await supabase.from('coaches').select('*').eq('id', user.id).limit(1);
+    if (coaches?.[0]) setCoachProfile(coaches[0]);
 
-      if (coaches?.[0]) setCoachProfile(coaches[0]);
+    // טען לקוחות (לא מארכיון)
+    const { data: clientsData } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('coach_id', user.id)
+      .or('is_archived.is.null,is_archived.eq.false')
+      .order('full_name');
 
-      if (clientsData) {
-        const baseClients = clientsData.map(c => ({
-          id: c.id, name: c.full_name, email: c.email || '',
-          weight: c.current_weight || c.start_weight || 0,
-          target: c.target_weight || 0, streak: c.streak || 0,
-          startWeight: c.start_weight || 0, height: c.height_cm || 0,
-          age: Math.floor((new Date() - new Date(c.birth_date)) / 31557600000) || 30,
-          sex: c.sex || 'female', activity: c.activity_level || 'moderate',
-          goal: c.goal || 'lose',
-          savedGoals: c.daily_calorie_goal ? {
-            kcal: c.daily_calorie_goal, carbG: c.daily_carb_goal,
-            proteinG: c.daily_protein_goal, fatG: c.daily_fat_goal
-          } : null,
-          plan: 'מודרך', weekLog: Array(7).fill('none'),
-          loggedToday: false, lastLog: 99, status: 'on-track',
-          unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
-        }));
-
-        // ⚡ הצג מיד את הלקוחות עם נתונים בסיסיים (האפליקציה מגיבה!)
-        setClients(baseClients);
-        setLoading(false);
-
-        // ⚡ ואז (ברקע) טען את ה-weekLog של 7 ימים אחרונים
-        try {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const clientIds = baseClients.map(c => c.id);
-          const { data: logs } = await supabase
-            .from('meal_logs')
-            .select('client_id, logged_at')
-            .in('client_id', clientIds)
-            .gte('logged_at', sevenDaysAgo.toISOString());
-
-          if (logs) {
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const todayDayOfWeek = today.getDay();
-            const byClient = {};
-            logs.forEach(l => {
-              if (!byClient[l.client_id]) byClient[l.client_id] = new Set();
-              const d = new Date(l.logged_at);
-              d.setHours(0, 0, 0, 0);
-              const daysAgo = Math.floor((today - d) / 86400000);
-              if (daysAgo >= 0 && daysAgo < 7) {
-                byClient[l.client_id].add(daysAgo);
-              }
-            });
-
-            // עדכון מיידי של ה-state
-            setClients(prev => prev.map(c => {
-              const set = byClient[c.id] || new Set();
-              const updated = { ...c, weekLog: [...c.weekLog] };
-              updated.loggedToday = set.has(0);
-              const lastDay = [...set].sort((a, b) => a - b)[0];
-              updated.lastLog = lastDay !== undefined ? lastDay : 99;
-              for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-                const daysAgo = (todayDayOfWeek - dayOfWeek + 7) % 7;
-                if (daysAgo > todayDayOfWeek) updated.weekLog[dayOfWeek] = 'none';
-                else updated.weekLog[dayOfWeek] = set.has(daysAgo) ? 'logged' : 'missed';
-              }
-              return updated;
-            }));
-          }
-        } catch (e) {
-          console.error('weekLog load error:', e);
-        }
-      } else {
-        setLoading(false);
-      }
-
-      // טען הודעות ברקע (לא חוסם)
-      loadMessages();
-    } catch (e) {
-      console.error('loadAll error:', e);
-      setLoading(false);
+    if (clientsData) {
+      setClients(clientsData.map(c => ({
+        id: c.id, name: c.full_name, email: c.email || '',
+        weight: c.current_weight || c.start_weight || 0,
+        target: c.target_weight || 0, streak: c.streak || 0,
+        startWeight: c.start_weight || 0, height: c.height_cm || 0,
+        age: Math.floor((new Date() - new Date(c.birth_date)) / 31557600000) || 30,
+        sex: c.sex || 'female', activity: c.activity_level || 'moderate',
+        goal: c.goal || 'lose',
+        savedGoals: c.daily_calorie_goal ? {
+          kcal: c.daily_calorie_goal, carbG: c.daily_carb_goal,
+          proteinG: c.daily_protein_goal, fatG: c.daily_fat_goal
+        } : null,
+        plan: 'מודרך', weekLog: Array(7).fill('none'),
+        loggedToday: false, lastLog: 0, status: 'on-track',
+        unread: 0, macroSplit: { carb: 50, protein: 25, fat: 25 },
+      })));
     }
+    setLoading(false);
+    
+    // טען הודעות בטעינה ראשונית
+    await loadMessages();
   };
 
-  const [toast, setToast] = useState(null); // { message, type }
-  const showToast = React.useCallback((text, type) => {
-    const resolvedType = type || detectToastType(text);
-    try { navigator.vibrate?.(resolvedType === 'error' ? [20, 30, 20] : resolvedType === 'success' || resolvedType === 'saved' || resolvedType === 'sent' ? [8, 40, 8] : [8]); } catch {}
-    setToast({ message: text, type: resolvedType, id: Date.now() });
-    setTimeout(() => setToast(null), 2600);
-  }, []);
+  const showToast = (text) => {
+    setToast(text);
+    setTimeout(() => setToast(null), 2000);
+  };
 
   const markMessagesRead = async (clientId) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1188,21 +690,24 @@ export default function App({ onLogout }) {
   const openMacro = (c) => { setSelectedClient(c); setSubView('macro'); };
   const goBack = () => { setSubView(null); setSelectedClient(null); };
 
-  // Stats — memoized
-  const { loggedToday, needsAttention, activeCount } = React.useMemo(() => ({
-    loggedToday: clients.filter((c) => c.loggedToday).length,
-    needsAttention: clients.filter((c) => c.status !== 'on-track'),
-    activeCount: clients.filter((c) => c.status === 'on-track').length,
-  }), [clients]);
+  // Stats
+  const loggedToday = clients.filter((c) => c.loggedToday).length;
+  const needsAttention = clients.filter((c) => c.status !== 'on-track');
+  const activeCount = clients.filter((c) => c.status === 'on-track').length;
 
-  const { pulling, refreshing, progress: pullProgress } = usePullToRefresh(loadAll);
-
-  if (loading) return <DashboardSkeleton />;
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.bg }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/logo.png" alt="" style={{ width: 120, marginBottom: 16 }} />
+          <p style={{ color: COLORS.textMuted, fontSize: 14 }}>טוענת לקוחות...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="coach-main" style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: 'var(--bg, ' + COLORS.bg + ')', minHeight: '100vh', paddingBottom: '72px', width: '100%', maxWidth: '900px', margin: '0 auto', position: 'relative', color: 'var(--text, ' + COLORS.text + ')' }}>
-
-      <PullIndicator pulling={pulling} refreshing={refreshing} progress={pullProgress} />
+    <div style={{ direction: 'rtl', fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif', background: COLORS.bg, minHeight: '100vh', paddingBottom: '72px', maxWidth: '440px', margin: '0 auto', position: 'relative', color: COLORS.text }}>
 
       {/* Header */}
       <header style={{ background: 'white', padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${COLORS.border}`, position: 'sticky', top: 0, zIndex: 20 }}>
@@ -1213,58 +718,32 @@ export default function App({ onLogout }) {
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: COLORS.primaryDark, margin: 0 }}>{coachProfile?.full_name?.split(' ')[0] || 'ספיר'} 💜</h1>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={() => setShowHeaderScanner(true)}
-            style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            title="סרקי ברקוד">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={COLORS.primaryDark} strokeWidth="2.2" strokeLinecap="round">
-              <line x1="4" y1="6" x2="4" y2="18" />
-              <line x1="7" y1="6" x2="7" y2="18" />
-              <line x1="10" y1="6" x2="10" y2="18" strokeWidth="3" />
-              <line x1="14" y1="6" x2="14" y2="18" />
-              <line x1="17" y1="6" x2="17" y2="18" strokeWidth="3" />
-              <line x1="20" y1="6" x2="20" y2="18" />
-            </svg>
-          </button>
-          <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
-            🔔
-            {notifications.length > 0 && (
-              <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
-            )}
-          </button>
-        </div>
+        <button onClick={() => setShowNotifs(s => !s)} style={{ background: COLORS.primarySoft, border: `1px solid ${COLORS.border}`, borderRadius: '10px', width: '40px', height: '40px', position: 'relative', cursor: 'pointer', fontSize: '18px', fontFamily: 'inherit' }}>
+          🔔
+          {notifications.length > 0 && (
+            <span style={{ position: 'absolute', top: '-4px', left: '-4px', background: COLORS.red, color: 'white', fontSize: '10px', fontWeight: 700, borderRadius: '999px', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+          )}
+        </button>
       </header>
 
-      {/* Sub-views — כל אחד עטוף ב-AnimatedScreen */}
-      {subView === 'clientProfile' && selectedClient && <AnimatedScreen direction="right"><ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} /></AnimatedScreen>}
-      {subView === 'schedule' && selectedClient && (
-        <AnimatedScreen direction="right">
-          <CoachMealPlanEditor
-            coachId={coachProfile?.id}
-            clientId={selectedClient.id}
-            clientName={selectedClient.name}
-            onClose={() => { setSubView('clientProfile'); showToast('💾 התפריט נשמר'); }}
-          />
-        </AnimatedScreen>
-      )}
+      {/* Sub-views override tabs */}
+      {subView === 'clientProfile' && selectedClient && <ClientProfile client={selectedClient} onBack={goBack} onMessage={() => { markMessagesRead(selectedClient.id); setSubView('chat'); }} onEditGoals={() => setSubView('macro')} onEdit={() => setSubView('editClient')} onSchedule={() => setSubView('schedule')} onWorkoutSchedule={() => setSubView('workoutSchedule')} onProgress={() => setSubView('progress')} />}
+      {subView === 'schedule' && selectedClient && <WeeklySchedule client={selectedClient} onBack={() => setSubView('clientProfile')} showToast={showToast} />}
       {subView === 'workoutSchedule' && selectedClient && (
-        <AnimatedScreen direction="right">
-          <CoachWorkoutBank
-            coachId={coachProfile?.id}
-            clientId={selectedClient.id}
-            clientName={selectedClient.name}
-            onClose={() => { setSubView('clientProfile'); showToast('💾 הבנק נשמר'); }}
-          />
-        </AnimatedScreen>
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <BackHeader onBack={() => setSubView('clientProfile')} title={`לוח אימונים · ${selectedClient.name}`} />
+          <ScheduleEditor clientId={selectedClient.id} onClose={() => { setSubView('clientProfile'); showToast('💾 הלוח נשמר'); }} />
+        </main>
       )}
-      {subView === 'progress' && selectedClient && <AnimatedScreen direction="right"><ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} /></AnimatedScreen>}
-      {subView === 'addClient' && <AnimatedScreen direction="up"><AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} /></AnimatedScreen>}
-      {subView === 'editClient' && selectedClient && <AnimatedScreen direction="right"><EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('client_updated', null, { client_id: selectedClient.id }); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} /></AnimatedScreen>}
-      {subView === 'macro' && selectedClient && <AnimatedScreen direction="right"><MacroCalc client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={async (patch) => { await updateClient(selectedClient.id, patch); logEvent('macro_calculated', null, { client_id: selectedClient.id }); showToast(`💾 יעדים נשמרו ל${(selectedClient.name||'').split(' ')[0]||'לקוחה'}`); setSubView('clientProfile'); }} /></AnimatedScreen>}
-      {subView === 'macroPicker' && <AnimatedScreen direction="up"><MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} /></AnimatedScreen>}
-      {subView === 'message' && selectedClient && <AnimatedScreen direction="up"><MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} /></AnimatedScreen>}
-      {subView === 'newClient' && <AnimatedScreen direction="up"><AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); goBack(); }} /></AnimatedScreen>}
-      {subView === 'chat' && selectedClient && <AnimatedScreen direction="right"><CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} /></AnimatedScreen>}
+
+      {subView === 'progress' && selectedClient && <ClientProgress client={selectedClient} onBack={() => setSubView('clientProfile')} />}
+      {subView === 'addClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); }} />}
+      {subView === 'editClient' && selectedClient && <EditClientDetails client={selectedClient} onBack={() => setSubView('clientProfile')} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('client_updated', null, { client_id: selectedClient.id }); showToast(`💾 פרטים נשמרו`); setSubView('clientProfile'); }} />}
+      {subView === 'macro' && selectedClient && <MacroCalc client={selectedClient} onBack={goBack} onSave={(patch) => { updateClient(selectedClient.id, patch); logEvent('macro_calculated', null, { client_id: selectedClient.id }); showToast(`💾 יעדים נשמרו ל${selectedClient.name.split(' ')[0]}`); goBack(); }} />}
+      {subView === 'macroPicker' && <MacroClientPicker clients={clients} onBack={goBack} onPick={(c) => openMacro(c)} />}
+      {subView === 'message' && selectedClient && <MessageCompose client={selectedClient} text={messageText} setText={setMessageText} onBack={goBack} onSend={() => showToast('💜 הודעה נשלחה')} />}
+      {subView === 'newClient' && <AddClientModal onBack={goBack} showToast={showToast} onCreated={() => { loadAll(); }} />}
+      {subView === 'chat' && selectedClient && <CoachChat client={selectedClient} messages={chatMessages[selectedClient.id] || []} onBack={goBack} onSend={sendMessageToClient} coachId={coachProfile?.id} />}
 
       {/* Notifications dropdown */}
       {showNotifs && (
@@ -1290,191 +769,56 @@ export default function App({ onLogout }) {
       )}
       {showNotifs && <div onClick={() => setShowNotifs(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />}
 
-      {/* 📷 סורק ברקוד - תוצאה מוצגת במודל */}
-      {showHeaderScanner && (
-        <BarcodeScanner
-          onDetect={async (barcode) => {
-            setShowHeaderScanner(false);
-            setScannerLookingUp(true);
-            try {
-              const { data: local } = await supabase
-                .from('food_database')
-                .select('*')
-                .eq('barcode', barcode)
-                .limit(1);
-              let food = local && local.length > 0 ? local[0] : null;
-
-              if (!food) {
-                const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
-                if (res.ok) {
-                  const json = await res.json();
-                  if (json.status === 1 && json.product) {
-                    const prod = json.product;
-                    const n = prod.nutriments || {};
-                    const productName = prod.product_name_he || prod.product_name || prod.product_name_en;
-                    if (productName) {
-                      food = {
-                        name: productName,
-                        brand: prod.brands || null,
-                        image_url: prod.image_thumb_url || null,
-                        kcal_per_100g: parseFloat(n['energy-kcal_100g']) || 0,
-                        protein_per_100g: parseFloat(n.proteins_100g) || 0,
-                        carbs_per_100g: parseFloat(n.carbohydrates_100g) || 0,
-                        fat_per_100g: parseFloat(n.fat_100g) || 0,
-                      };
-                      try {
-                        await supabase.from('food_database').upsert({
-                          source: 'off', source_id: barcode, barcode,
-                          name: productName, brand: food.brand, image_url: food.image_url,
-                          kcal_per_100g: food.kcal_per_100g,
-                          protein_per_100g: food.protein_per_100g,
-                          carbs_per_100g: food.carbs_per_100g,
-                          fat_per_100g: food.fat_per_100g,
-                        }, { onConflict: 'source,source_id' });
-                      } catch {}
-                    }
-                  }
-                }
-              }
-
-              if (!food) {
-                showToast(`❌ לא נמצא מוצר עם ברקוד ${barcode}`);
-                return;
-              }
-
-              setScannerResult({ ...food, barcode });
-            } catch (e) {
-              showToast('שגיאה: ' + e.message);
-            } finally {
-              setScannerLookingUp(false);
-            }
-          }}
-          onClose={() => setShowHeaderScanner(false)}
+      {/* Tab content — only if no subView */}
+      {!subView && tab === 'dashboard' && (
+        <DashboardTab
+          clients={clients}
+          coachProfile={coachProfile}
+          loggedToday={loggedToday}
+          activeCount={activeCount}
+          needsAttention={needsAttention}
+          onOpenClient={openClient}
+          onOpenMessage={openMessage}
+          onOpenMacro={() => setSubView('macroPicker')}
+          onNewClient={() => setSubView('newClient')}
+          showToast={showToast}
         />
       )}
-
-      {scannerLookingUp && (
-        <div style={{
-          position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)',
-          background: COLORS.primary, color: 'white', padding: '10px 18px',
-          borderRadius: 24, fontSize: 13, fontWeight: 600, zIndex: 1500,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-        }}>🔍 מחפשת מוצר...</div>
-      )}
-
-      {scannerResult && (
-        <div
-          onClick={() => setScannerResult(null)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-            zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 20, direction: 'rtl',
-          }}
-        >
-          <div onClick={e => e.stopPropagation()} style={{
-            background: 'white', borderRadius: 16, padding: 20,
-            maxWidth: 380, width: '100%',
-          }}>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-              {scannerResult.image_url ? (
-                <img src={scannerResult.image_url} alt="" style={{
-                  width: 64, height: 64, borderRadius: 10, objectFit: 'cover', flexShrink: 0,
-                }} />
-              ) : (
-                <div style={{
-                  width: 64, height: 64, borderRadius: 10, background: COLORS.primarySoft,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 28, flexShrink: 0,
-                }}>📦</div>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>
-                  {scannerResult.name}
-                </h3>
-                {scannerResult.brand && (
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
-                    {scannerResult.brand}
-                  </p>
-                )}
-                <p style={{ margin: '4px 0 0', fontSize: 11, color: COLORS.textMuted, direction: 'ltr', textAlign: 'right' }}>
-                  ברקוד: {scannerResult.barcode}
-                </p>
-              </div>
-            </div>
-
-            <div style={{
-              background: COLORS.primarySoft, borderRadius: 10, padding: 12, marginBottom: 14,
-            }}>
-              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: COLORS.primaryDark }}>
-                לכל 100 גרם:
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.kcal_per_100g || 0)}</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>קק״ל</span></div>
-                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.protein_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>חלבון</span></div>
-                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.carbs_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>פחמ׳</span></div>
-                <div><span style={{ fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(scannerResult.fat_per_100g || 0)}ג</span> <span style={{ fontSize: 11, color: COLORS.textMuted }}>שומן</span></div>
-              </div>
-            </div>
-
-            <button onClick={() => setScannerResult(null)} style={{
-              width: '100%', background: COLORS.primary, color: 'white', border: 'none',
-              padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}>סגרי</button>
-          </div>
-        </div>
-      )}
-
-      {/* Tab content — כל טאב עטוף ב-AnimatedScreen */}
-      {!subView && tab === 'dashboard' && (
-        <AnimatedScreen key="dashboard" direction="fade">
-          <DashboardTab
-            clients={clients}
-            coachProfile={coachProfile}
-            loggedToday={loggedToday}
-            activeCount={activeCount}
-            needsAttention={needsAttention}
-            onOpenClient={openClient}
-            onOpenMessage={openMessage}
-            onOpenMacro={() => setSubView('macroPicker')}
-            onNewClient={() => setSubView('newClient')}
-            showToast={showToast}
-          />
-        </AnimatedScreen>
-      )}
       {!subView && tab === 'clients' && (
-        <AnimatedScreen key="clients" direction="fade">
-          <ClientsTab clients={clients} onOpenClient={openClient} onOpenMessage={openMessage} onNewClient={() => setSubView('newClient')} />
-        </AnimatedScreen>
+        <ClientsTab clients={clients} onOpenClient={openClient} onOpenMessage={openMessage} onNewClient={() => setSubView('newClient')} />
       )}
-      {!subView && tab === 'meals' && <AnimatedScreen key="meals" direction="fade"><MealsTab showToast={showToast} /></AnimatedScreen>}
-      {!subView && tab === 'workouts' && <AnimatedScreen key="workouts" direction="fade"><WorkoutsTab showToast={showToast} /></AnimatedScreen>}
+      {!subView && tab === 'meals' && <MealsTab showToast={showToast} />}
+      {!subView && tab === 'workouts' && <WorkoutsTab showToast={showToast} />}
       {!subView && tab === 'insights' && coachProfile?.id && (
-        <AnimatedScreen key="insights" direction="fade">
-          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <InsightsScreen coachId={coachProfile.id} />
-            <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
-            <div>
-              <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>📝 משובי לקוחות</h3>
-              <CoachFeedbackInsights coachId={coachProfile.id} />
-            </div>
-          </main>
-        </AnimatedScreen>
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <InsightsScreen coachId={coachProfile.id} />
+
+          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+
+          <div>
+            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: COLORS.primaryDark }}>
+              📝 משובי לקוחות
+            </h3>
+            <CoachFeedbackInsights coachId={coachProfile.id} />
+          </div>
+        </main>
       )}
       {!subView && tab === 'challenges' && coachProfile?.id && (
-        <AnimatedScreen key="challenges" direction="fade">
-          <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>🏆 אתגרים</h2>
-            <CoachChallengesManager coachId={coachProfile.id} />
-            <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
-            <BroadcastsManager coachId={coachProfile.id} />
-          </main>
-        </AnimatedScreen>
-      )}
-      {!subView && tab === 'settings' && <AnimatedScreen key="settings" direction="fade"><SettingsTab showToast={showToast} onLogout={onLogout} coachId={coachProfile?.id} /></AnimatedScreen>}
+        <main style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>🏆 אתגרים</h2>
+          <CoachChallengesManager coachId={coachProfile.id} />
 
-      {/* Toast — Rich version */}
-      {toast && <RichToast key={toast.id} message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
+          <div style={{ height: 1, background: COLORS.border, margin: '8px 0' }} />
+
+          <BroadcastsManager coachId={coachProfile.id} />
+        </main>
+      )}
+      {!subView && tab === 'settings' && <SettingsTab showToast={showToast} onLogout={onLogout} coachId={coachProfile?.id} />}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: 'fixed', bottom: '84px', left: '50%', transform: 'translateX(-50%)', background: COLORS.text, color: 'white', padding: '10px 18px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, zIndex: 60, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>{toast}</div>
+      )}
 
       {/* BOTTOM NAV — improvement #5 */}
       <BottomNav tab={tab} setTab={(t) => { setTab(t); setSubView(null); setSelectedClient(null); }} />
@@ -1487,219 +831,22 @@ function BottomNav({ tab, setTab }) {
   const tabs = [
     { id: 'dashboard', label: 'כללי', icon: 'dashboard' },
     { id: 'clients', label: 'לקוחות', icon: 'clients' },
-    { id: 'meals', label: 'תזונה', icon: 'food' },
-    { id: 'workouts', label: 'אימונים', icon: 'workout' },
     { id: 'challenges', label: 'אתגרים', icon: 'challenges' },
     { id: 'insights', label: 'תובנות', icon: 'insights' },
+    { id: 'meals', label: 'תזונה', icon: 'food' },
+    { id: 'workouts', label: 'אימונים', icon: 'workout' },
     { id: 'settings', label: 'הגדרות', icon: 'settings' },
   ];
-  const [isWide, setIsWide] = React.useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
-  const [hovered, setHovered] = React.useState(false);
-
-  React.useEffect(() => {
-    const onResize = () => setIsWide(window.innerWidth >= 768);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  // ─── תפריט צד למסך רחב — בסגנון Supabase ───
-  if (isWide) {
-    const collapsedW = 60;
-    const expandedW = 220;
-    const width = hovered ? expandedW : collapsedW;
-    return (
-      <>
-        <nav
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            position: 'fixed', top: 0, right: 0, bottom: 0,
-            width: width,
-            background: 'var(--card, white)',
-            borderLeft: `1px solid var(--border, ${COLORS.border})`,
-            display: 'flex', flexDirection: 'column',
-            padding: '14px 8px', gap: 4, zIndex: 30,
-            transition: 'width 0.22s cubic-bezier(0.25,0.46,0.45,0.94)',
-            boxShadow: hovered ? '-4px 0 20px rgba(0,0,0,0.08)' : '-2px 0 8px rgba(0,0,0,0.03)',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Logo */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: 10,
-            padding: '8px 6px 14px',
-            borderBottom: `1px solid var(--border, ${COLORS.border})`,
-            marginBottom: 8,
-            minHeight: 44,
-          }}>
-            <img src="/logo.png" alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }} />
-            <span style={{
-              fontSize: 14, fontWeight: 800,
-              color: 'var(--primary-dark, ' + COLORS.primaryDark + ')',
-              opacity: hovered ? 1 : 0,
-              transition: 'opacity 0.2s',
-              whiteSpace: 'nowrap',
-            }}>
-              Sappir Fit
-            </span>
-          </div>
-
-          {tabs.map((t) => {
-            const isActive = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                title={t.label}
-                style={{
-                  background: isActive ? 'var(--primary-soft, ' + COLORS.primarySoft + ')' : 'transparent',
-                  border: 'none', borderRadius: 10,
-                  padding: '10px 12px',
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  display: 'flex', alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  gap: 12,
-                  transition: 'background 0.15s',
-                  position: 'relative',
-                  minHeight: 42,
-                }}
-              >
-                <div style={{ flexShrink: 0, width: 24, display: 'flex', justifyContent: 'center' }}>
-                  <CoachNavIcon name={t.icon} active={isActive} />
-                </div>
-                <span style={{
-                  fontSize: 13,
-                  color: isActive
-                    ? 'var(--primary-dark, ' + COLORS.primaryDark + ')'
-                    : 'var(--text, ' + COLORS.text + ')',
-                  fontWeight: isActive ? 700 : 500,
-                  opacity: hovered ? 1 : 0,
-                  transition: 'opacity 0.2s',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {t.label}
-                </span>
-                {isActive && (
-                  <div style={{
-                    position: 'absolute', right: 0, top: '50%',
-                    transform: 'translateY(-50%)', width: 3, height: 22,
-                    background: 'var(--primary, ' + COLORS.primary + ')',
-                    borderRadius: '4px 0 0 4px',
-                  }} />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-        {/* Spacer — תמיד 60px (לא משתנה כשהתפריט נפתח, כדי שהתוכן לא יקפץ) */}
-        <style>{`
-          @media (min-width: 768px) {
-            body, #root { padding-right: ${collapsedW}px !important; }
-          }
-        `}</style>
-      </>
-    );
-  }
-
-  // ─── תפריט תחתון למסך צר (מובייל) — 5 ראשיים + תפריט "עוד" ───
-  const [moreOpen, setMoreOpen] = React.useState(false);
-  const mainTabs = tabs.slice(0, 4); // 4 ראשונים
-  const moreTabs = tabs.slice(4);    // השאר ב"עוד"
-
   return (
-    <>
-      <nav style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        maxWidth: '440px', margin: '0 auto',
-        background: 'var(--nav-bg, white)',
-        borderTop: `1px solid var(--border, ${COLORS.border})`,
-        display: 'flex', justifyContent: 'space-around',
-        padding: '8px 4px 10px 4px', zIndex: 25,
-      }}>
-        {mainTabs.map((t) => (
-          <button key={t.id} onClick={() => { setTab(t.id); setMoreOpen(false); }}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}>
-            <CoachNavIcon name={t.icon} active={tab === t.id} />
-            <span style={{ fontSize: '11px', color: tab === t.id ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: tab === t.id ? 600 : 500, whiteSpace: 'nowrap' }}>{t.label}</span>
-          </button>
-        ))}
-        <button
-          onClick={() => setMoreOpen(s => !s)}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', flex: 1, minWidth: 0 }}
-        >
-          <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 3 }}>
-            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
-            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
-            <div style={{ width: 4, height: 4, borderRadius: '50%', background: moreOpen || moreTabs.some(t => t.id === tab) ? COLORS.primary : '#B0B0B0' }} />
-          </div>
-          <span style={{ fontSize: '11px', color: moreOpen || moreTabs.some(t => t.id === tab) ? 'var(--primary-dark, ' + COLORS.primaryDark + ')' : 'var(--text-muted, #9B9B9B)', fontWeight: moreOpen ? 600 : 500 }}>עוד</span>
+    <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxWidth: '440px', margin: '0 auto', background: 'white', borderTop: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-around', padding: '8px 0 10px 0', zIndex: 25 }}>
+      {tabs.map((t) => (
+        <button key={t.id} onClick={() => setTab(t.id)}
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '56px' }}>
+          <CoachNavIcon name={t.icon} active={tab === t.id} />
+          <span style={{ fontSize: '10px', color: tab === t.id ? COLORS.primaryDark : '#9B9B9B', fontWeight: tab === t.id ? 600 : 500 }}>{t.label}</span>
         </button>
-      </nav>
-
-      {/* תפריט "עוד" — נפתח כסליידר מהתחתית */}
-      {moreOpen && (
-        <div
-          onClick={() => setMoreOpen(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-            zIndex: 50, animation: 'fadeIn 0.2s ease',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed', bottom: 70, left: 0, right: 0,
-              maxWidth: '440px', margin: '0 auto',
-              background: 'var(--nav-bg, white)',
-              borderRadius: '20px 20px 0 0',
-              boxShadow: '0 -8px 24px rgba(0,0,0,0.15)',
-              padding: '14px 12px 18px',
-              direction: 'rtl',
-              animation: 'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-            }}
-          >
-            <div style={{
-              width: 40, height: 4, background: '#DDD',
-              borderRadius: 2, margin: '0 auto 12px',
-            }} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              {moreTabs.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { setTab(t.id); setMoreOpen(false); }}
-                  style={{
-                    background: tab === t.id ? COLORS.primarySoft : 'transparent',
-                    border: `1px solid ${tab === t.id ? COLORS.primary : 'var(--border, ' + COLORS.border + ')'}`,
-                    borderRadius: 12,
-                    padding: '14px 8px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                >
-                  <CoachNavIcon name={t.icon} active={tab === t.id} />
-                  <span style={{
-                    fontSize: 12,
-                    color: tab === t.id ? COLORS.primaryDark : 'var(--text, ' + COLORS.text + ')',
-                    fontWeight: tab === t.id ? 700 : 500,
-                  }}>{t.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-      `}</style>
-    </>
+      ))}
+    </nav>
   );
 }
 
@@ -1753,186 +900,57 @@ function CoachNavIcon({ name, active }) {
 function DashboardTab({ clients, coachProfile, loggedToday, activeCount, needsAttention, onOpenClient, onOpenMessage, onOpenMacro, onNewClient, showToast }) {
   const today = new Date();
   const dayStr = today.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
-  const [showAttentionList, setShowAttentionList] = React.useState(false);
-
-  // רישום ה-widgets ב-Registry — חייב לרוץ מיד (לא ב-useEffect),
-  // כי ModularPage צריך אותם בrender הראשון
-  if (!WIDGET_REGISTRY['stats']) {
-    registerWidget('stats', {
-      title: 'סטטיסטיקות יומיות',
-      icon: '📊',
-      render: ({ activeCount, loggedToday, needsAttention }) => (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
-          <StatCard value={activeCount} label="פעילים" color={COLORS.primaryDark} />
-          <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
-          <StatCard value={needsAttention?.length || 0} label="ממתינים" color={(needsAttention?.length || 0) > 0 ? COLORS.red : COLORS.textMuted} />
-        </div>
-      ),
-    });
-    registerWidget('weekly_overview', {
-      title: 'סקירה שבועית',
-      icon: '📅',
-      render: ({ coachProfile }) => coachProfile?.id ? <CoachWeeklyOverview coachId={coachProfile.id} /> : null,
-    });
-    registerWidget('feed', {
-      title: 'פיד פעילות',
-      icon: '🔔',
-      render: ({ clients, onOpenClient }) => <ActivityFeed clients={clients} onOpenClient={onOpenClient} />,
-    });
-    registerWidget('attention', {
-      title: 'התראות',
-      icon: '⚠️',
-      render: ({ needsAttention, onOpenAttention }) => (needsAttention?.length || 0) > 0 ? (
-        <button
-          onClick={() => onOpenAttention && onOpenAttention()}
-          style={{
-            width: '100%', background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`,
-            borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between', gap: '8px', cursor: 'pointer',
-            fontFamily: 'inherit', textAlign: 'right',
-          }}
-        >
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8B6914' }}>
-            ⚠️ {needsAttention.length} לקוחות לא רשמו היום
-          </span>
-          <span style={{ fontSize: '18px', color: '#8B6914' }}>←</span>
-        </button>
-      ) : null,
-    });
-    registerWidget('clients_list', {
-      title: 'רשימת לקוחות',
-      icon: '👥',
-      render: ({ clients, onOpenClient, onOpenMessage }) => (
-        <ClientsListWithSearch clients={clients} onOpenClient={onOpenClient} onOpenMessage={onOpenMessage} />
-      ),
-    });
-  }
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <p style={{ fontSize: '13px', color: COLORS.textMuted, margin: 0, textAlign: 'right' }}>{dayStr}</p>
 
-      <ModularPage
-        pageId="coach-dashboard"
-        defaultWidgets={['stats', 'weekly_overview', 'feed', 'attention', 'clients_list']}
-        availableWidgets={['stats', 'weekly_overview', 'feed', 'attention', 'clients_list']}
-        widgetProps={{
-          clients, coachProfile, loggedToday, activeCount, needsAttention,
-          onOpenClient, onOpenMessage, onOpenMacro, onNewClient,
-          onOpenAttention: () => setShowAttentionList(true),
-        }}
-      />
-
-      {showAttentionList && (
-        <AttentionListModal
-          clients={needsAttention}
-          onClose={() => setShowAttentionList(false)}
-          onOpenClient={(c) => { setShowAttentionList(false); onOpenClient(c); }}
-          onSendMessage={(c) => { setShowAttentionList(false); onOpenMessage(c); }}
-        />
-      )}
-    </main>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════
-// AttentionListModal — רשימת לקוחות שלא דיווחו
-// ═════════════════════════════════════════════════════════════
-function AttentionListModal({ clients, onClose, onOpenClient, onSendMessage }) {
-  return (
-    <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-        zIndex: 1500, display: 'flex', alignItems: 'flex-start',
-        justifyContent: 'center', padding: 20, direction: 'rtl', overflowY: 'auto',
-      }}
-    >
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          background: 'white', borderRadius: 16, padding: 16,
-          maxWidth: 480, width: '100%', marginTop: 30,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#8B6914' }}>
-            ⚠️ לקוחות שלא רשמו היום ({clients.length})
-          </h3>
-          <button onClick={onClose} style={{
-            background: 'transparent', border: 'none', fontSize: 22,
-            cursor: 'pointer', color: COLORS.textMuted, padding: '0 6px',
-            fontFamily: 'inherit',
-          }}>×</button>
-        </div>
-
-        <p style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
-          לחצי על לקוחה כדי לפתוח אותה, או על כפתור התזכורת לשלוח לה הודעה.
-        </p>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {clients.map(c => (
-            <div key={c.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: 10, background: COLORS.bg,
-              border: `1px solid ${COLORS.border}`, borderRadius: 10,
-            }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: COLORS.primarySoft, color: COLORS.primaryDark,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 700, flexShrink: 0,
-              }}>{(c.name || '?').charAt(0)}</div>
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>{c.name}</p>
-                <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-                  {c.last_log ? `דיווח אחרון: ${new Date(c.last_log).toLocaleDateString('he-IL')}` : 'עוד לא דיווחה'}
-                </p>
-              </div>
-
-              <button
-                onClick={() => onOpenClient(c)}
-                style={{
-                  background: 'white', color: COLORS.primaryDark,
-                  border: `1px solid ${COLORS.border}`, borderRadius: 8,
-                  padding: '6px 10px', fontSize: 11, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-                title="פתחי כרטיס לקוחה"
-              >👤</button>
-              <button
-                onClick={() => onSendMessage(c)}
-                style={{
-                  background: COLORS.primary, color: 'white',
-                  border: 'none', borderRadius: 8,
-                  padding: '6px 10px', fontSize: 11, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-                title="שלחי תזכורת"
-              >💬 תזכורת</button>
-            </div>
-          ))}
-        </div>
+      {/* IMPROVEMENT #1 — "logged today" stat */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        <StatCard value={activeCount} label="פעילים" color={COLORS.primaryDark} />
+        <StatCard value={loggedToday} label="רשמו היום" color={COLORS.mint} />
+        <StatCard value={needsAttention.length} label="ממתינים" color={needsAttention.length > 0 ? COLORS.red : COLORS.textMuted} />
       </div>
-    </div>
+
+      {/* 💜 סקירה שבועית של כל הלקוחות */}
+      {coachProfile?.id && <CoachWeeklyOverview coachId={coachProfile.id} />}
+
+      {/* 🔔 פיד פעילות אחרונה */}
+      <ActivityFeed clients={clients} onOpenClient={onOpenClient} />
+
+      {/* Attention banner */}
+      {needsAttention.length > 0 && (
+        <div style={{ background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}`, borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#8B6914' }}>
+            ⚠️ {needsAttention.length} לקוחות לא רשמו היום
+          </span>
+          <span style={{ fontSize: '18px' }}>←</span>
+        </div>
+      )}
+
+      {/* Search */}
+      <input placeholder="🔍 חיפוש לקוח..." style={inputStyle} />
+
+      {/* Client filter chips */}
+      <ClientFilterChips clients={clients} />
+
+      {/* IMPROVEMENT #2 — Client cards with weekly heatmap */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {clients.map((c) => (
+          <ClientCardWithWeek key={c.id} client={c} onOpen={() => onOpenClient(c)} onMessage={() => onOpenMessage(c)} />
+        ))}
+      </div>
+    </main>
   );
 }
 
 function ClientFilterChips({ clients }) {
   const [filter, setFilter] = useState('all');
-  const filters = React.useMemo(() => {
-    let active = 0, attention = 0;
-    for (const c of clients) {
-      if (c.status === 'on-track') active++;
-      else attention++;
-    }
-    return [
-      { id: 'all', label: `הכל ${clients.length}` },
-      { id: 'active', label: `פעילים ${active}` },
-      { id: 'attention', label: `ממתינים ${attention}` },
-    ];
-  }, [clients]);
+  const filters = [
+    { id: 'all', label: `הכל ${clients.length}` },
+    { id: 'active', label: `פעילים ${clients.filter(c => c.status === 'on-track').length}` },
+    { id: 'attention', label: `ממתינים ${clients.filter(c => c.status !== 'on-track').length}` },
+  ];
   return (
     <div style={{ display: 'flex', gap: '6px' }}>
       {filters.map((f) => (
@@ -2000,67 +1018,62 @@ function ActivityFeed({ clients, onOpenClient }) {
     if (clients.length === 0) { setLoading(false); return; }
     const clientIds = clients.map(c => c.id);
 
-    try {
-      const [meals, weights, workouts, water] = await Promise.all([
-        supabase.from('meal_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(20),
-        supabase.from('weight_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-        supabase.from('workout_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-        supabase.from('water_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
-      ]);
+    const [meals, weights, workouts, water] = await Promise.all([
+      supabase.from('meal_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(20),
+      supabase.from('weight_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+      supabase.from('workout_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+      supabase.from('water_logs').select('*').in('client_id', clientIds).order('logged_at', {ascending:false}).limit(10),
+    ]);
 
-      const all = [];
-      const byClient = {};
-      clients.forEach(c => { byClient[c.id] = c; });
+    const all = [];
+    const byClient = {};
+    clients.forEach(c => { byClient[c.id] = c; });
 
-      (meals.data || []).forEach(m => {
-        const c = byClient[m.client_id];
-        if (!c) return;
-        all.push({
-          id: 'meal-' + m.id,
-          time: new Date(m.logged_at).getTime(),
-          clientId: c.id,
-          clientName: c.firstName || c.name,
-          icon: '🥗',
-          text: `${c.firstName || c.name} רשמה ${m.name} (${m.calories || 0} קק״ל)`,
-          date: formatRelativeTime(m.logged_at),
-        });
+    (meals.data || []).forEach(m => {
+      const c = byClient[m.client_id];
+      if (!c) return;
+      all.push({
+        id: 'meal-' + m.id,
+        time: new Date(m.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '🥗',
+        text: `${c.firstName || c.name} רשמה ${m.name} (${m.calories || 0} קק״ל)`,
+        date: formatRelativeTime(m.logged_at),
       });
+    });
 
-      (weights.data || []).forEach(w => {
-        const c = byClient[w.client_id];
-        if (!c) return;
-        all.push({
-          id: 'weight-' + w.id,
-          time: new Date(w.logged_at).getTime(),
-          clientId: c.id,
-          clientName: c.firstName || c.name,
-          icon: '⚖️',
-          text: `${c.firstName || c.name} עדכנה משקל: ${w.weight} ק״ג`,
-          date: formatRelativeTime(w.logged_at),
-        });
+    (weights.data || []).forEach(w => {
+      const c = byClient[w.client_id];
+      if (!c) return;
+      all.push({
+        id: 'weight-' + w.id,
+        time: new Date(w.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '⚖️',
+        text: `${c.firstName || c.name} עדכנה משקל: ${w.weight} ק״ג`,
+        date: formatRelativeTime(w.logged_at),
       });
+    });
 
-      (workouts.data || []).forEach(w => {
-        const c = byClient[w.client_id];
-        if (!c) return;
-        all.push({
-          id: 'workout-' + w.id,
-          time: new Date(w.logged_at).getTime(),
-          clientId: c.id,
-          clientName: c.firstName || c.name,
-          icon: '🏋️',
-          text: `${c.firstName || c.name} סיימה אימון`,
-          date: formatRelativeTime(w.logged_at),
-        });
+    (workouts.data || []).forEach(w => {
+      const c = byClient[w.client_id];
+      if (!c) return;
+      all.push({
+        id: 'workout-' + w.id,
+        time: new Date(w.logged_at).getTime(),
+        clientId: c.id,
+        clientName: c.firstName || c.name,
+        icon: '🏋️',
+        text: `${c.firstName || c.name} סיימה אימון`,
+        date: formatRelativeTime(w.logged_at),
       });
+    });
 
-      all.sort((a, b) => b.time - a.time);
-      setActivities(all.slice(0, 15));
-    } catch (e) {
-      console.error('ActivityFeed loadActivity error:', e);
-    } finally {
-      setLoading(false);
-    }
+    all.sort((a, b) => b.time - a.time);
+    setActivities(all.slice(0, 15));
+    setLoading(false);
   };
 
   const shown = expanded ? activities : activities.slice(0, 4);
@@ -2073,17 +1086,7 @@ function ActivityFeed({ clients, onOpenClient }) {
       </div>
       
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 4px' }}>
-              <Shimmer w={20} h={20} r={10} />
-              <div style={{ flex: 1 }}>
-                <Shimmer w="70%" h={11} r={5} style={{ marginBottom: 4 }} />
-                <Shimmer w="30%" h={9} r={4} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 10, margin: 0 }}>טוענת...</p>
       ) : activities.length === 0 ? (
         <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 16, margin: 0 }}>
           אין עדיין פעילות. הלקוחות שלך טרם רשמו מידע באפליקציה.
@@ -2129,114 +1132,7 @@ function ActivityFeed({ clients, onOpenClient }) {
 }
 
 /* IMPROVEMENT #2 — Client card with weekly heatmap */
-/* ═══════════════════════════════════════════════════════════
-   CLIENTS LIST WITH SEARCH — חיפוש פעיל + סינון לפי פעילות
-═══════════════════════════════════════════════════════════ */
-function ClientsListWithSearch({ clients, onOpenClient, onOpenMessage }) {
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all | active | warning | inactive
-
-  // Debounce — 200ms אחרי שהמשתמש מפסיק להקליד
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 200);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  const getStatusColor = React.useCallback((c) => {
-    if (c.loggedToday) return 'green';
-    if ((c.lastLog || 99) <= 3) return 'amber';
-    return 'red';
-  }, []);
-
-  // ספירות סטטוס — חישוב פעם אחת
-  const statusCounts = React.useMemo(() => {
-    let green = 0, amber = 0, red = 0;
-    for (const c of clients) {
-      const s = getStatusColor(c);
-      if (s === 'green') green++;
-      else if (s === 'amber') amber++;
-      else red++;
-    }
-    return { green, amber, red };
-  }, [clients, getStatusColor]);
-
-  // פילטר — memoized
-  const filtered = React.useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    return clients.filter(c => {
-      if (q) {
-        if (!c.name?.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) {
-          return false;
-        }
-      }
-      if (filter !== 'all') {
-        const status = getStatusColor(c);
-        if (filter === 'active' && status !== 'green') return false;
-        if (filter === 'warning' && status !== 'amber') return false;
-        if (filter === 'inactive' && status !== 'red') return false;
-      }
-      return true;
-    });
-  }, [clients, debouncedSearch, filter, getStatusColor]);
-
-  return (
-    <div>
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 חיפוש לקוחה..."
-        style={inputStyle}
-      />
-
-      {/* Filter chips - לפי סטטוס פעילות */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-        {[
-          { id: 'all', label: 'הכל', color: COLORS.primary, count: clients.length },
-          { id: 'active', label: '🟢 רשמו היום', color: '#6BAF8A', count: statusCounts.green },
-          { id: 'warning', label: '🟡 לא רשמו 1-3 ימים', color: COLORS.amber, count: statusCounts.amber },
-          { id: 'inactive', label: '🔴 לא פעילות', color: COLORS.red, count: statusCounts.red },
-        ].map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            style={{
-              background: filter === f.id ? f.color : 'white',
-              color: filter === f.id ? 'white' : COLORS.text,
-              border: `1px solid ${filter === f.id ? f.color : COLORS.border}`,
-              borderRadius: 999, padding: '6px 12px', fontSize: 11, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            {f.label} ({f.count})
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-          <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>
-            {search ? 'לא נמצאו לקוחות' : 'אין לקוחות בקטגוריה זו'}
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {filtered.map((c) => (
-            <ClientCardWithWeek
-              key={c.id}
-              client={c}
-              statusColor={getStatusColor(c)}
-              onOpen={() => onOpenClient(c)}
-              onMessage={() => onOpenMessage(c)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ClientCardWithWeek({ client, statusColor, onOpen, onMessage }) {
+function ClientCardWithWeek({ client, onOpen, onMessage }) {
   const c = client;
   const weekColors = {
     logged: COLORS.primary,
@@ -2249,27 +1145,7 @@ function ClientCardWithWeek({ client, statusColor, onOpen, onMessage }) {
     <div onClick={onOpen} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
       {/* Top row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-        {/* עיגול צבעוני לפי רמת פעילות */}
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%',
-          background: statusColor === 'green' ? '#6BAF8A'
-                    : statusColor === 'amber' ? COLORS.amber
-                    : statusColor === 'red' ? COLORS.red
-                    : COLORS.primary,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'white', fontWeight: 700, fontSize: 16, flexShrink: 0,
-          border: `2px solid ${statusColor === 'green' ? '#4D8E68'
-                              : statusColor === 'amber' ? '#C99A2D'
-                              : statusColor === 'red' ? '#A06868'
-                              : COLORS.primaryDark}`,
-        }} title={
-          statusColor === 'green' ? 'רשמה היום ✅'
-          : statusColor === 'amber' ? `לא רשמה כבר ${c.lastLog || '?'} ימים`
-          : statusColor === 'red' ? `לא פעילה כבר ${c.lastLog || '?'} ימים`
-          : ''
-        }>
-          {(c.name||'?').charAt(0)}
-        </div>
+        <div style={avatarStyle}>{c.name.charAt(0)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{c.name}</p>
@@ -2304,7 +1180,7 @@ function ClientCardWithWeek({ client, statusColor, onOpen, onMessage }) {
 /* ===================== CLIENTS TAB ===================== */
 function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
   const [search, setSearch] = useState('');
-  const filtered = clients.filter((c) => (c.name||'').includes(search.trim()));
+  const filtered = clients.filter((c) => c.name.includes(search.trim()));
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2317,7 +1193,7 @@ function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {filtered.map((c) => (
           <div key={c.id} onClick={() => onOpenClient(c)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ ...avatarStyle, width: '44px', height: '44px', fontSize: '16px' }}>{(c.name||'?').charAt(0)}</div>
+            <div style={{ ...avatarStyle, width: '44px', height: '44px', fontSize: '16px' }}>{c.name.charAt(0)}</div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>{c.name}</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>
@@ -2334,1018 +1210,659 @@ function ClientsTab({ clients, onOpenClient, onOpenMessage, onNewClient }) {
 
 
 /* ═══════════════════════════════════════════════════════════
-   NUTRITION TAB — מאגר תפריטים תבנית
+   NUTRITION TAB — ספיר יוצרת ארוחות
 ═══════════════════════════════════════════════════════════ */
 function MealsTab({ showToast }) {
-  const [templates, setTemplates] = useState([]);
+  const [meals, setMeals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
-  const [coachId, setCoachId] = useState(null);
-  const [search, setSearch] = useState('');
-  const [showAssign, setShowAssign] = useState(null); // template object
+  const [editingMeal, setEditingMeal] = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setCoachId(user.id);
-      // טעינה ממאגר התפריטים-תבנית (טבלה: meal_plan_templates)
-      const { data } = await supabase
-        .from('meal_plan_templates')
-        .select('*, meal_plan_template_meals(*)')
-        .eq('coach_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (data) setTemplates(data);
-    } catch (e) {
-      console.error('MealsTab load error:', e);
-    } finally {
-      setLoading(false);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('meals').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setMeals(data);
+    setLoading(false);
+  };
+
+  const deleteMeal = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('למחוק את הארוחה?')) return;
+    await supabase.from('meals').delete().eq('id', id);
+    setMeals(prev => prev.filter(m => m.id !== id));
+    showToast('🗑️ נמחקה');
+  };
+
+  const duplicateMeal = async (meal, e) => {
+    e?.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('meals').insert({
+      coach_id: user.id,
+      name: meal.name + ' (עותק)',
+      items: meal.items,
+      total_calories: meal.total_calories,
+      total_protein_g: meal.total_protein_g,
+      total_carbs_g: meal.total_carbs_g,
+      total_fat_g: meal.total_fat_g,
+    }).select();
+    if (data?.[0]) {
+      setMeals(prev => [data[0], ...prev]);
+      showToast('📋 שוכפלה');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('למחוק את התפריט?')) return;
-    await supabase.from('meal_plan_templates').update({ is_active: false }).eq('id', id);
-    load();
-  };
-
-  const handleDuplicate = async (t) => {
-    if (!confirm(`לשכפל את "${t.name}"?`)) return;
-    const { id, created_at, updated_at, meal_plan_template_meals, ...payload } = t;
-    const { data: newT } = await supabase.from('meal_plan_templates').insert({
-      ...payload,
-      name: `${t.name} (עותק)`,
-      coach_id: coachId,
-      is_active: true,
-    }).select().single();
-
-    if (newT && (meal_plan_template_meals || []).length > 0) {
-      const meals = meal_plan_template_meals.map(m => {
-        const { id, template_id, created_at, ...mp } = m;
-        return { ...mp, template_id: newT.id };
-      });
-      await supabase.from('meal_plan_template_meals').insert(meals);
-    }
-    load();
-  };
-
-  if (editing) {
-    return (
-      <MealTemplateEditor
-        template={editing === 'new' ? null : editing}
-        coachId={coachId}
-        onCancel={() => setEditing(null)}
-        onSave={() => { setEditing(null); load(); showToast('💾 התפריט נשמר'); }}
-      />
-    );
+  if (editingMeal !== null) {
+    return <MealEditor meal={editingMeal} onBack={() => { setEditingMeal(null); load(); }} showToast={showToast} />;
   }
 
-  if (showAssign) {
+  // ספריית תבניות
+  if (showLibrary) {
     return (
-      <AssignTemplateToClient
-        template={showAssign}
-        type="meal"
-        coachId={coachId}
-        onClose={() => setShowAssign(null)}
-        showToast={showToast}
-      />
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית תפריטים</h2>
+        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
+          תפריטים שנוצרו ע"י מאמנות אחרות. בחרי תפריט ולחצי "שכפלי ללקוחה" כדי להקצות אותו.
+        </p>
+        <MealTemplateLibrary
+          onApply={async (template) => {
+            // פתח דיאלוג בחירת לקוחה
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: clientList } = await supabase
+              .from('clients').select('id, full_name').eq('coach_id', user.id);
+            if (!clientList || clientList.length === 0) {
+              showToast('אין לך עדיין לקוחות');
+              return;
+            }
+            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
+            const idx = parseInt(choice) - 1;
+            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
+            const { error } = await applyMealTemplate(template.id, clientList[idx].id);
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast(`✅ "${template.name}" שוכפל ל-${clientList[idx].full_name}`);
+          }}
+          onClose={() => setShowLibrary(false)}
+        />
+      </main>
     );
   }
-
-  const filtered = search
-    ? templates.filter(t => t.name?.toLowerCase().includes(search.toLowerCase()))
-    : templates;
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-            🍽️ מאגר תפריטים
-          </h2>
-          <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-            תפריטי תבנית — שכפלי ושייכי ללקוחות
-          </p>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>ארוחות</h2>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            📚 ספרייה
+          </button>
+          <button onClick={() => setEditingMeal({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + ארוחה חדשה
+          </button>
         </div>
-        <button onClick={() => setEditing('new')} style={{
-          background: COLORS.primary, color: 'white', border: 'none',
-          padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>+ תפריט חדש</button>
       </div>
 
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 חיפוש תפריט..."
-        style={inputStyle}
-      />
-
-      {loading ? (
-        <p style={{ textAlign: 'center', color: COLORS.textMuted, padding: 20 }}>טוענת...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-          <p style={{ fontSize: 24, margin: '0 0 8px' }}>🍽️</p>
-          <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
-            {search ? 'לא נמצאו תפריטים' : 'עדיין לא יצרת תפריטים. לחצי על "+ תפריט חדש"'}
-          </p>
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : meals.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין ארוחות</p>
+          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ ארוחה חדשה" למעלה 👆</p>
         </div>
       ) : (
-        filtered.map(t => {
-          const meals = t.meal_plan_template_meals || [];
-          const total = meals.reduce((s, m) => ({
-            kcal: s.kcal + (Number(m.total_kcal) || 0),
-            p: s.p + (Number(m.total_p) || 0),
-          }), { kcal: 0, p: 0 });
-          return (
-            <div key={t.id} style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {meals.map(m => (
+            <div key={m.id} onClick={() => setEditingMeal(m)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{t.name}</h4>
-                  {t.description && <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>{t.description}</p>}
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>🍽️ {m.name}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                    {(m.items?.length || 0)} מאכלים · {Math.round(m.total_calories || 0)} קק״ל
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={() => setEditing(t)} style={iconBtn} title="עריכה">✏️</button>
-                  <button onClick={() => handleDuplicate(t)} style={iconBtn} title="שכפול">📋</button>
-                  <button onClick={() => handleDelete(t.id)} style={{ ...iconBtn, color: COLORS.red }} title="מחיקה">🗑️</button>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={(e) => duplicateMeal(m, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
+                  <button onClick={(e) => deleteMeal(m.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
-                <span style={{ background: COLORS.primarySoft, padding: '3px 8px', borderRadius: 6, color: COLORS.primaryDark }}>
-                  🍽️ {meals.length} ארוחות
-                </span>
-                <span style={{ background: COLORS.amberSoft, padding: '3px 8px', borderRadius: 6, color: '#7A5C1E' }}>
-                  🔥 {Math.round(total.kcal)} קק״ל
-                </span>
+              <div style={{ display: 'flex', gap: 10, fontSize: 11, color: COLORS.textMuted }}>
+                <span style={{ color: COLORS.sky }}>חלבון <strong>{Math.round(m.total_protein_g || 0)}g</strong></span>
+                <span style={{ color: COLORS.primary }}>פחמ׳ <strong>{Math.round(m.total_carbs_g || 0)}g</strong></span>
+                <span style={{ color: '#C88968' }}>שומן <strong>{Math.round(m.total_fat_g || 0)}g</strong></span>
               </div>
-              <button onClick={() => setShowAssign(t)} style={{
-                width: '100%', background: COLORS.primary, color: 'white',
-                border: 'none', padding: '8px', borderRadius: 8, fontSize: 12,
-                fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-              }}>👥 שייכי ללקוחות</button>
             </div>
-          );
-        })
+          ))}
+        </div>
       )}
     </main>
   );
 }
 
-
 /* ═══════════════════════════════════════════════════════════
-   WORKOUTS TAB — מאגר אימונים תבנית
+   MEAL EDITOR — יצירת/עריכת ארוחה
 ═══════════════════════════════════════════════════════════ */
-function WorkoutsTab({ showToast }) {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(null);
-  const [coachId, setCoachId] = useState(null);
+function MealEditor({ meal, onBack, showToast }) {
+  const [name, setName] = useState(meal?.name || '');
+  const [items, setItems] = useState(meal?.items || []);
+  const [savedFoods, setSavedFoods] = useState([]);
   const [search, setSearch] = useState('');
-  const [showAssign, setShowAssign] = useState(null);
-
-  useEffect(() => { load(); }, []);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      setCoachId(user.id);
-      const { data } = await supabase
-        .from('workout_templates')
-        .select('*')
-        .eq('coach_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (data) setTemplates(data);
-    } catch (e) {
-      console.error('WorkoutsTab load error:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('למחוק את האימון?')) return;
-    await supabase.from('workout_templates').update({ is_active: false }).eq('id', id);
-    load();
-  };
-
-  const handleDuplicate = async (w) => {
-    if (!confirm(`לשכפל את "${w.name}"?`)) return;
-    const { id, created_at, updated_at, ...payload } = w;
-    await supabase.from('workout_templates').insert({
-      ...payload,
-      name: `${w.name} (עותק)`,
-      coach_id: coachId,
-      is_active: true,
-    });
-    load();
-  };
-
-  if (editing) {
-    return (
-      <WorkoutTemplateEditor
-        template={editing === 'new' ? null : editing}
-        coachId={coachId}
-        onCancel={() => setEditing(null)}
-        onSave={() => { setEditing(null); load(); showToast('💾 האימון נשמר'); }}
-      />
-    );
-  }
-
-  if (showAssign) {
-    return (
-      <AssignTemplateToClient
-        template={showAssign}
-        type="workout"
-        coachId={coachId}
-        onClose={() => setShowAssign(null)}
-        showToast={showToast}
-      />
-    );
-  }
-
-  const filtered = search
-    ? templates.filter(t => t.name?.toLowerCase().includes(search.toLowerCase()))
-    : templates;
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-            🏋️ מאגר אימונים
-          </h2>
-          <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-            אימוני תבנית — שכפלי ושייכי ללקוחות
-          </p>
-        </div>
-        <button onClick={() => setEditing('new')} style={{
-          background: COLORS.primary, color: 'white', border: 'none',
-          padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>+ אימון חדש</button>
-      </div>
-
-      <input
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="🔍 חיפוש אימון..."
-        style={inputStyle}
-      />
-
-      {loading ? (
-        <p style={{ textAlign: 'center', color: COLORS.textMuted, padding: 20 }}>טוענת...</p>
-      ) : filtered.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-          <p style={{ fontSize: 24, margin: '0 0 8px' }}>🏋️</p>
-          <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
-            {search ? 'לא נמצאו אימונים' : 'עדיין לא יצרת אימונים. לחצי על "+ אימון חדש"'}
-          </p>
-        </div>
-      ) : (
-        filtered.map(t => (
-          <div key={t.id} style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{t.name}</h4>
-                {t.description && <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>{t.description}</p>}
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => setEditing(t)} style={iconBtn} title="עריכה">✏️</button>
-                <button onClick={() => handleDuplicate(t)} style={iconBtn} title="שכפול">📋</button>
-                <button onClick={() => handleDelete(t.id)} style={{ ...iconBtn, color: COLORS.red }} title="מחיקה">🗑️</button>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
-              <span style={{ background: COLORS.primarySoft, padding: '3px 8px', borderRadius: 6, color: COLORS.primaryDark }}>
-                💪 {(t.exercises || []).length} תרגילים
-              </span>
-              {t.duration_min && (
-                <span style={{ background: COLORS.amberSoft, padding: '3px 8px', borderRadius: 6, color: '#7A5C1E' }}>
-                  ⏱️ {t.duration_min} דק׳
-                </span>
-              )}
-            </div>
-            <button onClick={() => setShowAssign(t)} style={{
-              width: '100%', background: COLORS.primary, color: 'white',
-              border: 'none', padding: '8px', borderRadius: 8, fontSize: 12,
-              fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            }}>👥 שייכי ללקוחות</button>
-          </div>
-        ))
-      )}
-    </main>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════════
-   ASSIGN TEMPLATE TO CLIENT — שיוך תבנית ללקוחות
-═══════════════════════════════════════════════════════════ */
-function AssignTemplateToClient({ template, type, coachId, onClose, showToast }) {
-  const [clients, setClients] = useState([]);
-  const [selected, setSelected] = useState({});
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingSavedFood, setEditingSavedFood] = useState(null);
+  const searchTimer = useRef(null);
 
+  const saveEditedFood = async () => {
+    if (!editingSavedFood) return;
+    const updated = {
+      name: editingSavedFood.name,
+      calories: parseFloat(editingSavedFood.calories) || 0,
+      protein_g: parseFloat(editingSavedFood.protein_g) || 0,
+      carbs_g: parseFloat(editingSavedFood.carbs_g) || 0,
+      fat_g: parseFloat(editingSavedFood.fat_g) || 0,
+    };
+    await supabase.from('coach_foods').update(updated).eq('id', editingSavedFood.id);
+    setSavedFoods(prev => prev.map(f => f.id === editingSavedFood.id ? {...f, ...updated} : f));
+    setEditingSavedFood(null);
+    showToast('💾 המאכל עודכן');
+  };
+
+  const deleteSavedFood = async (id) => {
+    if (!confirm('למחוק את המאכל מהמאגר? זה לא ישפיע על הארוחות שכבר נשמרו איתו.')) return;
+    await supabase.from('coach_foods').delete().eq('id', id);
+    setSavedFoods(prev => prev.filter(f => f.id !== id));
+    showToast('🗑️ נמחק');
+  };
+
+  useEffect(() => { loadSavedFoods(); }, []);
+
+  const loadSavedFoods = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('coach_foods').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setSavedFoods(data);
+  };
+
+  // חיפוש ב-Open Food Facts
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from('clients')
-        .select('id, full_name')
-        .eq('coach_id', coachId)
-        .or('is_archived.is.null,is_archived.eq.false')
-        .order('full_name');
-      if (data) setClients(data);
-    })();
-  }, [coachId]);
-
-  const toggle = (id) => setSelected({ ...selected, [id]: !selected[id] });
-
-  const handleAssign = async () => {
-    const ids = Object.keys(selected).filter(id => selected[id]);
-    if (ids.length === 0) { alert('בחרי לפחות לקוחה אחת'); return; }
-
-    setSaving(true);
-
-    if (type === 'workout') {
-      // צור client_workouts מהתבנית
-      const inserts = ids.map(clientId => {
-        const { id, created_at, updated_at, ...payload } = template;
-        return {
-          ...payload,
-          coach_id: coachId,
-          client_id: clientId,
-          is_active: true,
-        };
-      });
-      await supabase.from('client_workouts').insert(inserts);
-    } else if (type === 'meal') {
-      // עבור כל לקוחה - צור meal_plan + meal_plan_meals
-      for (const clientId of ids) {
-        const { data: plan } = await supabase.from('meal_plans').insert({
-          client_id: clientId,
-          coach_id: coachId,
-          name: template.name,
-          description: template.description || null,
-          is_active: true,
-        }).select().single();
-
-        const tplMeals = template.meal_plan_template_meals || [];
-        if (plan && tplMeals.length > 0) {
-          const meals = tplMeals.map(m => ({
-            meal_plan_id: plan.id,
-            name: m.name,
-            meal_type: m.meal_type || 'snack',
-            notes: m.notes || null,
-            items: m.items || [],
-            total_kcal: m.total_kcal || 0,
-            total_p: m.total_p || 0,
-            total_c: m.total_c || 0,
-            total_f: m.total_f || 0,
-            position: m.position || 0,
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (search.trim().length < 3) {
+      setSearchResults([]);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(search)}&search_simple=1&action=process&json=1&page_size=8&fields=product_name,product_name_he,brands,nutriments`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const results = (data.products || [])
+          .filter(p => (p.product_name_he || p.product_name) && p.nutriments?.['energy-kcal_100g'])
+          .map(p => ({
+            name: (p.product_name_he || p.product_name) + (p.brands ? ` (${p.brands.split(',')[0]})` : ''),
+            cal: Math.round(p.nutriments['energy-kcal_100g'] || 0),
+            p: Math.round((p.nutriments.proteins_100g || 0) * 10) / 10,
+            c: Math.round((p.nutriments.carbohydrates_100g || 0) * 10) / 10,
+            f: Math.round((p.nutriments.fat_100g || 0) * 10) / 10,
+            icon: '🛒',
+            source: 'off',
           }));
-          await supabase.from('meal_plan_meals').insert(meals);
-        }
+        setSearchResults(results);
+      } catch(e) { console.error(e); }
+      setSearching(false);
+    }, 600);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [search]);
+
+  // חיפוש במאגר השמור
+  const savedMatches = search.trim()
+    ? savedFoods.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
+    : savedFoods;
+
+  // הוספת פריט לארוחה + שמירה למאגר אם לא קיים
+  const addItemToMeal = async (food, quantity = 100) => {
+    const qty = parseFloat(quantity) || 100;
+    const r = qty / 100;
+    
+    const newItem = {
+      name: food.name,
+      quantity_g: qty,
+      cal: food.cal * r,
+      p: food.p * r,
+      c: food.c * r,
+      f: food.f * r,
+      icon: food.icon || '🍽️',
+    };
+    
+    setItems(prev => [...prev, newItem]);
+    
+    // שמור למאגר אם לא קיים (כדי שיופיע בחיפוש בפעם הבאה)
+    if (food.source === 'off' || food.source === 'manual') {
+      const { data: { user } } = await supabase.auth.getUser();
+      const exists = savedFoods.find(sf => sf.name === food.name);
+      if (!exists) {
+        const { data } = await supabase.from('coach_foods').insert({
+          coach_id: user.id,
+          name: food.name,
+          quantity_g: 100,
+          calories: food.cal,
+          protein_g: food.p,
+          carbs_g: food.c,
+          fat_g: food.f,
+          icon: food.icon || '🍽️',
+          source: food.source || 'manual',
+        }).select();
+        if (data?.[0]) setSavedFoods(prev => [data[0], ...prev]);
       }
     }
-
-    setSaving(false);
-    showToast(`✅ שוייכה ל-${ids.length} לקוחות`);
-    onClose();
+    
+    setSearch('');
+    setSearchResults([]);
+    showToast(`✅ ${food.name} נוסף`);
   };
 
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onClose} style={{
-          background: 'transparent', color: COLORS.primaryDark,
-          border: `1px solid ${COLORS.border}`, padding: '8px 14px',
-          borderRadius: 10, fontSize: 13, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>← ביטול</button>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>
-          שיוך: {template.name}
-        </h2>
-      </div>
-
-      <p style={{ fontSize: 12, color: COLORS.textMuted, margin: '0 4px' }}>
-        בחרי לקוחות שיקבלו {type === 'workout' ? 'את האימון' : 'את התפריט'}.
-        ניתן לבחור כמה.
-      </p>
-
-      {clients.length === 0 ? (
-        <div style={{ background: 'white', borderRadius: 14, padding: 30, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-          <p style={{ color: COLORS.textMuted, fontSize: 14, margin: 0 }}>
-            עדיין אין לך לקוחות פעילות
-          </p>
-        </div>
-      ) : (
-        clients.map(c => (
-          <button
-            key={c.id}
-            onClick={() => toggle(c.id)}
-            style={{
-              background: selected[c.id] ? COLORS.primarySoft : 'white',
-              border: `2px solid ${selected[c.id] ? COLORS.primary : COLORS.border}`,
-              borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              color: COLORS.text, textAlign: 'right',
-            }}
-          >
-            <span>{c.full_name}</span>
-            <span style={{ fontSize: 18, color: selected[c.id] ? COLORS.primary : COLORS.border }}>
-              {selected[c.id] ? '✓' : '○'}
-            </span>
-          </button>
-        ))
-      )}
-
-      <button
-        onClick={handleAssign}
-        disabled={saving || Object.values(selected).filter(Boolean).length === 0}
-        style={{
-          background: COLORS.primary, color: 'white', border: 'none',
-          padding: 14, borderRadius: 12, fontSize: 14, fontWeight: 700,
-          cursor: 'pointer', fontFamily: 'inherit',
-          opacity: saving || Object.values(selected).filter(Boolean).length === 0 ? 0.5 : 1,
-          marginTop: 8,
-        }}
-      >
-        {saving ? 'משייכת...' : `✅ שייכי ל-${Object.values(selected).filter(Boolean).length} לקוחות`}
-      </button>
-    </main>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════════
-   MEAL TEMPLATE EDITOR — עורך תפריט-תבנית
-═══════════════════════════════════════════════════════════ */
-function MealTemplateEditor({ template, coachId, onCancel, onSave }) {
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [meals, setMeals] = useState(template?.meal_plan_template_meals || []);
-  const [saving, setSaving] = useState(false);
-  const [editingMealIdx, setEditingMealIdx] = useState(null);
-
-  const total = React.useMemo(() => meals.reduce((s, m) => ({
-    kcal: s.kcal + (Number(m.total_kcal) || 0),
-    p: s.p + (Number(m.total_p) || 0),
-    c: s.c + (Number(m.total_c) || 0),
-    f: s.f + (Number(m.total_f) || 0),
-  }), { kcal: 0, p: 0, c: 0, f: 0 }), [meals]);
-
-  const addMeal = () => {
-    setMeals([...meals, {
-      _new: true, name: 'ארוחה חדשה', meal_type: 'snack',
-      items: [], total_kcal: 0, total_p: 0, total_c: 0, total_f: 0,
-      position: meals.length,
-    }]);
-    setEditingMealIdx(meals.length);
+  const updateItemQuantity = (index, newQty) => {
+    const qty = parseFloat(newQty) || 0;
+    setItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      const origQty = item.quantity_g || 100;
+      const r = qty / origQty;
+      return {
+        ...item,
+        quantity_g: qty,
+        cal: item.cal * r,
+        p: item.p * r,
+        c: item.c * r,
+        f: item.f * r,
+      };
+    }));
   };
 
-  const updateMeal = (idx, updated) => {
-    const next = [...meals];
-    next[idx] = updated;
-    setMeals(next);
+  const removeItem = (index) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
   };
 
-  const removeMeal = async (idx) => {
-    if (!confirm('למחוק ארוחה?')) return;
-    const m = meals[idx];
-    if (m.id) {
-      await supabase.from('meal_plan_template_meals').delete().eq('id', m.id);
-    }
-    setMeals(meals.filter((_, i) => i !== idx));
-  };
-
-  const duplicateMeal = (idx) => {
-    const o = meals[idx];
-    setMeals([...meals, {
-      ...o, _new: true, id: undefined,
-      name: `${o.name} (עותק)`, position: meals.length,
-      items: JSON.parse(JSON.stringify(o.items || [])),
-    }]);
-  };
+  const totals = items.reduce((t, i) => ({
+    cal: t.cal + (i.cal || 0),
+    p: t.p + (i.p || 0),
+    c: t.c + (i.c || 0),
+    f: t.f + (i.f || 0),
+  }), { cal: 0, p: 0, c: 0, f: 0 });
 
   const handleSave = async () => {
-    if (!name.trim()) { alert('הוסיפי שם לתפריט'); return; }
+    if (!name.trim() || items.length === 0) return;
     setSaving(true);
-
-    let templateId = template?.id;
-    if (templateId) {
-      await supabase.from('meal_plan_templates').update({
-        name: name.trim(),
-        description: description.trim() || null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', templateId);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    const mealData = {
+      coach_id: user.id,
+      name: name.trim(),
+      items,
+      total_calories: totals.cal,
+      total_protein_g: totals.p,
+      total_carbs_g: totals.c,
+      total_fat_g: totals.f,
+    };
+    
+    if (meal?.id) {
+      await supabase.from('meals').update(mealData).eq('id', meal.id);
+      logEvent('meal_updated', null, { meal_id: meal.id });
     } else {
-      const { data } = await supabase.from('meal_plan_templates').insert({
-        coach_id: coachId,
-        name: name.trim(),
-        description: description.trim() || null,
-        is_active: true,
-      }).select().single();
-      templateId = data?.id;
+      const { data: created } = await supabase.from('meals').insert(mealData).select().single();
+      logEvent('meal_plan_created', null, { meal_id: created?.id, items_count: items.length });
     }
-
-    for (let i = 0; i < meals.length; i++) {
-      const m = meals[i];
-      const payload = {
-        template_id: templateId,
-        name: m.name, meal_type: m.meal_type || 'snack',
-        notes: m.notes || null, items: m.items || [],
-        total_kcal: Number(m.total_kcal) || 0,
-        total_p: Number(m.total_p) || 0,
-        total_c: Number(m.total_c) || 0,
-        total_f: Number(m.total_f) || 0,
-        position: i,
-      };
-      if (m.id && !m._new) {
-        await supabase.from('meal_plan_template_meals').update(payload).eq('id', m.id);
-      } else {
-        await supabase.from('meal_plan_template_meals').insert(payload);
-      }
-    }
-
+    
     setSaving(false);
-    onSave();
+    onBack();
   };
-
-  if (editingMealIdx !== null) {
-    return (
-      <MealEditorInTemplate
-        meal={meals[editingMealIdx]}
-        onCancel={() => setEditingMealIdx(null)}
-        onSave={(u) => { updateMeal(editingMealIdx, u); setEditingMealIdx(null); }}
-      />
-    );
-  }
-
-  const inp = { width: '100%', padding: '10px 12px', boxSizing: 'border-box', border: `1px solid ${COLORS.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none' };
-  const btnP = { background: COLORS.primary, color: 'white', border: 'none', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
-  const btnG = { ...btnP, background: 'transparent', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}` };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onCancel} style={btnG}>← ביטול</button>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>
-          {template ? '✏️ עריכת תפריט' : '➕ תפריט חדש'}
-        </h2>
-      </div>
+      <BackHeader onBack={onBack} title={meal?.id ? 'עריכת ארוחה' : 'ארוחה חדשה'} />
 
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600 }}>שם התפריט *</p>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="תפריט יום אימון" style={inp} />
-        <p style={{ margin: '12px 0 6px', fontSize: 12, fontWeight: 600 }}>תיאור</p>
-        <input value={description} onChange={e => setDescription(e.target.value)} placeholder="גבוה בחלבון" style={inp} />
-      </div>
+      <section style={cardStyle}>
+        <Field label="שם הארוחה">
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="לדוגמה: ארוחת בוקר פרוטאין" style={inputStyle} autoFocus={!meal?.id} />
+        </Field>
+      </section>
 
-      <div style={{ background: `linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`, borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <h4 style={{ margin: '0 0 8px', fontSize: 14, color: COLORS.primaryDark, fontWeight: 700 }}>📊 סיכום מאקרו</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          {[
-            { l: 'קלוריות', v: total.kcal, u: 'קק״ל', c: COLORS.amber },
-            { l: 'חלבון', v: total.p, u: 'ג', c: COLORS.green || '#6BAF8A' },
-            { l: 'פחמ׳', v: total.c, u: 'ג', c: '#5C9DC8' },
-            { l: 'שומן', v: total.f, u: 'ג', c: '#D89A6E' },
-          ].map((m, i) => (
-            <div key={i} style={{ background: 'white', padding: 10, borderRadius: 10, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-              <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted, fontWeight: 600 }}>{m.l}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 800, color: m.c }}>{Math.round(m.v)}</p>
-              <p style={{ margin: 0, fontSize: 9, color: COLORS.textMuted }}>{m.u}</p>
-            </div>
-          ))}
+      {/* סיכום */}
+      <section style={{ ...cardStyle, background: COLORS.primarySoft, border: `1px solid ${COLORS.primary}` }}>
+        <p style={{ margin: '0 0 8px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>📊 סה״כ</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
+          <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.text }}>{Math.round(totals.cal)}</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>קק״ל</p></div>
+          <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.sky }}>{Math.round(totals.p)}g</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>חלבון</p></div>
+          <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>{Math.round(totals.c)}g</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>פחמ׳</p></div>
+          <div><p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#C88968' }}>{Math.round(totals.f)}g</p><p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>שומן</p></div>
         </div>
-      </div>
+      </section>
 
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>ארוחות ({meals.length})</h4>
-          <button onClick={addMeal} style={{ ...btnP, padding: '6px 12px', fontSize: 12 }}>➕ ארוחה</button>
-        </div>
-
-        {meals.map((m, i) => (
-          <div key={i} style={{ background: COLORS.bg, borderRadius: 10, padding: 10, marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{m.name}</p>
-                <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-                  {(m.items || []).length} מזונות · {Math.round(m.total_kcal || 0)} קק״ל · {Math.round(m.total_p || 0)}ג חלבון
+      {/* פריטים שנוספו */}
+      {items.length > 0 && (
+        <section style={cardStyle}>
+          <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>🍴 מאכלים בארוחה</p>
+          {items.map((item, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 10, marginBottom: 6 }}>
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+                <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
+                  {Math.round(item.cal)} קק״ל · חלבון {Math.round(item.p)}g
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={() => setEditingMealIdx(i)} style={iconBtn} title="עריכה">✏️</button>
-                <button onClick={() => duplicateMeal(i)} style={iconBtn} title="שכפול">📋</button>
-                <button onClick={() => removeMeal(i)} style={{ ...iconBtn, color: COLORS.red }} title="מחיקה">🗑️</button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {meals.length === 0 && (
-          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 20 }}>
-            עדיין לא הוספת ארוחות
-          </p>
-        )}
-      </div>
-
-      <button onClick={handleSave} disabled={saving} style={{ ...btnP, width: '100%', padding: 14, opacity: saving ? 0.6 : 1 }}>
-        {saving ? 'שומרת...' : '💾 שמור תפריט'}
-      </button>
-    </main>
-  );
-}
-
-
-/* ═══════════════════════════════════════════════════════════
-   MEAL EDITOR IN TEMPLATE — עורך ארוחה בתפריט-תבנית
-═══════════════════════════════════════════════════════════ */
-function MealEditorInTemplate({ meal, onCancel, onSave }) {
-  const [name, setName] = useState(meal.name || '');
-  const [mealType, setMealType] = useState(meal.meal_type || 'snack');
-  const [notes, setNotes] = useState(meal.notes || '');
-  const [items, setItems] = useState(meal.items || []);
-  const [searchOpen, setSearchOpen] = useState(false);
-
-  const total = React.useMemo(() => items.reduce((s, it) => ({
-    kcal: s.kcal + (Number(it.kcal) || 0),
-    p: s.p + (Number(it.p) || 0),
-    c: s.c + (Number(it.c) || 0),
-    f: s.f + (Number(it.f) || 0),
-  }), { kcal: 0, p: 0, c: 0, f: 0 }), [items]);
-
-  const addItem = (food) => {
-    setItems([...items, {
-      food_id: food.id || null, name: food.name,
-      qty: 100, unit: 'g',
-      base_kcal: Number(food.kcal_per_100g) || 0,
-      base_p: Number(food.protein_per_100g) || 0,
-      base_c: Number(food.carbs_per_100g) || 0,
-      base_f: Number(food.fat_per_100g) || 0,
-      kcal: Number(food.kcal_per_100g) || 0,
-      p: Number(food.protein_per_100g) || 0,
-      c: Number(food.carbs_per_100g) || 0,
-      f: Number(food.fat_per_100g) || 0,
-      source: 'database',
-    }]);
-    setSearchOpen(false);
-  };
-
-  const addManual = () => setItems([...items, {
-    food_id: null, name: 'מזון', qty: 100, unit: 'g',
-    base_kcal: 0, base_p: 0, base_c: 0, base_f: 0,
-    kcal: 0, p: 0, c: 0, f: 0, source: 'manual',
-  }]);
-
-  const updateItem = (i, field, val) => {
-    const next = [...items];
-    next[i] = { ...next[i], [field]: val };
-    const it = next[i];
-    if (it.source === 'database') {
-      const factor = it.unit === 'g' ? (Number(it.qty) || 0) / 100 : Number(it.qty) || 0;
-      it.kcal = it.base_kcal * factor;
-      it.p = it.base_p * factor;
-      it.c = it.base_c * factor;
-      it.f = it.base_f * factor;
-    }
-    setItems(next);
-  };
-
-  const removeItem = (i) => setItems(items.filter((_, idx) => idx !== i));
-
-  const handleSave = () => {
-    onSave({
-      ...meal,
-      name: name.trim() || 'ארוחה',
-      meal_type: mealType,
-      notes: notes.trim() || null,
-      items,
-      total_kcal: total.kcal, total_p: total.p,
-      total_c: total.c, total_f: total.f,
-    });
-  };
-
-  const inp = { width: '100%', padding: '10px 12px', boxSizing: 'border-box', border: `1px solid ${COLORS.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none' };
-  const btnP = { background: COLORS.primary, color: 'white', border: 'none', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
-  const btnG = { ...btnP, background: 'transparent', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}` };
-
-  return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onCancel} style={btnG}>← ביטול</button>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>✏️ עריכת ארוחה</h2>
-      </div>
-
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600 }}>שם הארוחה *</p>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="ארוחת בוקר" style={inp} />
-        <p style={{ margin: '12px 0 6px', fontSize: 12, fontWeight: 600 }}>סוג</p>
-        <select value={mealType} onChange={e => setMealType(e.target.value)} style={inp}>
-          <option value="breakfast">בוקר</option>
-          <option value="lunch">צהריים</option>
-          <option value="dinner">ערב</option>
-          <option value="snack">ביניים</option>
-        </select>
-        <p style={{ margin: '12px 0 6px', fontSize: 12, fontWeight: 600 }}>הערות</p>
-        <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="לפני אימון" style={inp} />
-      </div>
-
-      <div style={{ background: `linear-gradient(135deg, ${COLORS.primarySoft} 0%, white 100%)`, borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: COLORS.primaryDark, fontWeight: 700 }}>📊 מאקרו</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-          {[
-            { l: 'קלוריות', v: total.kcal, u: 'קק״ל', c: COLORS.amber },
-            { l: 'חלבון', v: total.p, u: 'ג', c: '#6BAF8A' },
-            { l: 'פחמ׳', v: total.c, u: 'ג', c: '#5C9DC8' },
-            { l: 'שומן', v: total.f, u: 'ג', c: '#D89A6E' },
-          ].map((m, i) => (
-            <div key={i} style={{ background: 'white', padding: 10, borderRadius: 10, textAlign: 'center', border: `1px solid ${COLORS.border}` }}>
-              <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted, fontWeight: 600 }}>{m.l}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 800, color: m.c }}>{Math.round(m.v)}</p>
-              <p style={{ margin: 0, fontSize: 9, color: COLORS.textMuted }}>{m.u}</p>
+              <input type="number" value={item.quantity_g} onChange={e => updateItemQuantity(idx, e.target.value)} style={{ width: 55, padding: 4, border: `1px solid ${COLORS.border}`, borderRadius: 6, fontSize: 11, textAlign: 'center', fontFamily: 'inherit' }} />
+              <span style={{ fontSize: 10, color: COLORS.textMuted }}>g</span>
+              <button onClick={() => removeItem(idx)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, color: '#C88A8A' }}>✕</button>
             </div>
           ))}
-        </div>
-      </div>
+        </section>
+      )}
 
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>מזונות ({items.length})</h4>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setSearchOpen(true)} style={{ ...btnP, padding: '6px 10px', fontSize: 11 }}>🔍 ממאגר</button>
-            <button onClick={addManual} style={{ ...btnG, padding: '6px 10px', fontSize: 11 }}>✏️ ידני</button>
-          </div>
-        </div>
+      {/* הוסיפי מאכל */}
+      <section style={cardStyle}>
+        <p style={{ margin: '0 0 10px', fontSize: '13px', fontWeight: 700, color: COLORS.primaryDark }}>➕ הוסיפי מאכל</p>
+        
+        <input 
+          value={search} 
+          onChange={e => setSearch(e.target.value)} 
+          placeholder="חפשי מזון או בחרי מהמאגר..." 
+          style={{ ...inputStyle, marginBottom: 10 }} 
+        />
 
-        {items.map((it, i) => {
-          const pctK = total.kcal > 0 ? Math.round((it.kcal / total.kcal) * 100) : 0;
-          return (
-            <div key={i} style={{ background: COLORS.bg, borderRadius: 10, padding: 10, marginBottom: 8 }}>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-                <input value={it.name} onChange={e => updateItem(i, 'name', e.target.value)} style={{ ...inp, flex: 2, fontSize: 13 }} placeholder="שם המזון" />
-                <input type="number" value={it.qty} onChange={e => updateItem(i, 'qty', e.target.value)} style={{ ...inp, flex: 1, fontSize: 13 }} />
-                <select value={it.unit} onChange={e => updateItem(i, 'unit', e.target.value)} style={{ ...inp, width: 70, fontSize: 12 }}>
-                  <option value="g">גרם</option>
-                  <option value="serving">מנה</option>
-                </select>
-                <button onClick={() => removeItem(i)} style={{ ...btnG, padding: '6px 8px', color: COLORS.red, fontSize: 11 }}>🗑️</button>
-              </div>
+        <button onClick={() => setShowManual(!showManual)} style={{ 
+          width: '100%', background: showManual ? COLORS.primarySoft : 'white', 
+          color: COLORS.text, border: `1px solid ${COLORS.border}`, 
+          padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600, 
+          cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 
+        }}>
+          {showManual ? '✕ סגרי' : '✏️ הוספה ידנית'}
+        </button>
 
-              {it.source === 'manual' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4 }}>
-                  <input type="number" value={it.kcal} onChange={e => updateItem(i, 'kcal', e.target.value)} placeholder="קק״ל" style={{ ...inp, fontSize: 11, padding: 6 }} />
-                  <input type="number" value={it.p} onChange={e => updateItem(i, 'p', e.target.value)} placeholder="חלבון" style={{ ...inp, fontSize: 11, padding: 6 }} />
-                  <input type="number" value={it.c} onChange={e => updateItem(i, 'c', e.target.value)} placeholder="פחמ׳" style={{ ...inp, fontSize: 11, padding: 6 }} />
-                  <input type="number" value={it.f} onChange={e => updateItem(i, 'f', e.target.value)} placeholder="שומן" style={{ ...inp, fontSize: 11, padding: 6 }} />
+        {showManual && (
+          <ManualFoodInput onAdd={(f) => { addItemToMeal({...f, source: 'manual'}); setShowManual(false); }} />
+        )}
+
+        {/* מאגר שמור */}
+        {savedMatches.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>📚 מהמאגר שלך:</p>
+            {savedMatches.slice(0, 8).map(f => (
+              editingSavedFood?.id === f.id ? (
+                <div key={f.id} style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 8, marginBottom: 4 }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600 }}>עריכת "{f.name}"</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 4, marginBottom: 6 }}>
+                    <input value={editingSavedFood.name} onChange={e => setEditingSavedFood({...editingSavedFood, name: e.target.value})} style={inputStyle} />
+                    <input type="number" value={editingSavedFood.calories} onChange={e => setEditingSavedFood({...editingSavedFood, calories: e.target.value})} placeholder="קק״ל" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.protein_g} onChange={e => setEditingSavedFood({...editingSavedFood, protein_g: e.target.value})} placeholder="P" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.carbs_g} onChange={e => setEditingSavedFood({...editingSavedFood, carbs_g: e.target.value})} placeholder="C" style={{ ...inputStyle, textAlign: 'center' }} />
+                    <input type="number" value={editingSavedFood.fat_g} onChange={e => setEditingSavedFood({...editingSavedFood, fat_g: e.target.value})} placeholder="F" style={{ ...inputStyle, textAlign: 'center' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => saveEditedFood()} style={{ flex: 1, background: COLORS.primary, color: 'white', border: 'none', padding: 8, borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>💾 שמרי</button>
+                    <button onClick={() => setEditingSavedFood(null)} style={{ background: 'white', color: COLORS.text, border: `1px solid ${COLORS.border}`, padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>ביטול</button>
+                  </div>
                 </div>
               ) : (
-                <div style={{ fontSize: 11, color: COLORS.textMuted, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <span>🔥 {Math.round(it.kcal)} קק״ל ({pctK}%)</span>
-                  <span>💪 {Math.round(it.p)}ג</span>
-                  <span>🍞 {Math.round(it.c)}ג</span>
-                  <span>🥑 {Math.round(it.f)}ג</span>
+                <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, marginBottom: 4 }}>
+                  <div onClick={() => addItemToMeal({
+                    name: f.name, cal: f.calories, p: f.protein_g, c: f.carbs_g, f: f.fat_g, icon: f.icon
+                  })} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 16 }}>{f.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                      <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{Math.round(f.calories)} קק״ל / 100g</p>
+                    </div>
+                    <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); setEditingSavedFood({...f}); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: COLORS.primary }} title="ערוך">✏️</button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteSavedFood(f.id); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, padding: 4, color: '#C88A8A' }} title="מחקי">🗑️</button>
                 </div>
-              )}
-            </div>
-          );
-        })}
-
-        {items.length === 0 && (
-          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 20 }}>
-            עדיין לא הוספת מזונות
-          </p>
+              )
+            ))}
+          </div>
         )}
-      </div>
 
-      <button onClick={handleSave} style={{ ...btnP, width: '100%', padding: 14 }}>✅ שמור ארוחה</button>
+        {/* תוצאות Open Food Facts */}
+        {search.trim().length >= 3 && (
+          <div style={{ marginTop: 10 }}>
+            <p style={{ fontSize: 11, color: COLORS.textMuted, margin: '0 0 6px' }}>🛒 מ-Open Food Facts:</p>
+            {searching && <p style={{ fontSize: 11, color: COLORS.textMuted, textAlign: 'center' }}>מחפשת...</p>}
+            {searchResults.map((f, i) => (
+              <div key={i} onClick={() => addItemToMeal(f)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, background: COLORS.bg, borderRadius: 8, cursor: 'pointer', marginBottom: 4 }}>
+                <span style={{ fontSize: 16 }}>{f.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: COLORS.textMuted }}>{f.cal} קק״ל / 100g</p>
+                </div>
+                <span style={{ fontSize: 16, color: COLORS.primary }}>+</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-      {searchOpen && <UnifiedFoodSearch onClose={() => setSearchOpen(false)} onSelect={addItem} />}
+      <button onClick={handleSave} disabled={!name.trim() || items.length === 0 || saving} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600,
+        cursor: (name.trim() && items.length > 0 && !saving) ? 'pointer' : 'default',
+        opacity: (name.trim() && items.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
+      }}>
+        {saving ? 'שומרת...' : '💾 שמרי ארוחה'}
+      </button>
+
+      {/* כפתור שמירה כתבנית גלובלית */}
+      {meal?.id && (
+        <button
+          onClick={async () => {
+            const totalCal = items.reduce((s, it) => s + (it.cal || 0), 0);
+            const totalP = items.reduce((s, it) => s + (it.p || 0), 0);
+            const totalC = items.reduce((s, it) => s + (it.c || 0), 0);
+            const totalF = items.reduce((s, it) => s + (it.f || 0), 0);
+            const desc = prompt('תיאור קצר לתבנית (אופציונלי):', '');
+            const { data: { user } } = await supabase.auth.getUser();
+            const { error } = await saveMealTemplate(user.id, {
+              template_name: name,
+              template_description: desc || '',
+              meals: [{ key: 'main', name, items, cal: totalCal, p: totalP, c: totalC, f: totalF }],
+            });
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast('✨ נשמר בספריית התבניות');
+          }}
+          style={{
+            width: '100%', background: 'white', color: COLORS.primaryDark,
+            border: `1px solid ${COLORS.primary}`,
+            padding: '12px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', marginTop: 8,
+          }}
+        >
+          ✨ שמרי גם בספריית התבניות הציבורית
+        </button>
+      )}
     </main>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   MANUAL FOOD INPUT
+═══════════════════════════════════════════════════════════ */
+function ManualFoodInput({ onAdd }) {
+  const [name, setName] = useState('');
+  const [cal, setCal] = useState('');
+  const [p, setP] = useState('');
+  const [c, setC] = useState('');
+  const [f, setF] = useState('');
+  const [icon, setIcon] = useState('🍽️');
 
-function FoodSearchInTemplate({ onClose, onSelect }) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const ICONS = ['🍽️', '🥗', '🍗', '🍎', '🥑', '🥛', '🥚', '🍞', '🥜', '🫐', '🍌', '🥕'];
 
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (!query.trim()) { setResults([]); return; }
-      setLoading(true);
-      const { data } = await supabase
-        .from('food_database')
-        .select('*')
-        .ilike('name', `%${query.trim()}%`)
-        .limit(20);
-      setResults(data || []);
-      setLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query]);
-
-  const inp = { width: '100%', padding: '10px 12px', boxSizing: 'border-box', border: `1px solid ${COLORS.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none' };
+  const submit = () => {
+    if (!name.trim() || !cal) return;
+    onAdd({
+      name: name.trim(),
+      cal: parseFloat(cal) || 0,
+      p: parseFloat(p) || 0,
+      c: parseFloat(c) || 0,
+      f: parseFloat(f) || 0,
+      icon,
+    });
+    setName(''); setCal(''); setP(''); setC(''); setF('');
+  };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      padding: 20, direction: 'rtl', overflowY: 'auto',
-    }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 14, padding: 16, maxWidth: 500, width: '100%', marginTop: 40 }} onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>🔍 חיפוש מזון</h3>
-        <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="חזה עוף, אורז..." style={{ ...inp, marginBottom: 10 }} />
-
-        {loading && <p style={{ textAlign: 'center', color: COLORS.textMuted }}>מחפשת...</p>}
-        {!loading && results.length === 0 && query.trim() && (
-          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12 }}>לא נמצאו מזונות</p>
-        )}
-
-        {results.map(f => (
-          <button key={f.id} onClick={() => onSelect(f)} style={{
-            width: '100%', textAlign: 'right', padding: 10,
-            background: COLORS.bg, border: `1px solid ${COLORS.border}`,
-            borderRadius: 10, marginBottom: 6, cursor: 'pointer', fontFamily: 'inherit',
-          }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{f.name}</p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>
-              ל-100ג: {f.kcal_per_100g || 0} קק״ל · {f.protein_per_100g || 0}ג חלבון
-            </p>
-          </button>
+    <div style={{ padding: 10, background: COLORS.primarySoft, borderRadius: 10, marginBottom: 10 }}>
+      <p style={{ margin: '0 0 8px', fontSize: 11, color: COLORS.textMuted }}>הזיני את הערכים ל-100g:</p>
+      
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, overflowX: 'auto' }}>
+        {ICONS.map(ic => (
+          <button key={ic} onClick={() => setIcon(ic)} style={{
+            width: 34, height: 34, borderRadius: 8,
+            border: `2px solid ${icon === ic ? COLORS.primary : COLORS.border}`,
+            background: icon === ic ? 'white' : COLORS.bg,
+            cursor: 'pointer', fontSize: 16, fontFamily: 'inherit', flexShrink: 0,
+          }}>{ic}</button>
         ))}
-
-        <button onClick={onClose} style={{
-          background: 'transparent', color: COLORS.primaryDark,
-          border: `1px solid ${COLORS.border}`, borderRadius: 10,
-          padding: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-          fontFamily: 'inherit', width: '100%', marginTop: 10,
-        }}>סגור</button>
       </div>
+
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="שם המאכל" style={{ ...inputStyle, marginBottom: 6 }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, marginBottom: 8 }}>
+        <input type="number" value={cal} onChange={e => setCal(e.target.value)} placeholder="קק״ל" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={p} onChange={e => setP(e.target.value)} placeholder="חלבון" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={c} onChange={e => setC(e.target.value)} placeholder="פחמ׳" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+        <input type="number" value={f} onChange={e => setF(e.target.value)} placeholder="שומן" style={{ ...inputStyle, textAlign: 'center', direction: 'ltr' }} />
+      </div>
+      <button onClick={submit} disabled={!name.trim() || !cal} style={{
+        width: '100%', background: COLORS.primary, color: 'white', border: 'none',
+        padding: 10, borderRadius: 8, fontSize: 12, fontWeight: 600,
+        cursor: (name.trim() && cal) ? 'pointer' : 'default',
+        opacity: (name.trim() && cal) ? 1 : 0.5, fontFamily: 'inherit',
+      }}>
+        + הוסיפי
+      </button>
     </div>
   );
 }
 
-
 /* ═══════════════════════════════════════════════════════════
-   WORKOUT TEMPLATE EDITOR — עורך אימון-תבנית
+   WORKOUTS TAB — ספיר יוצרת אימונים
 ═══════════════════════════════════════════════════════════ */
-function WorkoutTemplateEditor({ template, coachId, onCancel, onSave }) {
-  const [name, setName] = useState(template?.name || '');
-  const [description, setDescription] = useState(template?.description || '');
-  const [duration, setDuration] = useState(template?.duration_min || 45);
-  const [exercises, setExercises] = useState(template?.exercises || []);
-  const [saving, setSaving] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
+function WorkoutsTab({ showToast }) {
+  const [workouts, setWorkouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
 
-  const addExercise = () => setExercises([...exercises, { name: '', sets: 3, reps: '10', rest: 60, weight: '', notes: '', icon: '💪' }]);
+  useEffect(() => { load(); }, []);
 
-  const addFromLibrary = (ex) => {
-    setExercises([...exercises, {
-      name: ex.name_he || ex.name,
-      sets: 3, reps: '10', rest: 60, weight: '', notes: '',
-      icon: '💪',
-      // נתונים נוספים מהמאגר
-      library_id: ex.id,
-      muscles: (ex.primary_muscles_he || []).join(', '),
-      equipment: ex.equipment_he || '',
-      image: ex.images?.[0]
-        ? `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${ex.images[0]}`
-        : null,
-    }]);
-    setPickerOpen(false);
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('workouts').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setWorkouts(data);
+    setLoading(false);
   };
 
-  const updateEx = (i, field, val) => {
-    const n = [...exercises];
-    n[i] = { ...n[i], [field]: val };
-    setExercises(n);
+  const deleteWorkout = async (id, e) => {
+    e?.stopPropagation();
+    if (!confirm('למחוק את האימון?')) return;
+    await supabase.from('workouts').delete().eq('id', id);
+    setWorkouts(prev => prev.filter(w => w.id !== id));
+    showToast('🗑️ נמחק');
   };
-  const removeEx = (i) => setExercises(exercises.filter((_, idx) => idx !== i));
 
-  const handleSave = async () => {
-    if (!name.trim()) { alert('הוסיפי שם'); return; }
-    if (exercises.length === 0) { alert('הוסיפי לפחות תרגיל'); return; }
-    setSaving(true);
-    const payload = {
-      coach_id: coachId,
-      name: name.trim(),
-      description: description.trim() || null,
-      duration_min: Number(duration) || null,
-      exercises: exercises.filter(e => e.name.trim()),
-      is_active: true,
-    };
-    if (template?.id) {
-      await supabase.from('workout_templates').update(payload).eq('id', template.id);
-    } else {
-      await supabase.from('workout_templates').insert(payload);
+  const duplicateWorkout = async (w, e) => {
+    e?.stopPropagation();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.from('workouts').insert({
+      coach_id: user.id,
+      name: w.name + ' (עותק)',
+      exercises: w.exercises,
+    }).select();
+    if (data?.[0]) {
+      setWorkouts(prev => [data[0], ...prev]);
+      showToast('📋 שוכפל');
     }
-    setSaving(false);
-    onSave();
   };
 
-  const inp = { width: '100%', padding: '10px 12px', boxSizing: 'border-box', border: `1px solid ${COLORS.border}`, borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none' };
-  const btnP = { background: COLORS.primary, color: 'white', border: 'none', padding: '10px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' };
-  const btnG = { ...btnP, background: 'transparent', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}` };
+  if (editing !== null) {
+    return <WorkoutEditor workout={editing} onBack={() => { setEditing(null); load(); }} showToast={showToast} />;
+  }
+
+  // ספריית תבניות אימונים
+  if (showLibrary) {
+    return (
+      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>📚 ספריית אימונים</h2>
+        <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
+          תבניות אימונים מוכנות. בחרי תבנית והקצי אותה ללקוחה בלחיצה.
+        </p>
+        <WorkoutTemplateLibrary
+          onApply={async (template) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const { data: clientList } = await supabase
+              .from('clients').select('id, full_name').eq('coach_id', user.id);
+            if (!clientList || clientList.length === 0) {
+              showToast('אין לך עדיין לקוחות');
+              return;
+            }
+            const names = clientList.map((c, i) => `${i + 1}. ${c.full_name}`).join('\n');
+            const choice = prompt(`בחרי לקוחה (הזיני מספר):\n\n${names}`);
+            const idx = parseInt(choice) - 1;
+            if (idx < 0 || idx >= clientList.length || isNaN(idx)) return;
+            const { error } = await applyWorkoutTemplate(template.id, clientList[idx].id);
+            if (error) showToast('❌ שגיאה: ' + error.message);
+            else showToast(`✅ "${template.name}" הוקצה ל-${clientList[idx].full_name}`);
+          }}
+          onClose={() => setShowLibrary(false)}
+        />
+      </main>
+    );
+  }
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onCancel} style={btnG}>← ביטול</button>
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>
-          {template ? '✏️ עריכת אימון' : '➕ אימון חדש'}
-        </h2>
-      </div>
-
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600 }}>שם האימון *</p>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="פול באדי A" style={inp} />
-        <p style={{ margin: '12px 0 6px', fontSize: 12, fontWeight: 600 }}>תיאור</p>
-        <input value={description} onChange={e => setDescription(e.target.value)} placeholder="חזה ויחפים" style={inp} />
-        <p style={{ margin: '12px 0 6px', fontSize: 12, fontWeight: 600 }}>משך (דקות)</p>
-        <input type="number" value={duration} onChange={e => setDuration(e.target.value)} style={inp} />
-      </div>
-
-      <div style={{ background: 'white', borderRadius: 14, padding: 14, border: `1px solid ${COLORS.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>תרגילים ({exercises.length})</h4>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => setPickerOpen(true)} style={{ ...btnP, padding: '6px 10px', fontSize: 11 }}>🔍 ממאגר</button>
-            <button onClick={addExercise} style={{ ...btnG, padding: '6px 10px', fontSize: 11 }}>✏️ ידני</button>
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>אימונים</h2>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => setShowLibrary(true)} style={{ background: COLORS.primarySoft, color: COLORS.primaryDark, border: 'none', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            📚 ספרייה
+          </button>
+          <button onClick={() => setEditing({})} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '8px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            + אימון חדש
+          </button>
         </div>
+      </div>
 
-        {exercises.map((ex, i) => (
-          <div key={i} style={{ background: COLORS.bg, borderRadius: 10, padding: 10, marginBottom: 8 }}>
-            {ex.image && (
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                <img src={ex.image} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+      {loading ? <p style={{ textAlign: 'center', color: COLORS.textMuted }}>טוענת...</p>
+       : workouts.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', color: COLORS.textMuted }}>
+          <p style={{ fontSize: '14px', margin: 0 }}>עדיין אין אימונים</p>
+          <p style={{ fontSize: '12px', margin: '6px 0 0' }}>לחצי על "+ אימון חדש" למעלה 👆</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {workouts.map(w => (
+            <div key={w.id} onClick={() => setEditing(w)} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '14px', padding: '14px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  {ex.muscles && (
-                    <p style={{ margin: 0, fontSize: 10, color: COLORS.primaryDark, fontWeight: 600 }}>
-                      💪 {ex.muscles}
-                    </p>
-                  )}
-                  {ex.equipment && (
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: COLORS.textMuted }}>
-                      🏋️ {ex.equipment}
-                    </p>
-                  )}
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: COLORS.text }}>💪 {w.name}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '11px', color: COLORS.textMuted }}>
+                    {(w.exercises?.length || 0)} תרגילים
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  <button onClick={(e) => duplicateWorkout(w, e)} style={{ background: COLORS.primarySoft, border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>📋</button>
+                  <button onClick={(e) => deleteWorkout(w.id, e)} style={{ background: '#FADDDD', border: 'none', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit' }}>🗑️</button>
                 </div>
               </div>
-            )}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-              <input value={ex.name} onChange={e => updateEx(i, 'name', e.target.value)} placeholder="שם התרגיל" style={{ ...inp, flex: 1 }} />
-              <button onClick={() => removeEx(i)} style={{ ...btnG, padding: '6px 10px', color: COLORS.red }}>🗑️</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-              <input value={ex.sets} onChange={e => updateEx(i, 'sets', e.target.value)} placeholder="סטים" style={{ ...inp, fontSize: 12, padding: 8 }} />
-              <input value={ex.reps} onChange={e => updateEx(i, 'reps', e.target.value)} placeholder="חזרות" style={{ ...inp, fontSize: 12, padding: 8 }} />
-              <input value={ex.weight} onChange={e => updateEx(i, 'weight', e.target.value)} placeholder="משקל" style={{ ...inp, fontSize: 12, padding: 8 }} />
-              <input value={ex.rest} onChange={e => updateEx(i, 'rest', e.target.value)} placeholder="מנוחה" style={{ ...inp, fontSize: 12, padding: 8 }} />
-            </div>
-          </div>
-        ))}
-
-        {exercises.length === 0 && (
-          <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 12, padding: 20 }}>
-            עדיין לא הוספת תרגילים
-          </p>
-        )}
-      </div>
-
-      <button onClick={handleSave} disabled={saving} style={{ ...btnP, width: '100%', padding: 14, opacity: saving ? 0.6 : 1 }}>
-        {saving ? 'שומרת...' : '💾 שמור אימון'}
-      </button>
-
-      {pickerOpen && <ExercisePicker onSelect={addFromLibrary} onClose={() => setPickerOpen(false)} />}
+          ))}
+        </div>
+      )}
     </main>
   );
 }
-
-
-// סטייל משותף לכפתורי איקון
-const iconBtn = {
-  background: 'transparent',
-  color: COLORS.primaryDark,
-  border: `1px solid ${COLORS.border}`,
-  padding: '6px 10px',
-  borderRadius: 8,
-  fontSize: 12,
-  cursor: 'pointer',
-  fontFamily: 'inherit',
-};
-
-
 
 /* ═══════════════════════════════════════════════════════════
    WORKOUT EDITOR
@@ -3361,22 +1878,10 @@ function WorkoutEditor({ workout, onBack, showToast }) {
   useEffect(() => { loadSaved(); }, []);
 
   const loadSaved = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data, error } = await supabase
-        .from('coach_exercises')
-        .select('*')
-        .eq('coach_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) {
-        console.warn('coach_exercises table not available:', error);
-        return;
-      }
-      if (data) setSavedExercises(data);
-    } catch (e) {
-      console.warn('loadSaved failed:', e);
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('coach_exercises').select('*').eq('coach_id', user.id).order('created_at', { ascending: false });
+    if (data) setSavedExercises(data);
   };
 
   const savedMatches = search.trim()
@@ -3397,25 +1902,21 @@ function WorkoutEditor({ workout, onBack, showToast }) {
     setExercises(prev => [...prev, newEx]);
     
     // שמור למאגר אם חדש
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const exists = savedExercises.find(se => se.name === ex.name);
-      if (!exists && ex.name) {
-        const { data, error } = await supabase.from('coach_exercises').insert({
-          coach_id: user.id,
-          name: ex.name,
-          sets: newEx.sets,
-          reps: newEx.reps,
-          weight_kg: newEx.weight,
-          rest_seconds: newEx.rest,
-          icon: newEx.icon,
-          video_url: newEx.video_url,
-          notes: newEx.notes,
-        }).select();
-        if (!error && data?.[0]) setSavedExercises(prev => [data[0], ...prev]);
-      }
-    } catch (e) {
-      console.warn('Save to coach_exercises failed:', e);
+    const { data: { user } } = await supabase.auth.getUser();
+    const exists = savedExercises.find(se => se.name === ex.name);
+    if (!exists && ex.name) {
+      const { data } = await supabase.from('coach_exercises').insert({
+        coach_id: user.id,
+        name: ex.name,
+        sets: newEx.sets,
+        reps: newEx.reps,
+        weight_kg: newEx.weight,
+        rest_seconds: newEx.rest,
+        icon: newEx.icon,
+        video_url: newEx.video_url,
+        notes: newEx.notes,
+      }).select();
+      if (data?.[0]) setSavedExercises(prev => [data[0], ...prev]);
     }
     
     setSearch('');
@@ -3517,14 +2018,16 @@ function WorkoutEditor({ workout, onBack, showToast }) {
         )}
       </section>
 
-      <SpringButton onClick={handleSave} haptic="success" disabled={!name.trim() || exercises.length === 0 || saving} style={{
+      <button onClick={handleSave} disabled={!name.trim() || exercises.length === 0 || saving} style={{
         width: '100%', background: COLORS.primary, color: 'white', border: 'none',
         padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600,
         cursor: (name.trim() && exercises.length > 0 && !saving) ? 'pointer' : 'default',
         opacity: (name.trim() && exercises.length > 0 && !saving) ? 1 : 0.5, fontFamily: 'inherit',
       }}>
         {saving ? 'שומרת...' : '💾 שמרי אימון'}
-      </SpringButton>
+      </button>
+
+      {/* כפתור שמירה כתבנית גלובלית */}
       {workout?.id && (
         <button
           onClick={async () => {
@@ -3800,19 +2303,7 @@ function WeeklySchedule({ client, onBack, showToast }) {
     setEditDay(null);
   };
 
-  if (loading) return (
-    <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {[0,1,2,3,4].map(i => (
-        <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: 14 }}>
-          <Shimmer w="25%" h={13} r={6} style={{ marginBottom: 10 }} />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Shimmer h={36} r={8} style={{ flex: 1 }} />
-            <Shimmer h={36} r={8} style={{ flex: 2 }} />
-          </div>
-        </div>
-      ))}
-    </main>
-  );
+  if (loading) return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת...</main>;
 
   const getMealName = (id) => meals.find(m => m.id === id)?.name || 'ללא';
   const getWorkoutName = (id) => workouts.find(w => w.id === id)?.name || 'ללא';
@@ -3837,7 +2328,7 @@ function WeeklySchedule({ client, onBack, showToast }) {
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <BackHeader onBack={onBack} title={`לוח שבועי: ${(client.name||'').split(' ')[0]||'לקוחה'}`} />
+      <BackHeader onBack={onBack} title={`לוח שבועי: ${client.name.split(' ')[0]}`} />
 
       {(meals.length === 0 && workouts.length === 0) && (
         <div style={{ padding: 16, background: '#FFF4CC', border: '1px solid #F5D76E', borderRadius: 10, fontSize: 12, color: '#8B6914' }}>
@@ -3982,45 +2473,10 @@ function DayPicker({ dayName, meals, workouts, initialMealIds, initialWorkoutIds
 /* ===================== SETTINGS TAB ===================== */
 function SettingsTab({ showToast, onLogout, coachId }) {
   const [showArchive, setShowArchive] = useState(false);
-  const [isDark, setIsDark] = React.useState(
-    () => document.documentElement.getAttribute('data-theme') === 'dark'
-  );
-
-  const toggleDark = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
-    try { localStorage.setItem('sappir-theme', next ? 'dark' : 'light'); } catch {}
-  };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: COLORS.primaryDark }}>הגדרות</h2>
-
-      {/* 🍽️ מאגרי מזון */}
-      <section style={cardStyle}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 8px 0', color: COLORS.text }}>
-          🍽️ מאגרי מזון
-        </h3>
-        <p style={{ margin: '0 0 12px', fontSize: 12, color: COLORS.textMuted, lineHeight: 1.5 }}>
-          טעני את מאגר משרד הבריאות (4500+ פריטים בעברית). חיפוש Open Food Facts זמין אוטומטית בכל פעם שאת מחפשת מזון.
-        </p>
-        <MoHImportButton />
-      </section>
-
-      {/* 🌙 Dark Mode */}
-      <section style={cardStyle}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>תצוגה</h3>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: COLORS.text }}>{isDark ? '🌙 מצב כהה' : '☀️ מצב בהיר'}</p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: COLORS.textMuted }}>לחצי לשינוי מצב תצוגה</p>
-          </div>
-          <button onClick={toggleDark} style={{ width: 48, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', background: isDark ? COLORS.primaryDark : COLORS.border, position: 'relative', transition: 'background 0.25s' }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)', left: isDark ? 22 : 3 }} />
-          </button>
-        </div>
-      </section>
 
       <section style={cardStyle}>
         <h3 style={{ fontSize: '14px', fontWeight: 700, margin: '0 0 12px 0', color: COLORS.text }}>מיתוג</h3>
@@ -4131,8 +2587,6 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const [recentLogs, setRecentLogs] = useState([]);
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const c = client;
   
@@ -4218,47 +2672,32 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const handleDeleteClient = async () => {
     setDeleting(true);
     try {
-      // מחיקה ישירה — Supabase יעשה CASCADE לפי ה-foreign keys
-      // אם יש טבלאות בלי CASCADE, ננקה ידנית קודם
-      const cid = c.id;
+      // קרא ל-Edge Function שמוחקת גם מ-auth
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData?.session?.access_token;
 
-      // נקה ידנית טבלאות שייתכן ולא הוגדרו עם CASCADE
-      const tables = [
-        'meal_logs', 'weight_logs', 'workout_logs', 'water_logs',
-        'meal_schedule', 'workout_schedule',
-        'messages', 'notifications', 'reminders',
-        'progress_photos', 'body_measurements',
-        'client_workouts', 'meal_plans',
-        'feedback', 'daily_scores', 'achievements',
-        'broadcast_recipients',
-      ];
-
-      for (const t of tables) {
-        try {
-          // נסה client_id קודם
-          await supabase.from(t).delete().eq('client_id', cid);
-        } catch (e) {
-          // לא נכשל אם הטבלה לא קיימת
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/delete-client`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ clientId: c.id }),
         }
-        try {
-          // נסה גם to_id (להודעות שנשלחו אליה)
-          await supabase.from(t).delete().eq('to_id', cid);
-        } catch (e) {}
-        try {
-          // נסה גם from_id (להודעות שהיא שלחה)
-          await supabase.from(t).delete().eq('from_id', cid);
-        } catch (e) {}
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to delete');
       }
-
-      // מחק את הלקוחה עצמה
-      const { error } = await supabase.from('clients').delete().eq('id', cid);
-      if (error) throw error;
-
+      
       // חזור למסך הקודם
       onBack();
     } catch (err) {
-      console.error('Delete error:', err);
-      alert('שגיאה במחיקה: ' + (err.message || 'נסי שוב'));
+      alert('שגיאה במחיקה: ' + err.message);
       setDeleting(false);
       setShowDeleteConfirm(false);
     }
@@ -4291,21 +2730,28 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </div>
       } />
       
-      {/* Action buttons - תוכנית גמישה */}
+      {/* Action buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-        <button onClick={onWorkoutSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '22px' }}>🏋️</span>
-          תוכנית אימונים
-        </button>
         <button onClick={onSchedule} style={{ background: COLORS.primary, color: 'white', border: 'none', padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '22px' }}>🍽️</span>
-          תפריטי תזונה
+          <span style={{ fontSize: '22px' }}>📅</span>
+          לוח שבועי
+        </button>
+        <button onClick={onProgress} style={{ background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '12px 6px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '22px' }}>📊</span>
+          התקדמות
         </button>
       </div>
 
-      <button onClick={onProgress} style={{ width: '100%', background: 'white', color: COLORS.primaryDark, border: `1px solid ${COLORS.border}`, padding: '12px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ fontSize: 16 }}>📊</span>
-        התקדמות ומדדים
+      {/* 🗓️ לוח אימונים עם תזכורות חכמות */}
+      <button onClick={onWorkoutSchedule} style={{
+        width: '100%', background: 'white', color: COLORS.primaryDark,
+        border: `1px solid ${COLORS.primary}`, padding: '12px',
+        borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit', marginBottom: '12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 16 }}>🗓️</span>
+        לוח אימונים + תזכורות חכמות
       </button>
 
       {/* 📝 שלחי טופס משוב */}
@@ -4389,7 +2835,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
 
       <section style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-          <div style={{ ...avatarStyle, width: '52px', height: '52px', fontSize: '18px' }}>{(c.name||'?').charAt(0)}</div>
+          <div style={{ ...avatarStyle, width: '52px', height: '52px', fontSize: '18px' }}>{c.name.charAt(0)}</div>
           <div>
             <p style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>{c.name}</p>
             <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
@@ -4556,34 +3002,6 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </button>
       </div>
 
-      {/* 👤 פרטי התחברות הלקוחה */}
-      <div style={{ marginTop: '12px' }}>
-        <button onClick={() => setShowCredentials(true)} style={{
-          width: '100%', background: 'white', color: COLORS.primaryDark,
-          border: `1px solid ${COLORS.primary}`, padding: '12px',
-          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}>
-          <span style={{ fontSize: 16 }}>👤</span>
-          פרטי התחברות הלקוחה
-        </button>
-      </div>
-
-      {/* 🔑 כפתור איפוס סיסמה */}
-      <div style={{ marginTop: '12px' }}>
-        <button onClick={() => setShowResetPassword(true)} style={{
-          width: '100%', background: 'white', color: COLORS.primaryDark,
-          border: `1px solid ${COLORS.primary}`, padding: '12px',
-          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}>
-          <span style={{ fontSize: 16 }}>🔑</span>
-          איפוס סיסמת מתאמנת
-        </button>
-      </div>
-
       {/* 🗑️ כפתור מחיקת לקוחה - בתחתית! */}
       <div style={{ marginTop: '12px' }}>
         <button onClick={() => setShowDeleteConfirm(true)} style={{
@@ -4597,316 +3015,7 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           מחק לקוחה לצמיתות
         </button>
       </div>
-
-      {/* Dialog איפוס סיסמה */}
-      {showResetPassword && (
-        <ResetPasswordDialog
-          client={c}
-          onClose={() => setShowResetPassword(false)}
-        />
-      )}
-
-      {/* Dialog פרטי התחברות */}
-      {showCredentials && (
-        <CredentialsDialog
-          client={c}
-          onClose={() => setShowCredentials(false)}
-        />
-      )}
     </main>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CREDENTIALS DIALOG — הצגת פרטי התחברות הלקוחה
-═══════════════════════════════════════════════════════════ */
-function CredentialsDialog({ client, onClose }) {
-  const [copied, setCopied] = useState(null);
-
-  const copyToClipboard = (text, label) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(label);
-      setTimeout(() => setCopied(null), 1500);
-    });
-  };
-
-  const fields = [
-    { label: 'שם מלא', value: client.name || '—', key: 'name' },
-    { label: 'אימייל', value: client.email || '—', key: 'email' },
-    { label: 'טלפון', value: client.phone || '—', key: 'phone' },
-  ];
-
-  return (
-    <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        zIndex: 9999, display: 'flex', alignItems: 'center',
-        justifyContent: 'center', padding: 20, direction: 'rtl',
-      }}
-    >
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        style={{
-          background: 'white', borderRadius: 16, padding: 24,
-          maxWidth: 420, width: '100%',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>👤</div>
-          <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-            פרטי התחברות
-          </h3>
-          <p style={{ margin: 0, fontSize: 12, color: COLORS.textMuted }}>
-            הלקוחה משתמשת בפרטים האלו לכניסה
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          {fields.map(f => (
-            <div key={f.key} style={{
-              background: COLORS.bg, padding: 10, borderRadius: 10,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              gap: 10,
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ margin: 0, fontSize: 11, color: COLORS.textMuted, fontWeight: 600 }}>
-                  {f.label}
-                </p>
-                <p style={{
-                  margin: '2px 0 0', fontSize: 14, fontWeight: 600,
-                  color: COLORS.text, direction: f.key === 'email' || f.key === 'phone' ? 'ltr' : 'rtl',
-                  textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {f.value}
-                </p>
-              </div>
-              {f.value !== '—' && (
-                <button
-                  onClick={() => copyToClipboard(f.value, f.key)}
-                  style={{
-                    background: copied === f.key ? COLORS.green : 'white',
-                    color: copied === f.key ? 'white' : COLORS.primaryDark,
-                    border: `1px solid ${copied === f.key ? COLORS.green : COLORS.border}`,
-                    borderRadius: 8, padding: '6px 10px',
-                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                    fontFamily: 'inherit', flexShrink: 0,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {copied === f.key ? '✓ הועתק' : '📋 העתקה'}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div style={{
-          background: '#FFF8E1', border: `1px solid ${COLORS.amber}`,
-          borderRadius: 8, padding: 10, marginBottom: 14,
-        }}>
-          <p style={{ margin: 0, fontSize: 11, color: '#7A5C00', lineHeight: 1.5 }}>
-            🔒 <b>הסיסמה מוצפנת</b> ולא ניתנת לצפייה. אם הלקוחה שכחה — לחצי על "איפוס סיסמת מתאמנת".
-          </p>
-        </div>
-
-        <button onClick={onClose} style={{
-          width: '100%', background: COLORS.primary, color: 'white', border: 'none',
-          padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
-          cursor: 'pointer', fontFamily: 'inherit',
-        }}>סגירה</button>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   RESET PASSWORD DIALOG
-═══════════════════════════════════════════════════════════ */
-function ResetPasswordDialog({ client, onClose }) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [working, setWorking] = useState(false);
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleSubmit = async () => {
-    setError('');
-    if (newPassword.length < 6) {
-      setError('הסיסמה חייבת להיות לפחות 6 תווים');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('הסיסמאות לא תואמות');
-      return;
-    }
-
-    setWorking(true);
-
-    try {
-      const { data: authData } = await supabase.auth.getSession();
-      const token = authData?.session?.access_token;
-
-      if (!token) {
-        throw new Error('לא מחובר. נסי להתחבר מחדש.');
-      }
-
-      // קריאה ל-Edge Function לשינוי סיסמה ישיר
-      const supabaseUrl = supabase.supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/reset-client-password`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            clientId: client.id,
-            newPassword: newPassword,
-          }),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'שגיאה בעדכון סיסמה');
-      }
-
-      setDone(true);
-    } catch (err) {
-      console.error('Reset error:', err);
-      setError(err.message || 'שגיאה לא ידועה. נסי שוב.');
-    } finally {
-      setWorking(false);
-    }
-  };
-
-  const inputStyle = {
-    width: '100%', padding: '10px 12px', boxSizing: 'border-box',
-    border: `1px solid ${COLORS.border}`, borderRadius: 10,
-    fontSize: 14, fontFamily: 'inherit', outline: 'none',
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.5)', zIndex: 9999,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-      }}
-      onMouseDown={(e) => {
-        // סגור רק אם לחצו ממש על ה-overlay, לא על ילד שלו
-        if (e.target === e.currentTarget && !working) onClose();
-      }}
-    >
-      <div
-        style={{
-          background: 'white', borderRadius: 16, padding: 24,
-          maxWidth: 420, width: '100%',
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {done ? (
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-              הסיסמה עודכנה!
-            </h3>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: COLORS.textMuted, lineHeight: 1.6 }}>
-              הסיסמה של <strong>{client.name}</strong> עודכנה בהצלחה.
-              <br/>
-              עכשיו תוכלי לעדכן אותה לסיסמה החדשה — היא יכולה להתחבר מיידית.
-            </p>
-            <button onClick={onClose} style={{
-              background: COLORS.primary, color: 'white', border: 'none',
-              padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', width: '100%',
-            }}>סיום</button>
-          </div>
-        ) : (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>🔑</div>
-              <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: COLORS.primaryDark }}>
-                איפוס סיסמה
-              </h3>
-              <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>
-                <strong>{client.name}</strong>
-              </p>
-              <p style={{ margin: '8px 0 0', fontSize: 11, color: COLORS.textMuted, lineHeight: 1.5 }}>
-                הגדירי סיסמה חדשה — תוכלי לעדכן אותה ללקוחה
-              </p>
-            </div>
-
-            {error && (
-              <div style={{
-                background: '#FADDDD', border: '1px solid #C88A8A',
-                borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: '#8B4040',
-              }}>
-                {error}
-              </div>
-            )}
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>
-                סיסמה חדשה
-              </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                placeholder="לפחות 6 תווים"
-                style={inputStyle}
-                autoFocus
-              />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>
-                אימות סיסמה
-              </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="הקלידי שוב את הסיסמה"
-                style={inputStyle}
-              />
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.textMuted, marginBottom: 16, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={showPassword}
-                onChange={e => setShowPassword(e.target.checked)}
-                style={{ cursor: 'pointer' }}
-              />
-              הצג סיסמה
-            </label>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button onClick={onClose} disabled={working} style={{
-                background: 'white', color: COLORS.text,
-                border: `1px solid ${COLORS.border}`, padding: 12,
-                borderRadius: 10, fontSize: 14, fontWeight: 600,
-                cursor: working ? 'default' : 'pointer', fontFamily: 'inherit',
-                opacity: working ? 0.5 : 1,
-              }}>ביטול</button>
-              <button onClick={handleSubmit} disabled={working} style={{
-                background: COLORS.primary, color: 'white', border: 'none',
-                padding: 12, borderRadius: 10, fontSize: 14, fontWeight: 600,
-                cursor: working ? 'default' : 'pointer', fontFamily: 'inherit',
-                opacity: working ? 0.5 : 1,
-              }}>{working ? 'מעדכנת...' : 'עדכני סיסמה'}</button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -5007,7 +3116,7 @@ function MacroCalc({ client, onBack, onSave }) {
       </section>
 
       <button onClick={() => onSave({ weight, height, age, activity, goal, macroSplit: { carb: carbPct, protein: proteinPct, fat: fatPct }, savedGoals: { kcal: finalKcal, carbG, proteinG, fatG } })} disabled={totalPct !== 100} style={{ ...primaryBtnStyle, opacity: totalPct === 100 ? 1 : 0.4 }}>
-        💾 שמרי יעדים ל{(client.name||'').split(' ')[0]||'לקוחה'}
+        💾 שמרי יעדים ל{client.name.split(' ')[0]}
       </button>
     </main>
   );
@@ -5021,7 +3130,7 @@ function MacroClientPicker({ clients, onBack, onPick }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {clients.map((c) => (
           <button key={c.id} onClick={() => onPick(c)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', border: `1px solid ${COLORS.border}`, borderRadius: '12px', background: 'white', cursor: 'pointer', fontFamily: 'inherit', direction: 'rtl', textAlign: 'right' }}>
-            <div style={avatarStyle}>{(c.name||'?').charAt(0)}</div>
+            <div style={avatarStyle}>{c.name.charAt(0)}</div>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{c.name}</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: COLORS.textMuted }}>{c.savedGoals ? `🎯 ${c.savedGoals.kcal} קק״ל` : '⚠️ ללא יעד'}</p>
@@ -5043,7 +3152,7 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
   const templates = [
     'בוקר טוב, זוכרת שיש לך אימון היום 💪',
     'איך ההרגשה אחרי האימון?',
-    `${(client.name||'').split(' ')[0]||'לקוחה'}, כבוד! המשיכי ככה 💜`,
+    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
     'אני פה לכל שאלה',
   ];
 
@@ -5121,15 +3230,7 @@ function MessageCompose({ client, text, setText, onBack, onSend }) {
       
       {/* תיבת הודעות */}
       <section ref={scrollRef} style={{ ...cardStyle, flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '200px' }}>
-        {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '8px 0' }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{ display: 'flex', justifyContent: i % 2 === 0 ? 'flex-start' : 'flex-end' }}>
-                <Shimmer w={`${55 + i * 10}%`} h={36} r={14} />
-              </div>
-            ))}
-          </div>
-        )}
+        {loading && <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px' }}>טוענת...</p>}
         {!loading && messages.length === 0 && (
           <p style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: '13px', margin: 'auto 0' }}>
             עדיין אין הודעות.<br/>שלחי הודעה ראשונה 💜
@@ -5247,6 +3348,7 @@ function NewClient({ onBack, onInvite }) {
       </section>
     </main>
   );
+}
 
 /* ===================== EDIT CLIENT DETAILS ===================== */
 function EditClientDetails({ client, onBack, onSave }) {
@@ -5260,39 +3362,28 @@ function EditClientDetails({ client, onBack, onSave }) {
 
   const handleSave = async () => {
     setSaving(true);
+    
+    // עדכן ב-Supabase
+    await supabase.from('clients').update({
+      full_name: name,
+      email: email,
+      phone: phone,
+      height_cm: parseInt(height) || null,
+      age: parseInt(age) || null,
+      target_weight: parseFloat(target) || null,
+    }).eq('id', client.id);
 
-    try {
-      // עדכן ב-Supabase (רק שדות שקיימים בטבלה)
-      const { error } = await supabase.from('clients').update({
-        full_name: name,
-        email: email,
-        phone: phone,
-        height_cm: parseInt(height) || null,
-        target_weight: parseFloat(target) || null,
-      }).eq('id', client.id);
-
-      if (error) {
-        console.error('Update error:', error);
-        alert('שגיאה בשמירה: ' + error.message);
-        setSaving(false);
-        return;
-      }
-
-      // עדכן ב-state
-      onSave({
-        name,
-        email,
-        phone,
-        height: parseInt(height) || client.height,
-        age: parseInt(age) || client.age,
-        target: parseFloat(target) || client.target,
-      });
-    } catch (err) {
-      console.error('Save error:', err);
-      alert('שגיאה: ' + (err.message || 'נסי שוב'));
-    } finally {
-      setSaving(false);
-    }
+    // עדכן ב-state
+    onSave({
+      name,
+      email,
+      phone,
+      height: parseInt(height) || client.height,
+      age: parseInt(age) || client.age,
+      target: parseFloat(target) || client.target,
+    });
+    
+    setSaving(false);
   };
 
   const cardStyle = { 
@@ -5334,7 +3425,7 @@ function EditClientDetails({ client, onBack, onSave }) {
           padding: '4px'
         }}>←</button>
         <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#8B72B5' }}>
-          עריכת פרטי {(client.name || '').split(' ')[0] || 'לקוחה'}
+          עריכת פרטי {client.name.split(' ')[0]}
         </h2>
       </div>
 
@@ -5444,8 +3535,6 @@ function EditClientDetails({ client, onBack, onSave }) {
   );
 }
 
-}
-
 /* ═══════════════════════════════════════════════════════════
    COACH CHAT — דו שיח עם לקוחה
 ═══════════════════════════════════════════════════════════ */
@@ -5477,7 +3566,7 @@ function CoachChat({ client, messages, onBack, onSend, coachId }) {
 
   // הודעות מהירות לקיצור דרך
   const quickTemplates = [
-    `${(client.name||'').split(' ')[0]||'לקוחה'}, כבוד! המשיכי ככה 💜`,
+    `${client.name.split(' ')[0]}, כבוד! המשיכי ככה 💜`,
     'איך ההרגשה היום?',
     'אני פה לכל שאלה',
   ];
@@ -5653,36 +3742,14 @@ function ClientProgress({ client, onBack }) {
   });
 
   if (loading) {
-    return (
-      <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <Shimmer w={36} h={36} r={10} />
-          <Shimmer w="40%" h={16} r={7} />
-        </div>
-        <div style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 14, padding: 16 }}>
-          <Shimmer w="35%" h={13} r={6} style={{ marginBottom: 12 }} />
-          <Shimmer h={120} r={10} />
-        </div>
-        {[0,1].map(i => (
-          <div key={i} style={{ background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: 12, padding: '12px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Shimmer w="40%" h={12} r={5} />
-              <Shimmer w={50} h={12} r={5} />
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[0,1,2,3].map(j => <Shimmer key={j} h={10} r={4} style={{ flex: 1 }} />)}
-            </div>
-          </div>
-        ))}
-      </main>
-    );
+    return <main style={{ padding: '14px', textAlign: 'center', color: COLORS.textMuted }}>טוענת נתונים...</main>;
   }
 
   const mealIcon = { breakfast: '☀️', lunch: '🌞', dinner: '🌙', snack: '🍎' };
 
   return (
     <main style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <BackHeader onBack={onBack} title={`התקדמות ${(client.name||'').split(' ')[0]||'לקוחה'}`} />
+      <BackHeader onBack={onBack} title={`התקדמות ${client.name.split(' ')[0]}`} />
 
       <div style={{ display: 'flex', gap: '4px', background: 'white', border: `1px solid ${COLORS.border}`, borderRadius: '10px', padding: '4px' }}>
         {[
@@ -5919,10 +3986,8 @@ function AddClientModal({ onBack, showToast, onCreated }) {
       });
       setStep(3);
       
-      // רענן את רשימת הלקוחות
-      setTimeout(() => {
-        onCreated();
-      }, 2000);
+      // רענן את רשימת הלקוחות ברקע - המסך יישאר פתוח עד שהקואצ' תסגור ידנית
+      onCreated();
 
     } catch (e) {
       setError('שגיאה: ' + e.message);
