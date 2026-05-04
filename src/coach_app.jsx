@@ -2588,6 +2588,10 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
   const [progressPhotos, setProgressPhotos] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(null);
   const c = client;
   
   // טען משקלים אמיתיים מה-DB
@@ -2668,6 +2672,44 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
     loadPhotos();
   }, [c.id]);
   
+  // איפוס סיסמה ללקוחה
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      alert('הסיסמה חייבת להיות לפחות 8 תווים');
+      return;
+    }
+    setResetting(true);
+    try {
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData?.session?.access_token;
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/reset-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ clientId: c.id, newPassword }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      setResetSuccess({ email: c.email || data.email, password: newPassword });
+      setNewPassword('');
+    } catch (err) {
+      alert('שגיאה באיפוס הסיסמה: ' + err.message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // מחיקת לקוחה
   const handleDeleteClient = async () => {
     setDeleting(true);
@@ -3002,6 +3044,20 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
         </button>
       </div>
 
+      {/* 🔑 כפתור איפוס סיסמה */}
+      <div style={{ marginTop: '12px' }}>
+        <button onClick={() => { setShowResetPassword(true); setResetSuccess(null); setNewPassword(''); }} style={{
+          width: '100%', background: 'white', color: COLORS.primaryDark,
+          border: `1px solid ${COLORS.primary}`, padding: '12px',
+          borderRadius: '10px', fontSize: '13px', fontWeight: 600,
+          cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 16 }}>🔑</span>
+          איפוס סיסמת מתאמנת
+        </button>
+      </div>
+
       {/* 🗑️ כפתור מחיקת לקוחה - בתחתית! */}
       <div style={{ marginTop: '12px' }}>
         <button onClick={() => setShowDeleteConfirm(true)} style={{
@@ -3015,6 +3071,126 @@ function ClientProfile({ client, onBack, onMessage, onEditGoals, onEdit, onSched
           מחק לקוחה לצמיתות
         </button>
       </div>
+
+      {/* 🔑 מודאל איפוס סיסמה */}
+      {showResetPassword && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: 16, direction: 'rtl',
+        }} onClick={() => !resetting && setShowResetPassword(false)}>
+          <div style={{
+            background: 'white', borderRadius: 16, padding: 20,
+            maxWidth: 360, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }} onClick={(e) => e.stopPropagation()}>
+            {!resetSuccess ? (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>🔑</div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.primaryDark }}>
+                    איפוס סיסמת {c.name?.split(' ')[0]}
+                  </h3>
+                  <p style={{ fontSize: 12, color: COLORS.textMuted, margin: '8px 0 0', lineHeight: 1.5 }}>
+                    בחרי סיסמה חדשה (לפחות 8 תווים).<br/>
+                    תקבלי טקסט מוכן לשליחה ב-WhatsApp.
+                  </p>
+                </div>
+
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="סיסמה חדשה"
+                  autoFocus
+                  style={{
+                    width: '100%', padding: 12, fontSize: 14,
+                    border: `1px solid ${COLORS.border}`, borderRadius: 10,
+                    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+                    direction: 'ltr', textAlign: 'right', marginBottom: 12,
+                  }}
+                />
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setShowResetPassword(false)}
+                    disabled={resetting}
+                    style={{
+                      flex: 1, background: 'white', color: COLORS.text,
+                      border: `1px solid ${COLORS.border}`, padding: 12,
+                      borderRadius: 10, fontSize: 13, fontWeight: 600,
+                      cursor: resetting ? 'default' : 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    onClick={handleResetPassword}
+                    disabled={resetting || newPassword.length < 8}
+                    style={{
+                      flex: 1, background: COLORS.primary, color: 'white',
+                      border: 'none', padding: 12, borderRadius: 10,
+                      fontSize: 13, fontWeight: 600,
+                      cursor: (resetting || newPassword.length < 8) ? 'default' : 'pointer',
+                      fontFamily: 'inherit',
+                      opacity: (resetting || newPassword.length < 8) ? 0.5 : 1,
+                    }}
+                  >
+                    {resetting ? 'מאפס...' : '🔑 אפסי סיסמה'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#2E7D32' }}>
+                    הסיסמה אופסה!
+                  </h3>
+                </div>
+
+                <div style={{ background: COLORS.primarySoft, borderRadius: 12, padding: 14, marginBottom: 12, textAlign: 'right' }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: COLORS.primaryDark, margin: '0 0 8px' }}>
+                    📧 פרטי התחברות חדשים:
+                  </p>
+                  <div style={{ fontSize: 13, fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}>
+                    <p style={{ margin: '4px 0' }}><strong>אימייל:</strong> {resetSuccess.email}</p>
+                    <p style={{ margin: '4px 0' }}><strong>סיסמה חדשה:</strong> {resetSuccess.password}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const text = `היי ${c.name?.split(' ')[0]}! 💜\n\nאיפסתי לך את הסיסמה לאפליקציה.\nהפרטים החדשים שלך:\n\n📧 אימייל: ${resetSuccess.email}\n🔐 סיסמה: ${resetSuccess.password}\n\nמומלץ לשנות את הסיסמה אחרי הכניסה הראשונה 💪`;
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(text);
+                      alert('הועתק ללוח! אפשר להדביק ב-WhatsApp');
+                    }
+                  }}
+                  style={{
+                    width: '100%', background: 'white', color: COLORS.primaryDark,
+                    border: `1px solid ${COLORS.border}`, padding: 12,
+                    borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8,
+                  }}
+                >
+                  📋 העתיקי הודעה לשליחה
+                </button>
+
+                <button
+                  onClick={() => { setShowResetPassword(false); setResetSuccess(null); }}
+                  style={{
+                    width: '100%', background: COLORS.primary, color: 'white',
+                    border: 'none', padding: 12, borderRadius: 10,
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  סגור ✓
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
